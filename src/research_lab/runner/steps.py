@@ -1,0 +1,83 @@
+"""밤의 단계 정의와 「어디부터 이어받나」 판정.
+
+밤은 한 세션을 길게 돌리는 구조가 아니다. 단계마다 짧게 부르고 산출물을 파일로 인계하므로
+어디서 끊겨도 그 단계부터 다시 시작한다. `--resume` 은 보험이지 뼈대가 아니다.
+"""
+
+from collections.abc import Sequence
+from typing import Final
+
+# 밤이 도는 순서.
+#
+# [중요] 이 이름은 상태 파일에 기록돼 다음 밤이 읽는 «식별자»다. 표시용 문구가 아니므로
+# 영문으로 두고, 바꿀 때는 예전 상태 파일을 어떻게 다룰지 함께 정해야 한다 —
+# 그러지 않으면 끝난 단계를 처음부터 다시 돌면서 예산만 두 배로 쓴다.
+#
+# 「탐색」이 먼저인 이유는 그것이 「수집」의 입력을 만들기 때문이다.
+# 원장이 비어 있으면 수집이 팔 후보가 없다
+STEPS: Final = ("explore", "collect")
+
+
+class UnknownStepError(ValueError):
+    """상태 파일에 정의되지 않은 단계 이름이 들어 있을 때."""
+
+
+class StepNotImplementedError(RuntimeError):
+    """정의된 단계인데 실행부가 없을 때 — 내부 불변조건 위반.
+
+    [중요] 이것은 «실패»가 아니라 «고장»이라 재시도 대상이 아니다. 「그 외」로 묻히면
+    상한까지 헛돌고 나서 「다음 밤이 이어받습니다」라는 종료 코드로 보고되어,
+    **아무 일도 안 하는 상태를 정상으로 알린다.** 그래서 러너가 이 예외만은 그대로 터뜨린다.
+    """
+
+
+class StepFailed(RuntimeError):
+    """단계가 실패했을 때. **에이전트의 출력 원문을 그대로 들고 다닌다.**
+
+    분류는 `failures.classify` 가 하고 이 예외는 나르기만 한다. 여기서 미리 분류하면
+    분류표를 고칠 때 예외를 올리는 쪽까지 따라 고쳐야 하고, 무엇보다 **원문이 요약되면
+    처음 한도에 부딪히는 날 그 답을 못 얻는다.**
+    """
+
+    def __init__(self, raw: str) -> None:
+        super().__init__(raw)
+        self.raw = raw
+
+
+class StepQualityFailed(StepFailed):
+    """산출물이 규율을 못 지켰을 때 — 게이트가 막은 것이다.
+
+    [중요] **재시도 대상이 아니다.** 네트워크 끊김처럼 「기다리면 풀리는」 것이 아니라
+    그 호출의 결과 자체가 기준에 못 미친 것이라, 같은 밤에 세 번 더 부르면
+    **full 예산을 세 번 더 쓰고도 같은 자리에 설 공산이 크다.**
+    그 밤은 미완성으로 끝내고 다음 밤이 다시 잡는다.
+    """
+
+
+def next_step(completed: Sequence[str]) -> str | None:
+    """다음에 실행할 단계를 고른다.
+
+    Args:
+        completed: 이미 끝난 단계 이름들. 실패·재시도로 **순서가 뒤섞여 있을 수 있다**
+
+    Returns:
+        정의된 순서 기준으로 아직 안 한 첫 단계. 다 끝났으면 None —
+        마지막 단계를 돌려주면 완성된 산출물 위에 다시 쓴다
+
+    Raises:
+        UnknownStepError: 정의에 없는 이름이 들어 있을 때. 조용히 무시하면
+            **끝난 단계를 처음부터 다시 돈다**
+    """
+    unknown = [name for name in completed if name not in STEPS]
+    if unknown:
+        raise UnknownStepError(
+            f"정의에 없는 단계가 상태에 들어 있습니다: {unknown}. " f"단계 이름을 바꿨다면 예전 상태 파일을 어떻게 다룰지 먼저 정하세요. " f"정의된 단계: {list(STEPS)}"
+        )
+
+    done = set(completed)
+    # 기록된 순서가 아니라 «정의된 순서»로 판정한다.
+    # 목록의 마지막 원소를 보고 다음을 정하면 엉뚱한 단계로 건너뛴다
+    for name in STEPS:
+        if name not in done:
+            return name
+    return None
