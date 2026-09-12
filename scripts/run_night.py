@@ -8,6 +8,7 @@
 """
 
 import argparse
+import json
 import os
 import sys
 from collections.abc import Mapping
@@ -28,7 +29,16 @@ from research_lab.common_constants import (  # noqa: E402
     RUNS_DIR,
 )
 from research_lab.gate import secrets  # noqa: E402
-from research_lab.runner import collect, decision_log, explore, night, state, steps  # noqa: E402
+from research_lab.runner import (  # noqa: E402
+    collect,
+    decision_log,
+    explore,
+    lineage,
+    night,
+    rebut,
+    state,
+    steps,
+)
 from research_lab.runner.failures import FailureKind  # noqa: E402
 
 # 종료 코드. **무인 실행에서 사람이 받는 신호가 이것뿐**이라 갈래마다 다른 값을 준다.
@@ -75,6 +85,12 @@ def main(argv: list[str] | None = None) -> int:
             explore.run(current_run_dir, args.ledger, ask)
         elif step == "collect":
             collect.run(current_run_dir, args.ledger, ask)
+        elif step == "rebut":
+            # 원장을 안 받는다 — 이 단계는 그 밤의 후보를 «상태»에서 읽고 아무것도 표시하지 않는다.
+            # 안 쓰는 인자를 받아 두면 「반증도 원장을 고친다」로 읽힌다
+            rebut.run(current_run_dir, ask)
+        elif step == "lineage":
+            lineage.run(current_run_dir, args.ledger, ask)
         else:
             # 단계 목록은 `steps.STEPS` 하나가 정한다. 여기 도달했다는 것은 그 목록에
             # 이름을 더하면서 실행부를 안 붙였다는 뜻이라, 조용히 넘기면 그 단계가
@@ -153,22 +169,39 @@ def _latest_unfinished_run_dir() -> Path | None:
     if not RUNS_DIR.is_dir():
         return None
 
-    for candidate in sorted((path for path in RUNS_DIR.iterdir() if path.is_dir()), reverse=True):
-        if (candidate / LOCK_FILENAME).exists():
+    for run_dir in sorted((path for path in RUNS_DIR.iterdir() if path.is_dir()), reverse=True):
+        if (run_dir / LOCK_FILENAME).exists():
             # 다른 프로세스가 잡고 있다. 골라 봐야 잠금에 막히고, 그 사이 새 밤도 못 돈다
             continue
 
-        saved = state.load(candidate)
+        try:
+            saved = state.load(run_dir)
+        except (OSError, json.JSONDecodeError):
+            # 깨진 상태 파일이다. 이어받을 수 없으므로 건너뛰고 새 밤을 시작한다 —
+            # 여기서 터뜨리면 그 폴더 하나 때문에 **이후 모든 밤이 서고**,
+            # 무인 실행에서는 그 사실을 며칠 뒤에나 알게 된다
+            continue
+
         if saved is None:
             continue
 
         try:
-            if steps.next_step(saved.get("settled", [])) is not None:
-                return candidate
+            remaining = steps.next_step(saved.get("settled", []))
         except steps.UnknownStepError:
             # 단계 이름을 바꾼 뒤에 남은 예전 상태다. 이어받을 수 없으므로 건너뛰고
             # 새 밤을 시작한다 — 여기서 터뜨리면 그 폴더 하나 때문에 파이프라인이 선다
             continue
+
+        if remaining is None:
+            continue
+
+        if remaining in steps.CANDIDATE_STEPS and state.pinned_candidate(run_dir) is None:
+            # [중요] 단계를 늘리기 «전»에 끝난 밤이 여기 걸린다. 수집까지 끝냈지만
+            # 그 밤이 어느 후보를 팠는지 상태에 없어, 이어받으면 후보 없이 반증이 돌고
+            # 상한까지 헛돈다. 위 갈래와 같은 이유로 건너뛰고 새 밤을 시작한다
+            continue
+
+        return run_dir
 
     return None
 

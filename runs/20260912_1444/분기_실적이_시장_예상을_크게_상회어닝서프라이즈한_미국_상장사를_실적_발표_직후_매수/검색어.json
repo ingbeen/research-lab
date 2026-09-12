@@ -1,0 +1,12 @@
+{
+  "claim": "분기 실적이 시장 예상을 크게 상회(어닝서프라이즈)한 미국 상장사를 실적 발표 직후 매수해 60~90일 보유하고, 하회한 종목은 공매도한다",
+  "queries": [
+    "post earnings announcement drift PEAD strategy evidence",
+    "어닝서프라이즈 이후 주가 드리프트 매매 전략",
+    "Bernard Thomas 1989 standardized unexpected earnings drift original paper",
+    "SUE standardized unexpected earnings long short 60 days holding period abnormal return",
+    "실적 서프라이즈 이후 주가 지속 상승 이상현상 논문",
+    "quarterly earnings surprise long short portfolio 90 day holding period backtest return",
+    "미국 주식 어닝서프라이즈 매수 어닝쇼크 공매도 전략 개인투자자"
+  ]
+}

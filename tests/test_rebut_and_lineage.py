@@ -1,0 +1,339 @@
+"""반증·계보 두 단계가 남기는 것의 계약을 고정한다.
+
+**반증을 별도 세션으로 떼는 이유**는 하나다 — 같은 세션에서 찬성 근거를 잔뜩 모은 다음
+「이제 반증을 찾아라」라고 하면, 자기가 방금 지지한 것을 스스로 무너뜨리라는 요구가 되고
+**사람도 잘 못 한다.** 그래서 이 세션은 **한 줄 주장만** 받는다.
+
+[중요] 세션이 갈리는 것은 구조가 보장하지만 **파일을 일부러 찾아 읽는 것까지는 못 막는다.**
+스킬을 읽히려면 `Read` 도구가 필요해 도구를 뺄 수 없고, 실행 디렉터리가 저장소라 그 밤의
+폴더가 보인다. 그래서 판정 대신 **계측을 심는다** — 반증 URL 과 찬성 URL 이 얼마나 겹쳤나를
+로그에 적되, 그것으로 막지는 않는다. 겹치는 것 자체는 정상일 수도 있다(같은 논문을 양쪽이 인용).
+"""
+
+import json
+from pathlib import Path
+
+import pytest
+
+from research_lab.agent.invoke import AgentResult
+from research_lab.common_constants import (
+    LINEAGE_FILENAME,
+    PRO_EVIDENCE_FILENAME,
+    REBUTTAL_FILENAME,
+    REBUTTAL_QUERIES_FILENAME,
+)
+from research_lab.runner import decision_log, ledger, lineage, naming, rebut, state
+from research_lab.runner.steps import StepQualityFailed
+
+CLAIM = "11월 첫 거래일에 사서 4월 마지막 거래일에 판다"
+QUERIES = ["Sell in May 비판", "sell in may debunked", "할로윈 효과 재현 실패"]
+
+
+def _answer(payload: object) -> AgentResult:
+    """에이전트가 그 JSON 을 돌려줬다고 치는 응답."""
+    text = json.dumps(payload, ensure_ascii=False)
+    return AgentResult(text=text, raw=text, cost_usd=0.5, tokens=100, elapsed_seconds=1.0, session_id="세션")
+
+
+def _pin(run_dir: Path, ledger_path: Path) -> Path:
+    """그 밤의 후보를 원장과 상태에 박고 후보 폴더를 돌려준다."""
+    ledger.append(ledger_path, CLAIM, identifier="sell-in-may")
+    state.pin_candidate(run_dir, state.Candidate(claim=CLAIM, identifier="sell-in-may"))
+    return run_dir / naming.folder_name(CLAIM, "sell-in-may")
+
+
+def _write_pro_evidence(output_dir: Path, urls: list[str]) -> None:
+    """수집이 남겼을 찬성 근거 파일을 만든다."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    payload = {"claim": CLAIM, "evidence": [{"url": url} for url in urls], "unverified": []}
+    (output_dir / PRO_EVIDENCE_FILENAME).write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+
+# --------------------------------------------------------------------------
+# 반증
+# --------------------------------------------------------------------------
+
+
+def test_rebut_prompt_carries_only_the_claim() -> None:
+    """
+    목적: 반증 세션이 «한 줄 주장만» 받는 계약을 고정한다.
+
+    찬성 근거가 프롬프트에 실리면 별도 세션으로 뗀 의미가 사라진다 — 맥락을 끊으려고
+    나눈 것인데 그 맥락을 손으로 다시 실어 주는 셈이 된다.
+
+    Given: 한 줄 주장
+    When: 지시문을 만든다
+    Then: 주장은 들어 있고, 「이 주장을 깨라」가 임무로 적혀 있다
+    """
+    prompt = rebut.build_prompt(CLAIM)
+
+    assert CLAIM in prompt
+    assert "반증" in prompt
+
+
+def test_rebut_writes_its_own_file(tmp_path: Path) -> None:
+    """
+    목적: 반증이 산출물을 «파일»로 남기는 계약을 고정한다.
+
+    아무도 보지 않는 시간에 도는 실행이라 화면에 쓴 것은 사라진다.
+
+    Given: 반증 하나를 내놓는 응답
+    When: 반증을 돈다
+    Then: 후보 폴더에 반증 파일이 생기고 내용이 들어 있다
+    """
+    run_dir = tmp_path / "run"
+    output_dir = _pin(run_dir, tmp_path / "원장.md")
+
+    rebut.run(
+        run_dir,
+        lambda _: _answer(
+            {
+                "claim": CLAIM,
+                "queries": QUERIES,
+                "rebuttals": [{"title": "재현 실패", "url": "https://example.com/반박", "kind": "primary"}],
+                "unverified": [],
+            }
+        ),
+    )
+
+    written = json.loads((output_dir / REBUTTAL_FILENAME).read_text(encoding="utf-8"))
+    assert written["claim"] == CLAIM
+    assert written["rebuttals"][0]["url"] == "https://example.com/반박"
+
+    # 검색어도 «후보 폴더»에 남는다. 결정 로그에만 두면 그 후보의 산출물만 모아 볼 때
+    # 「반대편으로 갈아 끼웠나」를 확인할 길이 사라진다
+    queries = json.loads((output_dir / REBUTTAL_QUERIES_FILENAME).read_text(encoding="utf-8"))
+    assert queries["queries"] == QUERIES
+
+
+def test_rebut_records_overlap_with_pro_evidence(tmp_path: Path) -> None:
+    """
+    목적: 반증이 찬성 근거와 «얼마나 겹쳤나»를 계측해 남기는 계약을 고정한다.
+
+    이 단계가 찬성 근거 파일을 몰래 읽는 것은 기계로 못 막는다. 그래서 막는 대신
+    **재서 남긴다** — 높으면 의심 신호다. [중요] **이 값으로 판정하지 않는다.**
+    같은 논문을 찬성·반증이 함께 인용하는 것은 정상이기 때문이다.
+
+    Given: 찬성 근거와 URL 하나가 겹치는 반증
+    When: 반증을 돈다
+    Then: 겹친 수가 결정 로그에 남는다
+    """
+    run_dir = tmp_path / "run"
+    output_dir = _pin(run_dir, tmp_path / "원장.md")
+    _write_pro_evidence(output_dir, ["https://example.com/같은글", "https://example.com/찬성만"])
+
+    rebut.run(
+        run_dir,
+        lambda _: _answer(
+            {
+                "queries": QUERIES,
+                "rebuttals": [{"url": "https://example.com/같은글"}, {"url": "https://example.com/반증만"}],
+            }
+        ),
+    )
+
+    judged = [e for e in decision_log.read(run_dir) if e["event"] == decision_log.EVENT_JUDGED]
+    assert judged[0]["overlap_with_pro_evidence"] == 1
+
+
+def test_rebut_is_blocked_when_the_field_is_missing(tmp_path: Path) -> None:
+    """
+    목적: 반증 칸이 없는 응답이 그 밤을 «미완성»으로 만드는 계약을 고정한다.
+
+    이것이 게이트 1차의 본체다. 재시도 대상이 아닌 「질」 갈래로 올라가야
+    같은 밤에 full 예산으로 세 번 더 부르지 않는다.
+
+    Given: 반증 칸이 없는 응답
+    When: 반증을 돈다
+    Then: 「질」 실패가 오르고 사유가 실려 있다
+    """
+    run_dir = tmp_path / "run"
+    _pin(run_dir, tmp_path / "원장.md")
+
+    with pytest.raises(StepQualityFailed):
+        rebut.run(run_dir, lambda _: _answer({"queries": QUERIES}))
+
+
+def test_rebut_is_blocked_when_queries_are_too_few(tmp_path: Path) -> None:
+    """
+    목적: 반증 검색어에도 하한이 걸리는 계약을 고정한다.
+
+    반증은 「X 비판」·「X debunked」처럼 **찾는 말 자체를 갈아 끼워야** 나온다.
+    한 번 던지고 「없다」고 적으면 조사한 것처럼 보이지만 조사가 아니다.
+
+    Given: 검색어 하나뿐인 응답
+    When: 반증을 돈다
+    Then: 「질」 실패가 오른다
+    """
+    run_dir = tmp_path / "run"
+    _pin(run_dir, tmp_path / "원장.md")
+
+    with pytest.raises(StepQualityFailed):
+        rebut.run(run_dir, lambda _: _answer({"queries": ["하나뿐"], "rebuttals": []}))
+
+
+def test_rebut_is_blocked_when_zero_findings_have_no_reason(tmp_path: Path) -> None:
+    """
+    목적: 반증 0건인데 «왜 못 찾았는지»가 없으면 막는 계약을 고정한다.
+
+    0건 자체는 정상 결과다. 다만 적어 두지 않으면 **「찾아봤는데 없었다」와 「안 찾았다」가
+    구별되지 않는다** — 게이트가 결과 대신 «행위»를 검사한다는 말의 실체가 이것이다.
+
+    Given: 검색어는 충분하지만 0건이고 사유가 빈 응답
+    When: 반증을 돈다
+    Then: 「질」 실패가 오른다
+    """
+    run_dir = tmp_path / "run"
+    _pin(run_dir, tmp_path / "원장.md")
+
+    with pytest.raises(StepQualityFailed):
+        rebut.run(run_dir, lambda _: _answer({"queries": QUERIES, "rebuttals": [], "not_found_reason": "   "}))
+
+
+def test_rebut_passes_with_zero_findings_and_a_reason(tmp_path: Path) -> None:
+    """
+    목적: 「없음 + 사유」가 그대로 «통과»하는 계약을 고정한다.
+
+    [중요] 0건을 실패로 만들면 에이전트에게 **반증을 지어낼 압력**이 생긴다.
+    백테스트가 없어 부풀릴 점수가 없는 이 저장소에서 **유일하게 남는 위조 위험이
+    「없는 출처」**이고, 게이트가 그 압력을 만들면 안 된다.
+
+    Given: 검색어가 충분하고 0건이며 사유가 적힌 응답
+    When: 반증을 돈다
+    Then: 예외 없이 끝나고 판정이 「반증 없음」으로 남는다
+    """
+    run_dir = tmp_path / "run"
+    _pin(run_dir, tmp_path / "원장.md")
+
+    rebut.run(
+        run_dir,
+        lambda _: _answer({"queries": QUERIES, "rebuttals": [], "not_found_reason": "한국어·영어로 여섯 번 던졌으나 반대 주장이 없었다"}),
+    )
+
+    judged = [e for e in decision_log.read(run_dir) if e["event"] == decision_log.EVENT_JUDGED]
+    assert judged[0]["verdict"] == "반증 없음"
+
+
+def test_rebut_cost_is_recorded_even_when_blocked(tmp_path: Path) -> None:
+    """
+    목적: 막혀서 끝난 반증도 «얼마를 썼는지»는 남기는 계약을 고정한다.
+
+    게이트에 걸렸어도 그 호출은 이미 토큰을 썼다. 기록이 없으면 밤 예산을 정할 때
+    그만큼이 통째로 빠진 값으로 계산된다.
+
+    Given: 게이트에 걸리는 응답
+    When: 반증을 돈다
+    Then: 비용이 결정 로그에 남아 있다
+    """
+    run_dir = tmp_path / "run"
+    _pin(run_dir, tmp_path / "원장.md")
+
+    with pytest.raises(StepQualityFailed):
+        rebut.run(run_dir, lambda _: _answer({"queries": ["하나뿐"], "rebuttals": []}))
+
+    costs = [e for e in decision_log.read(run_dir) if e["event"] == decision_log.EVENT_COST]
+    assert costs and costs[0]["cost_usd"] == 0.5
+
+
+# --------------------------------------------------------------------------
+# 계보
+# --------------------------------------------------------------------------
+
+
+def test_lineage_prompt_carries_both_sides(tmp_path: Path) -> None:
+    """
+    목적: 계보 지시문에 찬성·반증의 출처가 «함께» 실리는 계약을 고정한다.
+
+    계보는 「누가 원본이고 누가 베꼈나」를 묻는 단계다. 한쪽만 주면 그 판정이
+    반쪽이 되고, 반증 쪽 출처가 원본인 경우를 통째로 놓친다.
+
+    Given: 양쪽 출처
+    When: 지시문을 만든다
+    Then: 둘 다 들어 있다
+    """
+    prompt = lineage.build_prompt(CLAIM, [{"url": "https://example.com/찬성"}, {"url": "https://example.com/반증"}])
+
+    assert "https://example.com/찬성" in prompt
+    assert "https://example.com/반증" in prompt
+
+
+def test_lineage_writes_its_own_file(tmp_path: Path) -> None:
+    """
+    목적: 계보가 산출물을 «파일»로 남기는 계약을 고정한다.
+
+    Given: 원본 하나와 복제 하나를 묶어 낸 응답
+    When: 계보를 돈다
+    Then: 후보 폴더에 계보 파일이 생기고 독립 소스 수가 들어 있다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    output_dir = _pin(run_dir, ledger_path)
+    _write_pro_evidence(output_dir, ["https://example.com/원본", "https://example.com/복제"])
+
+    lineage.run(
+        run_dir,
+        ledger_path,
+        lambda _: _answer(
+            {
+                "groups": [
+                    {
+                        "origin": {"url": "https://example.com/원본"},
+                        "copies": [{"url": "https://example.com/복제"}],
+                        "why": "같은 숫자가 반복된다",
+                    }
+                ],
+                "independent_source_count": 1,
+            }
+        ),
+    )
+
+    written = json.loads((output_dir / LINEAGE_FILENAME).read_text(encoding="utf-8"))
+    assert written["independent_source_count"] == 1
+
+
+def test_lineage_marks_the_candidate_explored_last(tmp_path: Path) -> None:
+    """
+    목적: 후보를 「판 것」으로 표시하는 시점이 «마지막 단계 뒤»라는 계약을 고정한다.
+
+    [중요] 수집이 끝나며 표시하면, 그 뒤 반증이 실패해 그 실행 폴더가 버려질 때
+    **후보가 반증 없이 「판 것」으로 남아 영영 다시 안 파진다** —
+    설계가 경고한 「아무도 모르는 채 미완성만 쌓인다」 모양이다.
+
+    Given: 후보 하나가 든 원장
+    When: 계보까지 끝난다
+    Then: 그 후보가 판 것으로 표시돼 다음 후보가 없다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    _pin(run_dir, ledger_path)
+
+    assert ledger.next_unexplored(ledger_path) is not None
+
+    lineage.run(run_dir, ledger_path, lambda _: _answer({"groups": [], "independent_source_count": 0}))
+
+    assert ledger.next_unexplored(ledger_path) is None
+
+
+def test_lineage_is_blocked_when_a_source_is_dropped(tmp_path: Path) -> None:
+    """
+    목적: 모았던 출처를 빠뜨린 계보표가 막히는 계약을 고정한다.
+
+    Given: 찬성 근거 둘 중 하나만 다룬 계보표
+    When: 계보를 돈다
+    Then: 「질」 실패가 오르고, 후보는 «안 판 것»으로 남는다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    output_dir = _pin(run_dir, ledger_path)
+    _write_pro_evidence(output_dir, ["https://example.com/원본", "https://example.com/빠뜨린"])
+
+    with pytest.raises(StepQualityFailed):
+        lineage.run(
+            run_dir,
+            ledger_path,
+            lambda _: _answer(
+                {"groups": [{"origin": {"url": "https://example.com/원본"}, "copies": []}], "independent_source_count": 1}
+            ),
+        )
+
+    assert ledger.next_unexplored(ledger_path) is not None

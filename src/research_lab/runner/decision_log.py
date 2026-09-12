@@ -15,6 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Final
 
+from research_lab.agent.invoke import AgentResult
 from research_lab.common_constants import DECISION_LOG_FILENAME, KST
 
 # 이벤트 종류. 「무엇을 읽었나 · 무엇을 기준으로 판단했나 · 무엇을 버렸고 왜」를
@@ -49,6 +50,29 @@ def record(run_dir: Path, step: str, event: str, **fields: Any) -> None:
 
     with (run_dir / DECISION_LOG_FILENAME).open("a", encoding="utf-8") as file:
         file.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
+def record_cost(run_dir: Path, step: str, result: AgentResult) -> None:
+    """한 번의 호출이 쓴 비용·토큰·시간을 남긴다.
+
+    네 단계가 똑같이 적는 값이라 한 곳에서 만든다. 네 벌로 흩어져 있으면
+    **한 곳만 고쳐질 때 밤 예산 집계가 그 단계에서만 어긋나고**, 합계가 틀렸다는 것은
+    드러나지 않는다.
+
+    Args:
+        run_dir: 그 밤의 실행 폴더
+        step: 어느 단계의 호출인가
+        result: 에이전트 호출 결과
+    """
+    record(
+        run_dir,
+        step,
+        EVENT_COST,
+        cost_usd=result.cost_usd,
+        tokens=result.tokens,
+        elapsed_seconds=round(result.elapsed_seconds, 1),
+        session_id=result.session_id,
+    )
 
 
 def read(run_dir: Path) -> list[dict[str, Any]]:

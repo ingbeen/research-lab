@@ -84,7 +84,7 @@ def run_night(
             if step is None:
                 return NightResult(tuple(settled), tuple(skipped), None)
 
-            skip_reason = _skip_reason(step, ledger_path)
+            skip_reason = _skip_reason(step, ledger_path, run_dir)
             if skip_reason is not None:
                 skipped.append(step)
                 settled.append(step)
@@ -101,7 +101,7 @@ def run_night(
             _persist(run_dir, settled, skipped)
 
 
-def _skip_reason(step: str, ledger_path: Path) -> str | None:
+def _skip_reason(step: str, ledger_path: Path, run_dir: Path) -> str | None:
     """그 단계를 건너뛸 이유가 있으면 그 이유를, 없으면 None 을 돌려준다.
 
     이유를 «문자열로» 돌리는 것은 결정 로그에 그대로 적기 위해서다.
@@ -120,6 +120,12 @@ def _skip_reason(step: str, ledger_path: Path) -> str | None:
         # 「다음 밤이 이어받습니다」로 보고된다. 다음 밤도 같은 자리에서 같은 일을 반복하고,
         # 아침에는 아무 일도 없었던 것처럼 보인다
         return "원장에 팔 후보가 없다 — 탐색이 새 후보를 찾지 못했다"
+
+    if step in steps.CANDIDATE_STEPS and state.pinned_candidate(run_dir) is None:
+        # 위와 «같은 고장»이다. 수집이 후보를 잡지 못하는 경우는 둘이다 —
+        # 팔 후보가 아예 없었거나, 꺼낸 후보가 모두 기각돼 상한에 닿았거나.
+        # 둘 다 정상 결과이고, 그 상태로 반증에 들어가면 끝나지 않는 실패가 된다
+        return "그 밤이 판 후보가 없다 — 수집이 후보를 잡지 못했다"
 
     return None
 
@@ -183,5 +189,11 @@ def _execute_with_retries(run_dir: Path, step: str, execute: StepExecutor) -> Fa
 
 
 def _persist(run_dir: Path, settled: list[str], skipped: list[str]) -> None:
-    """진행 상태를 파일에 박는다. 여기까지는 다음 밤이 다시 하지 않는다."""
-    state.save(run_dir, {"settled": settled, "skipped": skipped})
+    """진행 상태를 파일에 박는다. 여기까지는 다음 밤이 다시 하지 않는다.
+
+    [중요] 읽어서 «얹는다». 통째로 덮어쓰면 수집이 방금 박아 둔 그 밤의 후보가 지워지고,
+    한 단계 뒤 반증이 「후보 없음」을 만난다 — **원인과 증상이 갈라져** 되짚기 어려워진다.
+    """
+    saved = state.load(run_dir) or {}
+    saved.update({"settled": settled, "skipped": skipped})
+    state.save(run_dir, saved)

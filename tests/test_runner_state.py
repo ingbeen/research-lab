@@ -157,3 +157,98 @@ def test_lock_is_released_even_when_the_night_crashes(tmp_path: Path) -> None:
 
     with state.lock(tmp_path):
         pass
+
+
+# --------------------------------------------------------------------------
+# 그 밤의 후보
+#
+# 수집·반증·계보가 **같은 후보**를 봐야 한다. 원장에서 매번 「다음에 팔 후보」를 새로
+# 물으면, 수집이 표시를 마친 뒤에는 다른 후보가 돌아오거나 아무것도 안 돌아온다.
+# 상태의 주인이 하나여야 복구가 한 가지 방식으로 끝나므로 그 자리를 상태 파일로 둔다.
+# --------------------------------------------------------------------------
+
+
+def test_pinned_candidate_round_trips(tmp_path: Path) -> None:
+    """
+    목적: 그 밤의 후보가 상태 파일에 박히고 다시 읽히는 계약을 고정한다.
+
+    Given: 후보를 박은 실행 폴더
+    When: 읽는다
+    Then: 주장과 식별자가 그대로 돌아온다
+    """
+    state.pin_candidate(tmp_path, state.Candidate(claim="첫 후보", identifier="first"))
+
+    pinned = state.pinned_candidate(tmp_path)
+
+    assert pinned is not None
+    assert pinned.claim == "첫 후보"
+    assert pinned.identifier == "first"
+
+
+def test_no_candidate_reads_as_none(tmp_path: Path) -> None:
+    """
+    목적: 아직 후보를 안 잡은 밤을 「없음」으로 알리는 계약을 고정한다.
+
+    예외로 올리면 「아직 수집 전」이라는 정상 상태가 실패 처리와 섞인다.
+
+    Given: 상태가 없는 실행 폴더
+    When: 후보를 묻는다
+    Then: None 이 돌아온다
+    """
+    assert state.pinned_candidate(tmp_path) is None
+
+
+def test_pinning_keeps_the_progress_already_saved(tmp_path: Path) -> None:
+    """
+    목적: 후보를 박아도 이미 저장된 «진행»이 지워지지 않는 계약을 고정한다.
+
+    Given: 단계 진행이 저장된 상태
+    When: 후보를 박는다
+    Then: 진행이 그대로 남아 있다
+    """
+    state.save(tmp_path, {"settled": ["explore"], "skipped": []})
+
+    state.pin_candidate(tmp_path, state.Candidate(claim="첫 후보", identifier=None))
+
+    saved = state.load(tmp_path)
+    assert saved is not None
+    assert saved["settled"] == ["explore"]
+
+
+def test_candidate_survives_progress_updates(tmp_path: Path) -> None:
+    """
+    목적: 진행을 저장해도 후보가 «지워지지 않는» 계약을 고정한다.
+
+    [중요] 이 계약이 없으면 수집이 박아 둔 후보를 그 직후의 진행 저장이 덮어 지우고,
+    반증이 「후보 없음」을 만난다. **예외는 그때 나므로 원인이 한 단계 뒤에서 드러난다.**
+
+    Given: 후보가 박힌 상태
+    When: 단계 진행을 저장한다
+    Then: 후보가 그대로 남아 있다
+    """
+    state.pin_candidate(tmp_path, state.Candidate(claim="첫 후보", identifier="first"))
+
+    saved = state.load(tmp_path) or {}
+    saved.update({"settled": ["explore", "collect"], "skipped": []})
+    state.save(tmp_path, saved)
+
+    pinned = state.pinned_candidate(tmp_path)
+    assert pinned is not None
+    assert pinned.claim == "첫 후보"
+
+
+def test_broken_candidate_reads_as_none(tmp_path: Path) -> None:
+    """
+    목적: 모양이 깨진 후보 기록에 «죽지 않는» 계약을 고정한다.
+
+    사람이 상태 파일을 손으로 고칠 수도 있고, 예전 형식이 남아 있을 수도 있다.
+    여기서 터뜨리면 그 실행 폴더 하나 때문에 파이프라인이 선다 —
+    「없음」으로 읽으면 그 밤은 새로 시작하면 된다.
+
+    Given: 후보 자리에 문자열이 든 상태
+    When: 후보를 묻는다
+    Then: 예외 없이 None 이 돌아온다
+    """
+    state.save(tmp_path, {"settled": [], "skipped": [], "candidate": "첫 후보"})
+
+    assert state.pinned_candidate(tmp_path) is None

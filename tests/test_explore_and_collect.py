@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from research_lab.agent.invoke import AgentResult
-from research_lab.runner import collect, decision_log, explore, ledger, naming
+from research_lab.runner import collect, decision_log, explore, ledger, naming, state
 from research_lab.runner.steps import StepFailed, StepQualityFailed
 
 
@@ -172,13 +172,16 @@ def test_collect_writes_evidence_and_queries(tmp_path: Path) -> None:
     assert queries["queries"] == ["ㄱ", "ㄴ", "a"]
 
 
-def test_collect_marks_the_candidate_explored(tmp_path: Path) -> None:
+def test_collect_pins_the_candidate_for_the_later_steps(tmp_path: Path) -> None:
     """
-    목적: 판 후보를 다시 꺼내지 않게 표시하는 계약을 고정한다.
+    목적: 수집이 그 밤의 후보를 «상태에 박는» 계약을 고정한다.
+
+    [중요] 뒤따르는 반증·계보가 **같은 후보**를 봐야 한다. 원장에 매번 「다음에 팔 후보」를
+    새로 물으면 표시 시점에 따라 다른 후보가 돌아온다.
 
     Given: 후보 하나가 든 원장
     When: 수집을 돈다
-    Then: 그 후보가 판 것으로 표시돼 다음 후보가 없다
+    Then: 그 후보가 상태에 박힌다
     """
     run_dir = tmp_path / "run"
     ledger_path = tmp_path / "원장.md"
@@ -186,7 +189,31 @@ def test_collect_marks_the_candidate_explored(tmp_path: Path) -> None:
 
     collect.run(run_dir, ledger_path, lambda _: _answer({"queries": ["ㄱ", "ㄴ", "ㄷ"], "evidence": []}))
 
-    assert ledger.next_unexplored(ledger_path) is None
+    pinned = state.pinned_candidate(run_dir)
+    assert pinned is not None
+    assert pinned.claim == "첫 후보"
+
+
+def test_collect_does_not_mark_the_candidate_explored(tmp_path: Path) -> None:
+    """
+    목적: 수집이 후보를 «아직» 판 것으로 표시하지 않는 계약을 고정한다.
+
+    [중요] 표시를 여기서 하면, 그 뒤 반증이 실패해 그 실행 폴더가 버려질 때
+    **후보가 반증 없이 「판 것」으로 남아 영영 다시 안 파진다.** 표시는 마지막 단계의 일이다.
+
+    Given: 후보 하나가 든 원장
+    When: 수집을 돈다
+    Then: 그 후보가 여전히 「다음에 팔 후보」다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    ledger.append(ledger_path, "첫 후보")
+
+    collect.run(run_dir, ledger_path, lambda _: _answer({"queries": ["ㄱ", "ㄴ", "ㄷ"], "evidence": []}))
+
+    remaining = ledger.next_unexplored(ledger_path)
+    assert remaining is not None
+    assert remaining.claim == "첫 후보"
 
 
 def test_collect_treats_no_evidence_as_a_normal_verdict(tmp_path: Path) -> None:
@@ -286,3 +313,240 @@ def test_explore_ignores_a_string_where_a_list_was_promised(tmp_path: Path) -> N
     assert ledger.load(ledger_path) == []
     read_entries = [e for e in decision_log.read(run_dir) if e["event"] == decision_log.EVENT_READ]
     assert read_entries[0]["query_count"] == 0
+
+
+# --------------------------------------------------------------------------
+# 정성 표현과 기각
+#
+# 정성 표현은 «기각 사유»가 아니라 «해명 요구»다. 「짧은 기간」은 격자로 받으면 재지고,
+# 「옥석을 가려」는 채울 축이 없어 못 잰다. 둘을 가르는 것은 사전이 아니라
+# **파라미터를 낼 수 있는가**이므로, 게이트는 그것이 적혔는지만 본다.
+# --------------------------------------------------------------------------
+
+_GRID = [{"name": "보유 기간", "unit": "거래일", "candidates": [5, 20, 60]}]
+
+
+def test_explore_keeps_a_candidate_that_explains_its_parameters(tmp_path: Path) -> None:
+    """
+    목적: 해명된 정성 표현이 탐색에서 «살아남는» 계약을 고정한다.
+
+    이 계약이 없으면 사전을 키울 때마다 멀쩡한 후보가 함께 죽는다.
+
+    Given: 「단기」가 들었지만 격자를 함께 낸 후보
+    When: 탐색을 돈다
+    Then: 원장에 담긴다
+    """
+    ledger_path = tmp_path / "원장.md"
+    answer = _answer(
+        {
+            "queries": ["ㄱ", "ㄴ", "ㄷ"],
+            "candidates": [{"claim": "공시 다음날 사서 단기 보유한다", "identifier": "buyback-kr", "params": _GRID}],
+        }
+    )
+
+    explore.run(tmp_path / "run", ledger_path, lambda _: answer)
+
+    assert [entry.claim for entry in ledger.load(ledger_path)] == ["공시 다음날 사서 단기 보유한다"]
+
+
+def test_explore_rejects_a_candidate_that_cannot_be_measured(tmp_path: Path) -> None:
+    """
+    목적: 못 잴 후보가 «원장에 쌓이지 않는» 계약을 고정한다.
+
+    원장에 들어가면 그 후보는 언젠가 밤 하나를 통째로 가져간다. 실측에서 첫 탐색이 낸
+    후보 15개 중 다수가 정성적이었고, 그것이 이 게이트를 만든 이유다.
+
+    Given: 「옥석을 가려」가 들었고 파라미터가 없는 후보
+    When: 탐색을 돈다
+    Then: 팔 후보가 되지 않고, 사유가 원장과 로그에 남는다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    answer = _answer(
+        {
+            "queries": ["ㄱ", "ㄴ", "ㄷ"],
+            "candidates": [{"claim": "상장 후 하락한 종목 중 옥석을 가려 매수한다", "identifier": "spac-kr"}],
+        }
+    )
+
+    explore.run(run_dir, ledger_path, lambda _: answer)
+
+    # 원장에 «기각»으로 남는다 — 지우면 다음 탐색이 같은 후보를 다시 담고 또 기각한다.
+    # 루트 CLAUDE.md 가 「버릴 때는 원장에 사유와 함께 남겨 다음에 또 파지 않게 한다」고 정한 자리다
+    assert ledger.next_unexplored(ledger_path) is None
+    assert "옥석" in ledger_path.read_text(encoding="utf-8")
+    discarded = [e for e in decision_log.read(run_dir) if e["event"] == decision_log.EVENT_DISCARDED]
+    assert any("옥석" in str(entry.get("reason", "")) for entry in discarded)
+
+
+def test_explore_stores_the_identifier(tmp_path: Path) -> None:
+    """
+    목적: 탐색이 낸 짧은 식별자가 원장에 담기는 계약을 고정한다.
+
+    Given: 식별자를 함께 낸 후보
+    When: 탐색을 돈다
+    Then: 그 식별자가 원장에 남는다
+    """
+    ledger_path = tmp_path / "원장.md"
+    answer = _answer(
+        {
+            "queries": ["ㄱ", "ㄴ", "ㄷ"],
+            "candidates": [{"claim": "분할 상장한 자회사를 상장 당일 종가에 사서 12개월 보유한다", "identifier": "spin-off"}],
+        }
+    )
+
+    explore.run(tmp_path / "run", ledger_path, lambda _: answer)
+
+    assert ledger.load(ledger_path)[0].identifier == "spin-off"
+
+
+def test_collect_rejects_and_moves_to_the_next_candidate(tmp_path: Path) -> None:
+    """
+    목적: 해명에 실패한 후보를 «기각하고 다음으로 넘어가는» 계약을 고정한다.
+
+    [중요] 이 경로가 있어야 **이미 쌓인 후보도 같은 문을 지난다.** 탐색에서만 걸면
+    예전 후보는 그대로 팔린다. 그리고 기각은 «실패»가 아니라 판정의 결과라 밤이 멈추지 않는다.
+
+    Given: 첫 후보는 해명하지 못하고 둘째는 해명하는 에이전트
+    When: 수집을 돈다
+    Then: 첫 후보가 사유와 함께 기각되고, 둘째가 그 밤의 후보가 된다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    ledger.append(ledger_path, "신주 상장 이후 저점에서 재매수한다")
+    ledger.append(ledger_path, "11월 첫 거래일에 사서 4월 마지막 거래일에 판다")
+
+    # 둘 다 파라미터를 못 내는 같은 응답이다. 가르는 것은 응답이 아니라 «한 줄 주장»이며,
+    # 「저점」은 사전에 걸리고 「11월 첫 거래일」은 걸리지 않는다
+    collect.run(run_dir, ledger_path, lambda _: _answer({"queries": ["ㄱ", "ㄴ", "ㄷ"], "evidence": [], "params": []}))
+
+    pinned = state.pinned_candidate(run_dir)
+    assert pinned is not None
+    assert pinned.claim == "11월 첫 거래일에 사서 4월 마지막 거래일에 판다"
+    assert "저점" in ledger_path.read_text(encoding="utf-8")
+
+
+def test_collect_stops_at_the_rejection_cap(tmp_path: Path) -> None:
+    """
+    목적: 한 밤의 기각에 «상한»이 걸리는 계약을 고정한다.
+
+    상한이 없으면 원장이 전부 기각될 때까지 호출을 태운다. 아침에 보면 예산은 줄었고
+    산출물은 0장인데, 그런 밤은 「아무 일 없음」처럼 보여 며칠 지나서야 알아챈다.
+
+    Given: 모두 해명 불가인 후보가 상한보다 많이 든 원장
+    When: 수집을 돈다
+    Then: 상한만큼만 부르고 그 밤의 수집이 끝난다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    for index in range(collect.MAX_REJECTIONS + 3):
+        ledger.append(ledger_path, f"옥석을 가려 {index}번 종목을 산다")
+
+    calls: list[str] = []
+
+    def answering(prompt: str) -> AgentResult:
+        calls.append(prompt)
+        return _answer({"queries": ["ㄱ", "ㄴ", "ㄷ"], "evidence": [], "params": []})
+
+    collect.run(run_dir, ledger_path, answering)
+
+    assert len(calls) == collect.MAX_REJECTIONS
+    assert state.pinned_candidate(run_dir) is None
+
+
+def test_rejection_cap_counts_the_whole_night(tmp_path: Path) -> None:
+    """
+    목적: 기각 상한이 «그 밤 전체»에 걸리는 계약을 고정한다.
+
+    [중요] 지역 변수로만 세면 이 단계가 다시 불릴 때 0 으로 돌아간다. JSON 이 깨져
+    「그 외」로 재시도되는 밤은 이 단계가 최대 세 번 불리므로 **상한이 세 배가 되고,
+    그만큼 후보와 예산이 함께 탄다** — 상한을 둔 이유가 통째로 사라진다.
+
+    Given: 이미 상한만큼 기각한 기록이 있는 실행 폴더
+    When: 수집을 다시 돈다
+    Then: 에이전트를 한 번도 부르지 않고 끝난다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    ledger.append(ledger_path, "옥석을 가려 매수한다")
+    for index in range(collect.MAX_REJECTIONS):
+        decision_log.record(run_dir, "collect", decision_log.EVENT_DISCARDED, claim=f"앞서 기각한 {index}", reason="축 없음")
+
+    calls: list[str] = []
+
+    def counting(prompt: str) -> AgentResult:
+        calls.append(prompt)
+        return _answer({"queries": ["ㄱ", "ㄴ", "ㄷ"], "evidence": [], "params": []})
+
+    collect.run(run_dir, ledger_path, counting)
+
+    assert calls == []
+
+
+def test_collect_prompt_names_the_triggered_terms(tmp_path: Path) -> None:
+    """
+    목적: 걸린 표현을 «이름으로 짚어» 요구하는 계약을 고정한다.
+
+    「값이 비어 있으면 적으라」고만 하면 에이전트가 자기 문장에 그런 말이 있는지를
+    스스로 판정해야 한다. 판정에 실패하면 빈 목록이 오고 그 후보는 기각되는데,
+    **탐색에서 한 번 통과했던 후보가 수집에서 죽는** 일이 된다.
+
+    Given: 「단기」가 든 한 줄 주장
+    When: 지시문을 만든다
+    Then: 그 표현이 지시문에 이름으로 들어 있다
+    """
+    prompt = collect.build_prompt("공시 다음날 사서 단기 보유한다")
+
+    assert "단기" in prompt
+
+
+def test_collect_fills_in_a_missing_identifier(tmp_path: Path) -> None:
+    """
+    목적: 식별자가 없는 예전 후보에 식별자를 «박는» 계약을 고정한다.
+
+    수집이 어차피 그 후보를 두고 에이전트를 부르므로 **별도 호출이 들지 않는다.**
+    이것이 이미 쌓인 후보도 짧은 폴더명을 얻는 경로다.
+
+    Given: 식별자 없이 담긴 후보와 식별자를 내는 응답
+    When: 수집을 돈다
+    Then: 원장에 식별자가 박히고 산출물이 그 이름의 폴더에 쌓인다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    ledger.append(ledger_path, "분할 상장한 자회사를 상장 당일 종가에 사서 12개월 보유한다")
+
+    collect.run(
+        run_dir,
+        ledger_path,
+        lambda _: _answer({"queries": ["ㄱ", "ㄴ", "ㄷ"], "evidence": [], "identifier": "spin-off"}),
+    )
+
+    assert ledger.load(ledger_path)[0].identifier == "spin-off"
+    assert (run_dir / "spin-off" / "찬성근거.json").is_file()
+
+
+def test_collect_records_the_parameter_grid(tmp_path: Path) -> None:
+    """
+    목적: 해명된 파라미터 격자가 «남는» 계약을 고정한다.
+
+    이 격자가 나중에 측정 설계 초안으로 그대로 넘어간다. 검사에만 쓰고 버리면
+    다음 단계가 같은 축을 다시 만들어야 하고, 그때 값이 달라진다.
+
+    Given: 격자를 함께 낸 응답
+    When: 수집을 돈다
+    Then: 그 격자가 찬성 근거 파일에 들어 있다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    ledger.append(ledger_path, "공시 다음날 사서 단기 보유한다")
+
+    collect.run(
+        run_dir,
+        ledger_path,
+        lambda _: _answer({"queries": ["ㄱ", "ㄴ", "ㄷ"], "evidence": [], "params": _GRID}),
+    )
+
+    written = json.loads(
+        (run_dir / naming.folder_name("공시 다음날 사서 단기 보유한다", None) / "찬성근거.json").read_text(encoding="utf-8")
+    )
+    assert written["params"] == _GRID

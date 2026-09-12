@@ -1,0 +1,93 @@
+{
+  "claim": "S&P500 편입이 예정 발표된 종목을 발표일 매수해 편입 발효일까지 보유한다",
+  "groups": [
+    {
+      "origin": {
+        "title": "Price and Volume Effects Associated with Changes in the S&P 500 List: New Evidence for the Existence of Price Pressures (Harris & Gurel, Journal of Finance)",
+        "url": "https://ideas.repec.org/a/bla/jfinan/v41y1986i4p815-29.html",
+        "published": "1986-09"
+      },
+      "copies": [],
+      "why": "편입/제외 시 가격압력 효과를 최초로 문서화한 1차 학술 논문. 목록의 다른 어떤 출처도 이 논문의 구체적 수치·예시를 그대로 옮겨 쓰지 않았고(대부분 더 최근 연구를 인용), 목록 안에서 이를 인용·복제한 항목도 없다 — 독립 원본으로 처리"
+    },
+    {
+      "origin": {
+        "title": "Is There an S&P 500 Index Effect? (Federal Reserve Bank of New York, Staff Report No. 484)",
+        "url": "https://www.newyorkfed.org/medialibrary/media/research/staff_reports/sr484.pdf",
+        "published": "2011-02 (2012-11 개정)"
+      },
+      "copies": [],
+      "why": "목록에 [찬성]·[반증] 두 라벨로 두 번 올라왔지만 URL과 문서가 완전히 동일하다(하나는 2012-11, 하나는 2011-02 최초판/2012-11 개정판으로 표기). 같은 하나의 기관 보고서이며, 목록 안 다른 항목이 이 보고서의 숫자·예시를 반복하지 않았다 — 독립 원본"
+    },
+    {
+      "origin": {
+        "title": "The Disappearing Index Effect (Greenwood & Sammon, NBER Working Paper 30748)",
+        "url": "https://www.nber.org/system/files/working_papers/w30748/w30748.pdf",
+        "published": "2022-12"
+      },
+      "copies": [
+        {
+          "title": "The Disappearing Index Effect (NBER Working Paper No. 30748) — 동일 논문의 초록/서지 페이지",
+          "url": "https://www.nber.org/papers/w30748"
+        },
+        {
+          "title": "S&P 500 지수효과의 소멸: 패시브 투자 시대의 새로운 발견",
+          "url": "https://blog.intelliquant.ai/post/snp500indexdemise"
+        }
+      ],
+      "why": "nber.org 의 두 URL은 PDF 직접 링크와 논문 페이지로, 같은 하나의 논문을 가리키는 동일 문서다. intelliquant 블로그는 본문을 열어 확인한 결과 이 논문(Greenwood & Sammon)을 이름을 명시해 인용하며 '1990년대 평균 초과수익률 7.4% → 최근 10년 1% 이하', '제외 시 -0.6%' 등 이 논문에서 나온 숫자를 그대로 재서술한 2차 요약글이다 — 복제"
+    },
+    {
+      "origin": {
+        "title": "The S&P 500 Inclusion Effect: Smaller Now, Still Tradeable",
+        "url": "https://tapebrief.com/blog/sp500-index-inclusion-effect",
+        "published": "2026-05-25"
+      },
+      "copies": [],
+      "why": "본문을 열어 확인한 결과 Greenwood & Sammon(NBER 30748)이 아니라 'Petajisto' 및 'Chen-Noronha-Sadka' 계열의 별도 연구를 인용하며, 제시 수치(1980s~2000s 5~9% → 현재 ~1%, Tesla 2020 예외 사례)도 위 그룹들과 다르다. 인용 논문의 정확한 제목·연도는 확인하지 못했으나(→ 미검증), 목록 내 다른 출처가 이 글을 베끼거나 이 글이 다른 출처를 베낀 흔적은 없다 — 독립 원본으로 처리"
+    },
+    {
+      "origin": {
+        "title": "The S&P 500 Bump That Doesn't Last (Larry Swedroe, substack — Morningstar 연구 요약)",
+        "url": "https://larryswedroe.substack.com/p/the-s-and-p-500-bump-that-doesnt",
+        "published": "2026-04-23"
+      },
+      "copies": [],
+      "why": "본문을 열어 확인한 결과 'S&P 500 vs. Peer Firm Performance: Does Index Inclusion Matter?' (Sandifer, Smith, Impink, PM Research)라는 별도의 논문을 인용해 Morningstar 연구를 요약한다. 위 NBER 30748·NY Fed SR484 그룹과는 다른 원 논문을 인용하므로 별도 계보 — 독립 원본"
+    },
+    {
+      "origin": {
+        "title": "S&P 500 편입 기업을 노려라 - 패시브 자금 유입의 혜택을 누리는 방법",
+        "url": "https://brunch.co.kr/@@fwrE/82",
+        "published": "2024-03-25"
+      },
+      "copies": [],
+      "why": "목록에 [찬성]·[반증] 두 라벨로 두 번 올라왔지만 URL이 완전히 동일한 하나의 글이다. 본문을 열어 확인한 결과 학술 논문 인용 없이 저자 자신의 사례(우버 2023-12, 슈퍼마이크로 2024-03 편입) 와 ETF 운용자산 계산을 담은 독자적 서술이며, 목록의 다른 어느 출처와도 숫자·문장이 겹치지 않는다 — 독립 원본. 다만 통계 수치의 출처가 본문에 명시되지 않아 신뢰도는 별개 문제(→ 미검증)"
+    },
+    {
+      "origin": {
+        "title": "S&P 500 편입 발표에 퍼거슨 주가 급등",
+        "url": "https://kr.investing.com/news/stock-market-news/article-93CH-2040364",
+        "published": "2026-08-01"
+      },
+      "copies": [],
+      "why": "본문을 열어 확인한 결과 퍼거슨 엔터프라이즈(FERG)의 2026-08-05 편입 발표에 따른 8% 급등이라는 특정 개별 사건을 단독 보도한 기사이며 학술 자료나 타 매체 인용이 없다. 목록의 다른 어떤 출처도 이 사건(퍼거슨)을 다루지 않는다 — 독립 원본"
+    },
+    {
+      "origin": {
+        "title": "S&P500 신규 편입 종목 상승…수급 기대 반영",
+        "url": "https://marketin.edaily.co.kr/News/ReadE?newsId=05159446645386272",
+        "published": "2026-03-23"
+      },
+      "copies": [],
+      "why": "본문을 열어 확인한 결과 버티브·에코스타·루멘텀·코히런트 4종목의 2026-03-23 편입 관련 개장전 상승률(0.86~3.07%)을 단독 보도한 기사로 외부 자료·학술 인용이 없다. 위 투자닷컴 기사와 종목·날짜·수치가 전혀 겹치지 않는 별개 사건 보도 — 독립 원본"
+    }
+  ],
+  "independent_source_count": 8,
+  "unverified": [
+    "Harris & Gurel(1986) 논문 원문/초록을 직접 열지 못함 — ideas.repec.org 페이지에 초록이 없고(No abstract is available for this item) 전문은 JSTOR 유료 열람이 필요해, 그 논문의 정확한 수치를 1차 출처로 확인하지 못했다",
+    "intelliquant 블로그 글의 정확한 발행일 — 목록·본문 모두 발행일을 특정할 수 없어 unknown으로 둔다",
+    "tapebrief.com 이 인용한 'Petajisto and Chen-Noronha-Sadka' 연구의 정확한 논문 제목·발행연도 — 본문에 저자명만 있고 서지정보가 없어 어느 논문인지 특정하지 못했다",
+    "larryswedroe substack 이 요약 인용한 원본 Morningstar 기사 본문 — substack 글은 PM Research 논문 링크만 확인됐고, Morningstar 기사 원문은 직접 열어 대조하지 못했다"
+  ]
+}

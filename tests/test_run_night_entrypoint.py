@@ -122,6 +122,44 @@ def test_stale_step_names_do_not_stop_the_pipeline(entrypoint: Any) -> None:
     assert entrypoint._resolve_run_dir(None) != stale
 
 
+def test_unfinished_night_without_a_candidate_is_skipped(entrypoint: Any) -> None:
+    """
+    목적: 그 밤의 후보가 «안 박힌» 미완성을 이어받지 않는 계약을 고정한다.
+
+    [중요] 단계를 늘리면 예전 상태 파일이 그대로 남는다. 수집까지 끝난 예전 밤은
+    남은 단계가 반증인데 **그 밤이 어느 후보를 팠는지 상태에 없다.** 그대로 이어받으면
+    후보 없이 반증이 돌아 상한까지 헛돈다. 단계 이름을 바꿨을 때 예전 상태를 건너뛰는
+    것과 같은 갈래이며, 그 폴더 하나 때문에 파이프라인이 서면 안 된다.
+
+    Given: 수집까지 끝났지만 후보가 안 박힌 예전 실행 폴더
+    When: 인자 없이 실행 폴더를 고른다
+    Then: 그 폴더가 아니라 새 폴더가 돌아온다
+    """
+    stale = _make_run(entrypoint, "20260101_0100", ["explore", "collect"])
+
+    assert entrypoint._resolve_run_dir(None) != stale
+
+
+def test_unfinished_night_with_a_candidate_is_resumed(entrypoint: Any) -> None:
+    """
+    목적: 후보가 박힌 미완성은 «그대로 이어받는» 계약을 고정한다.
+
+    위 계약이 지나치게 넓으면 정상적인 이어받기까지 버린다 — 반증에서 끊긴 밤은
+    후보가 박혀 있으므로 반드시 이어받아야 한다. 다시 돌면 수집을 처음부터 하게 되어
+    **그 후보의 찬성 근거를 한 번 더 사게 된다.**
+
+    Given: 수집까지 끝나고 후보가 박힌 실행 폴더
+    When: 인자 없이 실행 폴더를 고른다
+    Then: 그 폴더가 돌아온다
+    """
+    from research_lab.runner import state
+
+    unfinished = _make_run(entrypoint, "20260101_0100", ["explore", "collect"])
+    state.pin_candidate(unfinished, state.Candidate(claim="그 밤이 판 후보", identifier="pinned"))
+
+    assert entrypoint._resolve_run_dir(None) == unfinished
+
+
 def test_explicit_run_dir_wins(entrypoint: Any) -> None:
     """
     목적: 사람이 지정한 폴더를 그대로 쓰는 계약을 고정한다.

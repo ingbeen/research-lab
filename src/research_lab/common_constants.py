@@ -27,7 +27,8 @@ LEDGER_PATH: Final = LEDGER_DIR / "원장.md"
 DOSSIER_DIR: Final = BASE_DIR / "dossier"
 
 # 그날 밤의 원자료 — 검색어·URL·결정 로그·실패 원문.
-# [주의] 이 폴더는 git 에서 「일단 제외」 상태다. 이유는 `.gitignore` 의 주석에 있다
+# [결정 2026-09-12] git 에 포함한다. 기계를 옮겨도 과거를 훑을 수 있어야 게이트 기준을
+# 바꿨을 때 「지금 기준이면 판정이 달라졌을 후보」를 찾아낼 수 있다. 근거는 `docs/DESIGN.md`
 RUNS_DIR: Final = BASE_DIR / "runs"
 
 DOCS_DIR: Final = BASE_DIR / "docs"
@@ -67,6 +68,17 @@ DECISION_LOG_FILENAME: Final = "decisions.jsonl"
 PRO_EVIDENCE_FILENAME: Final = "찬성근거.json"
 SEARCH_QUERIES_FILENAME: Final = "검색어.json"
 EXPLORE_RESULT_FILENAME: Final = "탐색결과.json"
+
+# 반증은 «별도 세션»이 낸다. 찬성 근거와 다른 파일에 두는 이유는 둘을 섞으면
+# 「이 출처가 어느 쪽에서 나왔나」가 흐려지고, 계보 단계가 그것을 구별해 읽어야 하기 때문이다
+REBUTTAL_FILENAME: Final = "반증.json"
+
+# 반증 세션이 던진 검색어. 수집의 것과 «다른 파일»인 이유는 둘이 서로 다른 세션의 기록이라,
+# 한 파일에 합치면 「반대편으로 갈아 끼웠나」를 되짚을 수 없기 때문이다
+REBUTTAL_QUERIES_FILENAME: Final = "반증검색어.json"
+
+# 「세 곳에서 확인」이 아니라 「한 원본 · 복제 두 곳」을 담는 표
+LINEAGE_FILENAME: Final = "계보.json"
 
 # ============================================================
 # 시간대

@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from research_lab.runner import failures, ledger, night, state, steps
+from research_lab.runner import decision_log, failures, ledger, night, state, steps
 
 
 @pytest.fixture(autouse=True)
@@ -22,16 +22,19 @@ def _no_retry_delay(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _executor(calls: list[str], ledger_path: Path | None = None):
-    """무엇이 실행됐는지 기록하고, 탐색이면 원장을 채우는 실행기.
+    """무엇이 실행됐는지 기록하고, 진짜 단계가 남기는 «상태»만 흉내 내는 실행기.
 
-    진짜 탐색이 하는 일이 원장을 채우는 것이라, 안 채우면 뒤따르는 수집이
-    「팔 후보 없음」으로 건너뛰어진다 — 그게 정상 동작이다.
+    탐색은 원장을 채우고 수집은 그 밤의 후보를 상태에 박는다. 둘 다 안 하면 뒤따르는
+    단계가 「팔 후보 없음」·「그 밤의 후보 없음」으로 건너뛰어진다 — 그게 정상 동작이라,
+    흉내 내지 않으면 **건너뛰기 갈래만 검사하게 되고 진행 갈래는 검사되지 않는다.**
     """
 
     def execute(step: str, run_dir: Path) -> None:
         calls.append(step)
         if step == "explore" and ledger_path is not None:
             ledger.append(ledger_path, f"탐색이 찾은 후보 {len(calls)}")
+        if step == "collect":
+            state.pin_candidate(run_dir, state.Candidate(claim="그 밤이 판 후보", identifier=None))
 
     return execute
 
@@ -66,7 +69,7 @@ def test_explore_is_skipped_when_stock_exists(tmp_path: Path) -> None:
 
     Given: 아직 안 판 후보가 든 원장
     When: 밤을 돈다
-    Then: 수집만 실행된다
+    Then: 탐색만 건너뛰고 나머지 단계가 돈다
     """
     ledger_path = tmp_path / "원장.md"
     ledger.append(ledger_path, "첫 후보")
@@ -74,7 +77,7 @@ def test_explore_is_skipped_when_stock_exists(tmp_path: Path) -> None:
 
     result = night.run_night(run_dir=tmp_path / "run", ledger_path=ledger_path, execute=_executor(calls))
 
-    assert calls == ["collect"]
+    assert calls == ["collect", "rebut", "lineage"]
     assert result.skipped == ("explore",)
 
 
@@ -106,7 +109,7 @@ def test_interrupted_night_resumes_at_the_failed_step(tmp_path: Path) -> None:
 
     Given: 수집에서 실패해 멈춘 밤
     When: 같은 실행 폴더로 다시 돈다
-    Then: 탐색은 다시 돌지 않고 수집만 실행된다
+    Then: 탐색은 다시 돌지 않고 수집부터 이어진다
     """
     run_dir = tmp_path / "run"
     ledger_path = tmp_path / "원장.md"
@@ -122,7 +125,7 @@ def test_interrupted_night_resumes_at_the_failed_step(tmp_path: Path) -> None:
     calls: list[str] = []
     night.run_night(run_dir=run_dir, ledger_path=ledger_path, execute=_executor(calls, ledger_path))
 
-    assert calls == ["collect"]
+    assert calls == ["collect", "rebut", "lineage"]
 
 
 def test_limit_failure_stops_without_retrying(tmp_path: Path) -> None:
@@ -249,8 +252,54 @@ def test_collect_is_skipped_when_explore_finds_nothing(tmp_path: Path) -> None:
     )
 
     assert calls == ["explore"]
-    assert result.skipped == ("collect",)
     assert result.failure is None
+
+
+def test_rebuttal_and_lineage_are_skipped_without_a_candidate(tmp_path: Path) -> None:
+    """
+    목적: 그 밤이 후보를 못 잡았을 때 «끝나지 않는 실패»가 되지 않는 계약을 고정한다.
+
+    [중요] 수집에 이미 같은 갈래가 있고, 새 단계 둘에 그것이 빠지면 같은 고장이 난다 —
+    후보 없이 반증이 돌아 예외가 나고, 상한까지 재시도한 뒤 「다음 밤이 이어받습니다」로
+    보고된다. 다음 밤도 같은 자리에서 같은 일을 반복하며, **아침에는 아무 일도 없었던
+    것처럼 보인다.**
+
+    Given: 원장을 채우지 않아 수집이 건너뛰어진 밤
+    When: 밤을 돈다
+    Then: 반증·계보도 건너뛰고 실패 없이 끝난다
+    """
+    calls: list[str] = []
+
+    result = night.run_night(
+        run_dir=tmp_path / "run",
+        ledger_path=tmp_path / "원장.md",
+        execute=_executor(calls),
+    )
+
+    assert "rebut" not in calls
+    assert "lineage" not in calls
+    assert result.skipped == ("collect", "rebut", "lineage")
+    assert result.failure is None
+
+
+def test_skip_reasons_are_recorded(tmp_path: Path) -> None:
+    """
+    목적: 건너뛴 «사유»가 결정 로그에 남는 계약을 고정한다.
+
+    「건너뛰었다」만 남으면 나중에 왜 그랬는지 되짚을 수 없다. 후보를 하나도 못 판 밤은
+    종료 코드로는 「완주」와 구별되지 않으므로, **그 구별이 오직 이 기록에 있다.**
+
+    Given: 후보를 못 잡아 세 단계를 건너뛴 밤
+    When: 결정 로그를 읽는다
+    Then: 건너뛴 단계마다 사유가 적혀 있다
+    """
+    run_dir = tmp_path / "run"
+
+    night.run_night(run_dir=run_dir, ledger_path=tmp_path / "원장.md", execute=_executor([]))
+
+    skipped = [e for e in decision_log.read(run_dir) if e["event"] == decision_log.EVENT_SKIPPED]
+    assert {entry["step"] for entry in skipped} == {"collect", "rebut", "lineage"}
+    assert all(entry["reason"].strip() for entry in skipped)
 
 
 def test_retry_waits_between_attempts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

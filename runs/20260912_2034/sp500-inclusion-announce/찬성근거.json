@@ -1,0 +1,62 @@
+{
+  "claim": "S&P500 편입이 예정 발표된 종목을 발표일 매수해 편입 발효일까지 보유한다",
+  "params": [],
+  "evidence": [
+    {
+      "title": "Price and Volume Effects Associated with Changes in the S&P 500 List: New Evidence for the Existence of Price Pressures (Harris & Gurel, Journal of Finance)",
+      "url": "https://ideas.repec.org/a/bla/jfinan/v41y1986i4p815-29.html",
+      "published": "1986-09",
+      "kind": "primary",
+      "says": "S&P500 편입 발표 전후로 약 3~5%의 이상수익률이 나타나며, 이는 인덱스펀드 매수에 따른 일시적 가격압력(price pressure)에서 비롯된다는 최초의 실증 근거. 서지정보(저자·저널·권호·페이지)는 이 페이지에서 직접 확인했고, 수치 자체는 이 논문을 인용한 2차 서술(검색 스니펫)로 확인함 — Wiley 원문 페이지는 403으로 열람 실패"
+    },
+    {
+      "title": "Is There an S&P 500 Index Effect? (Federal Reserve Bank of New York, Staff Report No. 484)",
+      "url": "https://www.newyorkfed.org/medialibrary/media/research/staff_reports/sr484.pdf",
+      "published": "2012-11",
+      "kind": "primary",
+      "says": "저자 Maria Kasch, Asani Sarkar. 편입 발표일부터 편입 발효 다음날까지의 누적 이상수익률(CAR)이 6.01%로 측정됨 — '발표일 매수·발효일 보유' 구간에 해당하는 단기 상승을 직접 뒷받침. (다만 이 논문의 주된 결론은 편입 이전부터의 실적 개선을 통제하면 지수 편입 자체의 영구적 효과는 없다는 것으로, 단기 구간 수익만 지지함)"
+    },
+    {
+      "title": "The Disappearing Index Effect (Greenwood & Sammon, NBER Working Paper 30748)",
+      "url": "https://www.nber.org/system/files/working_papers/w30748/w30748.pdf",
+      "published": "2022-12",
+      "kind": "primary",
+      "says": "S&P500 편입 시 이상수익률이 1980년대 3.4%, 1990년대 7.6%에서 최근 10년(2010~2020) 평균 0.8%로 축소되었지만 0은 아니며 여전히 존재함을 확인 — 발표일 매수 전략의 우위가 과거보다 작아졌을 뿐 소멸하지 않았음을 뒷받침. Journal of Finance(2025) 게재본의 워킹페이퍼."
+    },
+    {
+      "title": "S&P 500 편입 발표에 퍼거슨 주가 급등",
+      "url": "https://kr.investing.com/news/stock-market-news/article-93CH-2040364",
+      "published": "2026-08-01",
+      "kind": "secondary",
+      "says": "퍼거슨 엔터프라이즈가 S&P500 편입 발표 직후 시간외 거래에서 8% 급등한 실제 사례를 보도 — 발표일 매수의 즉각적 상승 효과를 개별 사례로 뒷받침"
+    },
+    {
+      "title": "S&P500 신규 편입 종목 상승…수급 기대 반영",
+      "url": "https://marketin.edaily.co.kr/News/ReadE?newsId=05159446645386272",
+      "published": "2026-03-23",
+      "kind": "secondary",
+      "says": "편입 예정 4개 종목(VRT, SATS, LITE, COHR)이 편입 발효 전날 프리마켓에서 동반 상승 — 발표 이후 발효일까지 보유 구간에서 상승이 지속됨을 뒷받침"
+    },
+    {
+      "title": "S&P 500 지수효과의 소멸: 패시브 투자 시대의 새로운 발견",
+      "url": "https://blog.intelliquant.ai/post/snp500indexdemise",
+      "published": "unknown",
+      "kind": "secondary",
+      "says": "1990년대 평균 7.4%였던 편입 시 이상수익률이 최근 10년 1% 미만으로 줄었다고 서술 — Greenwood & Sammon(2022) 수치(7.6%→0.8%)와 거의 동일해 같은 연구를 재서술한 것으로 보임(독립 소스 아닐 가능성)"
+    },
+    {
+      "title": "S&P 500 편입 기업을 노려라 - 패시브 자금 유입의 혜택을 누리는 방법",
+      "url": "https://brunch.co.kr/@@fwrE/82",
+      "published": "2024-03-25",
+      "kind": "secondary",
+      "says": "편입 발표와 실제 편입일 사이 매수 대기 수요로 주가가 먼저 오르는 메커니즘을 설명하고, 우버·슈퍼마이크로컴퓨터 편입 시 상당한 주가 상승 사례를 제시"
+    }
+  ],
+  "unverified": [
+    "S&P Global(SPDJI) 리포트 'What Happened to the Index Effect' 원문 — HTTP 403으로 열람 실패, 검색 스니펫으로만 존재 확인",
+    "ResearchGate 'What Drives the S&P 500 Inclusion Effect? An Analytical Source' 원문 — HTTP 403으로 열람 실패",
+    "Harris & Gurel(1986) 논문의 정확한 이상수익률 수치(3% vs 5%로 출처마다 상이) — 원문(Wiley) 열람 실패로 2차 서술 간 불일치를 직접 대조하지 못함",
+    "ETF Trends 'Retail Revival Fuels Comeback of S&P 500 Index Inclusion Effect' 기사 — URL을 열어보지 않아 미확인",
+    "편입 발표일부터 발효일까지 평균 기간이 '4.8일'이라는 수치의 1차 출처 — 검색 요약에서만 확인, 원출처 미상"
+  ]
+}

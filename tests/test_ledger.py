@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from research_lab.runner import ledger
+from research_lab.runner import ledger, naming
 
 
 def test_missing_ledger_reads_as_empty(tmp_path: Path) -> None:
@@ -208,3 +208,258 @@ def test_append_to_a_file_without_trailing_newline(tmp_path: Path) -> None:
     ledger.append(path, "새 후보")
 
     assert [entry.claim for entry in ledger.load(path)] == ["사람이 손으로 적은 후보", "새 후보"]
+
+
+# --------------------------------------------------------------------------
+# 짧은 식별자
+#
+# 한 줄 주장이 통째로 폴더명이 되면 120바이트에서 잘리고, 잘린 자리가 문장 중간이라
+# **무슨 후보인지 이름만으로 안 드러난다.** 주장은 파일 «안»에 이미 있으므로 폴더명이
+# 그것을 반복할 이유가 없다.
+# --------------------------------------------------------------------------
+
+
+def test_identifier_round_trips(tmp_path: Path) -> None:
+    """
+    목적: 후보의 짧은 식별자가 원장에 남고 다시 읽히는 계약을 고정한다.
+
+    Given: 식별자와 함께 담은 후보
+    When: 읽는다
+    Then: 식별자가 그대로 돌아온다
+    """
+    path = tmp_path / "원장.md"
+
+    ledger.append(path, "분기 실적이 컨센서스를 10% 이상 상회한 종목을 산다", identifier="pead-us")
+
+    assert ledger.load(path)[0].identifier == "pead-us"
+
+
+def test_entry_without_an_identifier_is_still_read(tmp_path: Path) -> None:
+    """
+    목적: 식별자가 «없는» 예전 줄을 계속 읽는 계약을 고정한다.
+
+    원장은 **중복 방지의 전부**라, 못 읽는 줄이 생기면 그 후보를 매일 다시 판다.
+    사람이 손으로 넣을 때 식별자를 빼먹는 것도 정상 입력이다.
+
+    Given: 식별자 없이 적힌 예전 형식의 줄
+    When: 읽는다
+    Then: 주장이 읽히고 식별자는 없음으로 나온다
+    """
+    path = tmp_path / "원장.md"
+    path.write_text("- [ ] 식별자 없는 예전 후보\n", encoding="utf-8")
+
+    entry = ledger.load(path)[0]
+
+    assert entry.claim == "식별자 없는 예전 후보"
+    assert entry.identifier is None
+
+
+def test_duplicate_identifier_gets_a_different_one(tmp_path: Path) -> None:
+    """
+    목적: 식별자가 겹치지 않는 계약을 고정한다.
+
+    식별자가 곧 산출물 폴더명이다. 겹치면 **두 후보의 근거가 한 폴더에 섞여 덮어쓰인다** —
+    앞 후보는 이미 「판 것」으로 표시돼 다시 파이지도 않으므로 근거가 영영 사라진다.
+
+    Given: 같은 식별자를 쓰려는 두 후보
+    When: 둘 다 담는다
+    Then: 식별자가 서로 다르다
+    """
+    path = tmp_path / "원장.md"
+    ledger.append(path, "첫 후보", identifier="pead")
+    ledger.append(path, "둘째 후보", identifier="pead")
+
+    identifiers = [entry.identifier for entry in ledger.load(path)]
+
+    assert identifiers[0] != identifiers[1]
+    assert all(identifiers)
+
+
+def test_identifier_can_be_filled_in_later(tmp_path: Path) -> None:
+    """
+    목적: 예전 줄에 식별자를 «나중에» 박는 계약을 고정한다.
+
+    이미 쌓인 후보도 짧은 폴더명을 갖게 하는 경로다. 수집이 그 후보를 꺼낼 때
+    에이전트가 식별자를 함께 내므로 **별도 호출이 들지 않는다.**
+
+    [중요] 통째로 다시 쓰지 않고 그 줄만 바꾼다 — 사람이 적어 둔 메모가 사라지면 안 된다.
+
+    Given: 식별자 없는 후보와 사람이 적은 메모가 든 원장
+    When: 식별자를 박는다
+    Then: 식별자가 붙고 메모는 그대로 남는다
+    """
+    path = tmp_path / "원장.md"
+    path.write_text("- [ ] 예전 후보\n\n> 사람이 적은 메모\n", encoding="utf-8")
+
+    assigned = ledger.assign_identifier(path, "예전 후보", "old-one")
+
+    assert assigned == "old-one"
+    assert ledger.load(path)[0].identifier == "old-one"
+    assert "사람이 적은 메모" in path.read_text(encoding="utf-8")
+
+
+def test_assigning_an_identifier_keeps_the_claim_unchanged(tmp_path: Path) -> None:
+    """
+    목적: 식별자를 박아도 한 줄 주장 문자열이 «안 바뀌는» 계약을 고정한다.
+
+    중복 판정이 주장 문자열로 이뤄지므로, 한 글자라도 달라지면 같은 후보가
+    다음 탐색에서 **새 후보로 다시 담긴다.**
+
+    Given: 후보가 든 원장
+    When: 식별자를 박는다
+    Then: 주장이 그대로다
+    """
+    path = tmp_path / "원장.md"
+    ledger.append(path, "주장은 그대로여야 한다")
+
+    ledger.assign_identifier(path, "주장은 그대로여야 한다", "keep")
+
+    assert ledger.load(path)[0].claim == "주장은 그대로여야 한다"
+
+
+# --------------------------------------------------------------------------
+# 기각
+#
+# 파라미터로 해명되지 않은 후보는 «실패»가 아니라 판정의 결과다. 그 밤은 멈추지 않고
+# 다음 후보로 간다. 사유를 남기는 것은 **다음에 같은 후보를 또 파지 않게** 하려는 것이다.
+# --------------------------------------------------------------------------
+
+
+def test_rejected_candidate_is_not_dug_again(tmp_path: Path) -> None:
+    """
+    목적: 기각된 후보를 다시 꺼내지 않는 계약을 고정한다.
+
+    Given: 후보 둘 중 첫째를 기각한 원장
+    When: 다음에 팔 후보를 묻는다
+    Then: 둘째가 돌아온다
+    """
+    path = tmp_path / "원장.md"
+    ledger.append(path, "첫 후보")
+    ledger.append(path, "둘째 후보")
+
+    ledger.mark_rejected(path, "첫 후보", "「옥석을 가려」의 판정 축을 못 냈다")
+
+    candidate = ledger.next_unexplored(path)
+    assert candidate is not None
+    assert candidate.claim == "둘째 후보"
+
+
+def test_rejection_reason_is_written_next_to_the_entry(tmp_path: Path) -> None:
+    """
+    목적: 기각 사유가 원장에 «사람이 읽을 수 있게» 남는 계약을 고정한다.
+
+    「기각됨」만 남으면 다음에 같은 후보가 다시 나왔을 때 왜 버렸는지 알 수 없어
+    **같은 것을 또 판다.**
+
+    Given: 사유와 함께 기각한 후보
+    When: 원장을 읽는다
+    Then: 사유가 파일에 들어 있다
+    """
+    path = tmp_path / "원장.md"
+    ledger.append(path, "첫 후보")
+
+    ledger.mark_rejected(path, "첫 후보", "「저점」의 관측 시점을 못 냈다")
+
+    assert "「저점」의 관측 시점을 못 냈다" in path.read_text(encoding="utf-8")
+
+
+def test_rejection_reason_line_is_not_read_as_a_candidate(tmp_path: Path) -> None:
+    """
+    목적: 사유 줄이 «후보로» 읽히지 않는 계약을 고정한다.
+
+    사유가 후보로 읽히면 그 문장을 다음 밤이 파러 간다. 형식으로 구별돼야 한다.
+
+    Given: 사유와 함께 기각한 후보
+    When: 원장을 읽는다
+    Then: 후보는 하나뿐이다
+    """
+    path = tmp_path / "원장.md"
+    ledger.append(path, "첫 후보")
+
+    ledger.mark_rejected(path, "첫 후보", "축을 못 냈다")
+
+    assert len(ledger.load(path)) == 1
+
+
+def test_rejected_entry_keeps_blocking_duplicates(tmp_path: Path) -> None:
+    """
+    목적: 기각된 후보가 «중복 방지»로 계속 작동하는 계약을 고정한다.
+
+    기각 줄이 중복 판정에서 빠지면 다음 탐색이 같은 후보를 새로 담고, 그 밤이
+    다시 기각하며 호출을 태운다. **기각은 「본 적 없다」가 아니다.**
+
+    Given: 기각된 후보
+    When: 같은 주장을 다시 담으려 한다
+    Then: 담기지 않는다
+    """
+    path = tmp_path / "원장.md"
+    ledger.append(path, "첫 후보")
+    ledger.mark_rejected(path, "첫 후보", "축을 못 냈다")
+
+    assert ledger.append(path, "첫 후보") is False
+
+
+def test_rejecting_an_unknown_candidate_is_rejected(tmp_path: Path) -> None:
+    """
+    목적: 원장에 없는 후보를 기각하려는 시도가 «조용히» 넘어가지 않는 계약을 고정한다.
+
+    조용히 넘어가면 그 후보는 「안 판 것」으로 남아 매일 밤 다시 팔리고, 매번 기각된다.
+
+    Given: 그 후보가 없는 원장
+    When: 기각한다
+    Then: 예외가 오른다
+    """
+    path = tmp_path / "원장.md"
+    ledger.append(path, "첫 후보")
+
+    with pytest.raises(ledger.UnknownCandidateError):
+        ledger.mark_rejected(path, "원장에 없는 후보", "사유")
+
+
+def test_claim_that_looks_like_an_identifier_prefix_is_not_misread(tmp_path: Path) -> None:
+    """
+    목적: 한 줄 주장이 «식별자 자리처럼 생겼어도» 잘리지 않는 계약을 고정한다.
+
+    [중요] 주장이 `` `abc` — `` 로 시작하면 그 줄을 다시 읽을 때 앞부분이 식별자로 읽히고
+    주장은 잘린 채 돌아온다. 그러면 **중복 판정이 통째로 깨져** 같은 후보가 매일 새로
+    담기고, 표시를 바꾸려는 호출은 「원장에 없는 후보」로 예외를 낸다. 그 예외는 「그 외」로
+    분류돼 세 번 재시도되며, **재시도마다 중복 줄이 하나씩 더 쌓인다.**
+    에러 메시지가 아니라 **조용한 중복**으로 나타나는 고장이다.
+
+    Given: 백틱과 대시로 시작하는 한 줄 주장
+    When: 담고 · 다시 담고 · 기각한다
+    Then: 중복이 막히고 기각이 성공한다
+    """
+    path = tmp_path / "원장.md"
+    tricky = "`spy` — 20일 이동평균을 상향 돌파하면 매수한다"
+
+    assert ledger.append(path, tricky) is True
+    assert ledger.append(path, tricky) is False
+
+    ledger.mark_rejected(path, tricky, "사유")
+
+    assert len(ledger.load(path)) == 1
+    assert ledger.next_unexplored(path) is None
+
+
+def test_disambiguated_identifier_stays_within_the_length_cap(tmp_path: Path) -> None:
+    """
+    목적: 겹침을 피해 붙인 꼬리가 «길이 한도에 잘려 사라지지 않는» 계약을 고정한다.
+
+    [중요] 한도를 넘긴 식별자를 돌려주면 경로를 만들 때 다시 잘려 꼬리가 없어지고,
+    **두 후보가 같은 폴더에 쓰인다.** 앞 후보는 이미 판 것으로 표시돼 다시 파이지도
+    않으므로 그 근거는 영영 사라진다 — 겹침 회피가 막으려던 바로 그 결과다.
+
+    Given: 한도 길이만큼 긴 같은 식별자를 쓰려는 두 후보
+    When: 둘 다 담는다
+    Then: 폴더 이름이 서로 다르다
+    """
+    path = tmp_path / "원장.md"
+    longest = "a" * naming.MAX_IDENTIFIER_LENGTH
+    ledger.append(path, "첫 후보", identifier=longest)
+    ledger.append(path, "둘째 후보", identifier=longest)
+
+    folders = [naming.folder_name(entry.claim, entry.identifier) for entry in ledger.load(path)]
+
+    assert folders[0] != folders[1]
+    assert all(len(folder) <= naming.MAX_IDENTIFIER_LENGTH for folder in folders)

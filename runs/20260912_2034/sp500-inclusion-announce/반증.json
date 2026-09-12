@@ -1,0 +1,50 @@
+{
+  "claim": "S&P500 편입이 예정 발표된 종목을 발표일 매수해 편입 발효일까지 보유한다",
+  "rebuttals": [
+    {
+      "title": "The Disappearing Index Effect (NBER Working Paper No. 30748)",
+      "url": "https://www.nber.org/papers/w30748",
+      "published": "2022-12",
+      "kind": "primary",
+      "says": "S&P500 편입 시 발생하는 비정상수익률이 1980년대 약 3.4%, 1990년대 약 7.6%에서 최근 10년(2010년대)에는 0.8%로 감소했고, 이는 지수 추종 자산 규모가 오히려 크게 늘어난 시기에 일어났다. 편입 취소(deletion) 시 부정적 수익률도 1990년대 큰 폭에서 2010~2020년에는 -0.6% 수준으로 통계적으로 유의하지 않게 줄었다. 원인으로 (1) S&P MidCap에서의 이동이 늘어 순매수 충격이 상쇄되는 점, (2) 차익거래·유동성 공급 구조 개선으로 지수펀드가 사기 전에 이미 헤지펀드·프랍데스크가 선매수해 가격에 반영해버리는 점을 든다. 즉 '발표일 매수 → 편입일 매도'로 얻을 수 있는 초과수익 자체가 최근에는 통계적으로 거의 사라졌다는 것이 핵심 반증이다. 2025년 Journal of Finance에 게재된 동일 논문(Greenwood & Sammon)도 이 결과를 재확인한다."
+    },
+    {
+      "title": "The S&P 500 Inclusion Effect: Smaller Now, Still Tradeable",
+      "url": "https://tapebrief.com/blog/sp500-index-inclusion-effect",
+      "published": "2026-05-25",
+      "kind": "secondary",
+      "says": "1980년대~2000년대 초 발표일~편입일 구간의 평균 수익률이 5~9%였으나 현재는 약 1% 수준으로 축소되었고 변동성(노이즈)은 오히려 커졌다. 헤지펀드·프랍데스크·알고리즘이 인덱스펀드보다 먼저 매수에 나서면서, 정작 패시브 자금이 들어올 시점에는 이미 수요 대부분이 가격에 반영되어 있다. 저자는 '거래 불가능해진 것은 아니다'라는 입장이지만, 유동주식수가 낮고 기관 보유율이 낮은 등 특정 구조적 조건이 겹치는 소수 종목이 아니면 더 이상 일반적으로 통하지 않는다고 본다 — 즉 '발표일 매수·편입일 매도'라는 단순 규칙 자체의 우위는 옅어졌다는 반증."
+    },
+    {
+      "title": "Is There an S&P 500 Index Effect? (Federal Reserve Bank of New York Staff Report No. 484)",
+      "url": "https://www.newyorkfed.org/medialibrary/media/research/staff_reports/sr484.pdf",
+      "published": "2011-02 (2012-11 개정)",
+      "kind": "primary",
+      "says": "Kasch & Sarkar는 편입 전 이미 진행 중이던 실적 개선·모멘텀을 통제하면, 지수 편입 자체는 기업가치나 공동변동성(comovement)에 영구적 효과를 주지 않는다고 결론짓는다. 편입되지 않은 비슷한 성과의 대조군 기업도 같은 시기 비슷한 가치 상승을 보였다. 즉 관찰되는 '지수 효과'는 편입이라는 사건 자체의 인과 효과가 아니라, 편입 전 우연히 실적·모멘텀이 좋았던 종목이 뽑히는 선택 편향의 반영일 수 있다는 반증 — 이는 이 매매법의 '왜 우위가 있을 수 있나'라는 전제 자체를 흔든다."
+    },
+    {
+      "title": "The S&P 500 Bump That Doesn't Last (Larry Swedroe, substack — Morningstar 연구 요약)",
+      "url": "https://larryswedroe.substack.com/p/the-s-and-p-500-bump-that-doesnt",
+      "published": "2026-04-23",
+      "kind": "secondary",
+      "says": "Sandifer, Smith, Impink의 연구(Journal of Investing, 2026)를 인용하여, 1989~2019년 331개 S&P500 편입 종목을 동종업종·비슷한 규모의 비편입 대조기업과 짝지어 비교한 결과, 편입 종목이 대조군 대비 1년 후 -28%, 2년 -33.1%, 3년 -40.2%, 5년 -55.2%, 10년까지도 하회한다고 밝힌다. 단기적으로는 편입 발표 후 주가가 오르지만 그 상승이 지속적인 프리미엄이 아니라는 것 — '편입=우위의 신호'라는 서사에 대한 반증."
+    },
+    {
+      "title": "S&P 500 편입 기업을 노려라 (브런치)",
+      "url": "https://brunch.co.kr/@@fwrE/82",
+      "published": "2024-03-25",
+      "kind": "secondary",
+      "says": "우버(발표 2023-12-01·편입 12-18), 슈퍼마이크로컴퓨터·데커스 아웃도어(발표 2024-03-01·편입 3-18) 등 최근 편입 사례에서, 발표일에는 주가가 올랐지만(예: 데커스 아웃도어 발표 당일 약 3.5%) 이후 편입일까지 상승분이 지속되지 않고 횡보한 경우가 있었다고 국내 필자가 사례로 제시한다. 다만 이 글 자체에는 정량적 수익률 표는 제공되지 않아 근거의 힘은 약하다(사례 제시 수준)."
+    }
+  ],
+  "not_found_reason": "",
+  "unverified": [
+    "Morningstar 'The Index Inclusion Effect Isn't Cause for Concern' 및 'The S&P 500 Bump That Doesn't Last' 원문 — 두 URL(morningstar.com, global.morningstar.com) 모두 이 세션에서 WebFetch 시 HTTP 403으로 차단되어 직접 열람하지 못했다. 내용은 WebSearch 스니펫으로만 교차 확인했으므로 정확한 수치(예: 정확한 CAR%)는 원문 대조가 안 됐다",
+    "S&P Global 자체 리서치 PDF (research-what-happened-to-the-index-effect.pdf) — HTTP 403으로 접근 실패, 내용 미확인",
+    "'S&P 500 vs. Peer Firm Performance: Does Index Inclusion Matter?' (Journal of Investing, pm-research.com) 원문 — 로그인/구독 게이트로 리디렉션되어 본문을 직접 읽지 못했고, 331쌍·1~10년 수치는 이를 요약한 2차 자료(Morningstar, substack)를 통해서만 확인했다",
+    "NBER PDF 원본(nber.org/system/files/working_papers/w30748/w30748.pdf) — 도구가 텍스트 추출에 실패해 대신 같은 논문의 abstract 페이지(nber.org/papers/w30748)로 내용을 확인했다. PDF 파일 자체는 살아 있으나 본문 대조는 못 했다",
+    "tapebrief.com 글의 발행일(2026-05-25)이 사이트에 표시된 정적 날짜인지, 도구가 매 조회 시 갱신하는 날짜인지 완전히 확신하지 못한다 — 두 차례 동일하게 나왔으나 원문 HTML의 날짜 필드를 직접 대조하지는 못했다",
+    "브런치 글의 데커스 아웃도어 구체적 주가 수치(발표일 이후~편입일까지 등락폭) — 본문에 있을 수 있으나 이 세션의 WebFetch 요약에서는 추출되지 않았다",
+    "국내(코스피/코스닥) 편입 관련 반증 사례는 이번 검색에서 찾지 못했다 — 이 주장의 대상이 S&P500(미국 시장)이라 국내 사례 검색은 우선순위를 낮췄다"
+  ]
+}

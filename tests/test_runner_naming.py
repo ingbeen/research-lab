@@ -152,3 +152,87 @@ def test_same_name_gives_same_slug() -> None:
     Then: 결과가 같다
     """
     assert naming.slug("월말 진입") == naming.slug("월말 진입")
+
+
+# --------------------------------------------------------------------------
+# 짧은 식별자
+#
+# 식별자도 에이전트가 낸다. 사람이 고른 이름이 아니므로 «한 줄 주장과 똑같이»
+# 정규화를 타야 한다 — 경로를 만드는 곳이 이 모듈 하나여야 한다는 계약이 그것이다.
+# --------------------------------------------------------------------------
+
+
+def test_identifier_keeps_only_safe_characters() -> None:
+    """
+    목적: 식별자가 소문자 영숫자와 하이픈으로만 남는 계약을 고정한다.
+
+    Given: 대문자와 공백과 밑줄이 섞인 식별자
+    When: 정규화한다
+    Then: 소문자 영숫자와 하이픈만 남는다
+    """
+    made = naming.identifier_slug("PEAD US  Drift")
+
+    assert made == made.lower()
+    assert all(char.isalnum() or char == "-" for char in made)
+
+
+def test_identifier_cannot_escape_the_run_directory() -> None:
+    """
+    목적: 식별자가 «상위 경로로 새지 않는» 계약을 고정한다.
+
+    [중요] 식별자는 에이전트가 내고, 원장은 사람도 손으로 고친다. 둘 중 어느 쪽이든
+    `../` 를 넣으면 그대로 폴더명이 되어 **산출물이 그 밤의 폴더 밖에 쓰인다.**
+    한 줄 주장이 이미 같은 검사를 받고 있으므로 식별자만 빠져 있으면 안 된다.
+
+    Given: 상위 참조와 경로 구분자가 든 식별자
+    When: 정규화한다
+    Then: 경로 구분자가 없고 점으로 시작하지 않는다
+    """
+    made = naming.identifier_slug("../../etc/passwd")
+
+    assert "/" not in made
+    assert "\\" not in made
+    assert not made.startswith(".")
+
+
+def test_unusable_identifier_is_rejected() -> None:
+    """
+    목적: 남는 문자가 없는 식별자를 «조용히» 쓰지 않는 계약을 고정한다.
+
+    빈 식별자를 그대로 쓰면 산출물이 이름 없는 폴더에 쌓이고 다음 후보가 덮어쓴다.
+
+    Given: 떨어뜨릴 문자만 든 식별자
+    When: 정규화한다
+    Then: 예외가 오른다
+    """
+    with pytest.raises(naming.UnusableNameError):
+        naming.identifier_slug("///   ***   ")
+
+
+def test_folder_name_prefers_the_identifier() -> None:
+    """
+    목적: 후보 폴더 이름이 «식별자»로 정해지는 계약을 고정한다.
+
+    한 줄 주장 전체가 폴더명이 되면 120바이트에서 잘리고, 잘린 자리가 문장 중간이라
+    **무슨 후보인지 이름만으로 안 드러난다.** 주장은 파일 안에 이미 있다.
+
+    Given: 긴 한 줄 주장과 짧은 식별자
+    When: 폴더 이름을 만든다
+    Then: 식별자가 쓰인다
+    """
+    long_claim = "분기 실적이 시장 예상을 크게 상회한 미국 상장사를 실적 발표 직후 매수해 60~90일 보유한다"
+
+    assert naming.folder_name(long_claim, "pead-us") == "pead-us"
+
+
+def test_folder_name_falls_back_to_the_claim() -> None:
+    """
+    목적: 식별자가 없는 예전 후보도 폴더를 얻는 계약을 고정한다.
+
+    이미 쌓인 후보에는 식별자가 없다. 여기서 예외가 오르면 **그 후보를 영영 못 판다.**
+
+    Given: 식별자가 없는 후보
+    When: 폴더 이름을 만든다
+    Then: 한 줄 주장에서 만든 이름이 쓰인다
+    """
+    assert naming.folder_name("월말 진입", None) == naming.slug("월말 진입")
