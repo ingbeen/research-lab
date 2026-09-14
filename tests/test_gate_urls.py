@@ -483,3 +483,51 @@ def test_non_web_schemes_are_never_opened(url: str, monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(urllib.request, "urlopen", must_not_be_called)
 
     assert urls.probe_url(url).liveness is urls.Liveness.UNKNOWN
+
+
+def test_tally_names_the_unjudged_urls() -> None:
+    """
+    목적: 판정 못 한 «주소»가 사유와 «함께» 남는 계약을 고정한다.
+
+    [중요] 사유(`HEAD 403`)만 남기면 **어느 주소가 확인 안 됐는지 알 수 없다.**
+    그러면 근거 문서를 받는 쪽은 표에 적힌 주소들 중 무엇이 실제로 열렸고 무엇이
+    안 열렸는지 **읽어서 구별할 방법이 없다** — 봇 차단은 두 표본 연속 21% 로 나왔고,
+    게이트를 세게 만드는 대신 사람이 볼 자리를 만드는 쪽이 이 저장소의 선택이다.
+
+    Given: 살아 있음 하나와 판정 못 함 둘
+    When: 센다
+    Then: 판정 못 한 주소가 «정렬돼» 남는다
+    """
+    probed = urls.probe_all(
+        ["https://example.com/열림", "https://ssrn.example/막힘", "https://gone.example/이름없음"],
+        probe=_probe_of(
+            {
+                "https://ssrn.example/막힘": _unknown("HEAD 403"),
+                "https://gone.example/이름없음": _unknown("HEAD URLError"),
+            }
+        ),
+    )
+
+    counted = urls.tally(probed)
+
+    assert counted[urls.KEY_UNKNOWN_URLS] == [
+        "https://gone.example/이름없음",
+        "https://ssrn.example/막힘",
+    ], "로그가 회차마다 같은 순서여야 나중에 견줄 수 있다"
+    assert "https://example.com/열림" not in counted[urls.KEY_UNKNOWN_URLS]
+
+
+def test_tally_names_no_urls_when_everything_was_judged() -> None:
+    """
+    목적: 전부 판정된 회차에서는 «빈 목록»이 나오는 계약을 고정한다.
+
+    없는 사실을 채워 넣지 않는다 — 이 값이 그대로 근거 문서의 11번 칸으로 가므로,
+    여기서 새면 **확인된 주소가 「확인 못 했다」로 적힌다.**
+
+    Given: 전부 살아 있는 주소들
+    When: 센다
+    Then: 판정 못 한 주소가 없다
+    """
+    probed = urls.probe_all(["https://example.com/a", "https://example.com/b"], probe=_probe_of({}))
+
+    assert urls.tally(probed)[urls.KEY_UNKNOWN_URLS] == []

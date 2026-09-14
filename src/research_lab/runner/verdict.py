@@ -25,8 +25,9 @@ from typing import Any, Final
 from research_lab.agent import invoke
 from research_lab.agent.invoke import AgentResult
 from research_lab.common_constants import DOSSIER_DIR, VERDICT_FILENAME
+from research_lab.gate import urls as url_gate
 from research_lab.gate import verdict as verdict_gate
-from research_lab.runner import decision_log, dossier, ledger, naming, state
+from research_lab.runner import decision_log, dossier, ledger, naming, state, url_check
 from research_lab.runner import payload as payload_helpers
 from research_lab.runner.atomic import atomic_write
 from research_lab.runner.steps import StepQualityFailed
@@ -189,6 +190,34 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller, *, dossier_dir: Path
     ledger.mark_explored(ledger_path, candidate.claim)
 
 
+def _unverified_urls(run_dir: Path) -> list[str]:
+    """그 회차에서 실재를 «확인하지 못한» 주소를 결정 로그에서 모은다.
+
+    [중요] **회차 전체를 본다.** 수집과 반증이 각자 자기 출처를 찌르므로 기록이 단계별로
+    흩어져 있는데, 한 단계만 보면 나머지가 조용히 빠지고 **빠졌다는 사실은 아무 에러도
+    내지 않는다** — 문서를 받는 쪽은 그 주소가 확인된 것이라고 읽게 된다.
+
+    [중요] 이 값은 **문서에 덧붙이는 말**이지 판정의 입력이 아니다. 그래서 모양이 어긋나도
+    예외를 올리지 않는다 — 여기서 터지면 앞 단계 비용을 다 치른 회차가 마지막에 깨지고
+    근거 문서가 안 나온다.
+
+    Args:
+        run_dir: 그 회차의 실행 폴더
+
+    Returns:
+        확인하지 못한 주소들. 같은 주소가 두 단계에서 나올 수 있으므로 중복은 접되
+        **처음 나온 순서를 지킨다**
+    """
+    gathered: list[str] = []
+    for entry in decision_log.read(run_dir):
+        if entry.get("gate") != url_check.GATE_NAME:
+            continue
+        gathered.extend(payload_helpers.as_strings(entry.get(url_gate.KEY_UNKNOWN_URLS)))
+
+    seen: set[str] = set()
+    return [url for url in gathered if not (url in seen or seen.add(url))]
+
+
 def _store(
     run_dir: Path,
     output_dir: Path,
@@ -210,7 +239,9 @@ def _store(
     with atomic_write(output_dir / VERDICT_FILENAME) as file:
         json.dump(decision, file, ensure_ascii=False, indent=2)
 
-    written = dossier.assemble(run_dir, candidate, decision, dossier_dir=dossier_dir)
+    written = dossier.assemble(
+        run_dir, candidate, decision, dossier_dir=dossier_dir, unverified_urls=_unverified_urls(run_dir)
+    )
 
     decision_log.record(
         run_dir,

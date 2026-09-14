@@ -27,6 +27,13 @@ EVENT_SKIPPED: Final = "skipped"
 EVENT_FAILED: Final = "failed"
 EVENT_COST: Final = "cost"
 
+# 예산 루프가 「한 장 더 갈까」를 판정했다.
+#
+# [중요] 「판정했다」(`EVENT_JUDGED`)와 갈라 둔다. 그쪽은 **그 후보를 잴 가치가 있나**의
+# 판정이라 나중에 「판정이 어떻게 갈렸나」를 셀 때 쓰이는데, 같은 이름으로 적으면
+# 예산 판정이 그 집계에 섞여 들어간다 — 이름을 고정해 두는 이유가 이런 자리다
+EVENT_BUDGET: Final = "budget"
+
 # 같은 자리에서 회차마다 실패해 그 후보와 실행 폴더를 접었다.
 #
 # [중요] 「버렸다」(`EVENT_DISCARDED`)와 갈라 둔다. 수집이 **기각 수를 그 이름으로 세므로**,

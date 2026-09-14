@@ -29,6 +29,7 @@ from research_lab.common_constants import (  # noqa: E402
 )
 from research_lab.gate import secrets  # noqa: E402
 from research_lab.runner import (  # noqa: E402
+    budget,
     collect,
     cycle,
     decision_log,
@@ -59,6 +60,34 @@ EXIT_SECRET: Final = 4  # 자격증명 발견 — 그 회차를 실패로 만든
 # 폭주 감지**이며(과금은 `billing_guard` 가 막는다), 실측 뒤에 조정한다.
 # 구독 인증에서 이 플래그가 실제로 동작하는지도 [미검증]이다
 DEFAULT_BUDGET_USD: Final = 2.0
+
+# 한 «회차»가 쓸 예산. 위 `DEFAULT_BUDGET_USD` 와 **뜻이 다르다** —
+# 그쪽은 한 «단계»에 거는 폭주 감지 상한이고, 이쪽은 「한 장 더 시작할까」의 판정 재료다.
+#
+# [중요] **이것은 「상한」이 아니라 «시작 판정»이다.** 도는 중에 끊지 않으므로
+# 마지막 한 장이 이 값을 넘길 수 있고 그것이 정상이다. 넘지 못하게 막는 것은
+# 단계마다 걸리는 `--budget-usd` 의 일이다.
+#
+# 기본값을 두는 이유는 **무인 실행이 인자 없이 불려도 루프가 돌아야** 하기 때문이다.
+# $10 은 실측 표본($1.9609 · $4.5735) 기준 2~5장에 해당한다
+DEFAULT_CYCLE_BUDGET_USD: Final = 10.0
+
+# 한 회차가 돌 수 있는 최대 반복 수 — **폭주 감지**다.
+#
+# [중요] 기존 상한 셋(재시도·기각·연속 실패 = 3)의 관용을 가져오지 않았다. 그것들은
+# «실패»의 상한이고 이것은 «정상 반복»의 상한이라 성질이 다르다. 3 으로 두면 예산이
+# 남아도 세 장에서 멈춰 **상한이 정책을 대신하게 된다.** 반대로 상한이 아예 없으면
+# 예산 계산이 틀린 날 한 회차가 영원히 돌고, 나중에 보면 **예산은 다 썼고 산출물은 0장**인데
+# 그런 회차는 「실패」가 아니라 「아무 일 없음」처럼 보여 며칠 지나서야 알아챈다
+MAX_CYCLE_ITERATIONS: Final = 8
+
+# 예산 판정을 결정 로그에 적을 때 쓰는 «단계» 이름.
+#
+# [주의] 정의된 단계가 아니라 **루프 자신**이다. 단계 이름과 겹치지 않아야 「그 단계가
+# 몇 회차 막혔나」를 세는 쪽이 이 줄을 함께 세지 않는다
+LOOP_STEP: Final = "cycle"
+
+CONTINUE_REASON: Final = "예산이 남아 다음 후보로 갑니다"
 
 # 응답 모양을 스키마로 강제할 단계들.
 #
@@ -91,7 +120,6 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[중지] {blocked}", file=sys.stderr)
         return EXIT_AUTH
 
-    run_dir = _resolve_run_dir(args.run_dir)
     agent_env = _agent_env(os.environ)
 
     def ask_for(step: str) -> Callable[[str], invoke.AgentResult]:
@@ -116,22 +144,120 @@ def main(argv: list[str] | None = None) -> int:
     def execute(step: str, current_run_dir: Path) -> None:
         dispatch(step, current_run_dir, ledger_path=args.ledger, ask=ask_for(step))
 
-    try:
-        result = cycle.run_cycle(run_dir=run_dir, ledger_path=args.ledger, execute=execute)
-    except state.AlreadyRunningError as running:
-        print(f"[중지] {running}", file=sys.stderr)
-        return EXIT_INCOMPLETE
+    # 「한 장 만들고 끝」이 아니라 예산이 남는 한 «돈다». 남는 구독 토큰을 쓰는 것이
+    # 이 프로젝트의 목적이라, 일찍 끝났다고 멈추면 목적과 어긋난다
+    run_dir = _resolve_run_dir(args.run_dir)
+    result: cycle.CycleResult | None = None
+    spent_usd = 0.0
+    produced = 0
+    stop_reason = CONTINUE_REASON
 
-    # 산출물이 생긴 «뒤에» 검사한다. 검사기는 사후 장치이고, 여기가 마지막 그물이다
+    for iteration in range(1, MAX_CYCLE_ITERATIONS + 1):
+        if iteration > 1:
+            # 지정된 폴더는 «첫» 반복의 것이다. 계속 쓰면 두 번째 장이 첫 장 위에 덮인다
+            run_dir = _resolve_run_dir(None)
+
+        # [중요] 이 회차가 쓴 비용은 «차분»으로 센다. 폴더의 합을 그대로 더하면
+        # 이어받은 폴더에 남아 있던 **지난 회차의 비용까지 이번 것으로 세어** 예산이
+        # 조기 소진되고, 그 어긋남은 아무 에러도 내지 않는다
+        before_usd = budget.cost_of(run_dir)
+        try:
+            result = cycle.run_cycle(run_dir=run_dir, ledger_path=args.ledger, execute=execute)
+        except state.AlreadyRunningError as running:
+            print(f"[중지] {running}", file=sys.stderr)
+            return EXIT_INCOMPLETE
+        spent_usd += budget.cost_of(run_dir) - before_usd
+
+        # [중요] **반복마다** 검사한다. 마지막 폴더만 보면 앞의 폴더들이 통째로 빠지고,
+        # 이 저장소는 PUBLIC 이라 그 누락이 그대로 공개 이력이 된다
+        leaked = _report_secrets(run_dir)
+        if leaked is not None:
+            return leaked
+
+        if result.produced:
+            produced += 1
+
+        unit = budget.unit_cost(RUNS_DIR)
+        halt = _loop_stop_reason(result, unit, remaining_usd=args.cycle_budget_usd - spent_usd, iteration=iteration)
+        decision_log.record(
+            run_dir,
+            LOOP_STEP,
+            decision_log.EVENT_BUDGET,
+            iteration=iteration,
+            produced=produced,
+            spent_usd=round(spent_usd, budget.COST_DIGITS),
+            cycle_budget_usd=args.cycle_budget_usd,
+            # 「멈췄다」만 남으면 다음에 왜 한 장에서 끝났는지 되짚을 수 없다
+            reason=halt or CONTINUE_REASON,
+            **unit.as_log_fields(),
+        )
+
+        if halt is not None:
+            stop_reason = halt
+            break
+
+    if result is None:
+        raise RuntimeError(f"내부 불변조건 위반: 회차가 한 번도 돌지 않았습니다 — 반복 상한={MAX_CYCLE_ITERATIONS}")
+
+    return _report(run_dir, result, produced=produced, spent_usd=spent_usd, stop_reason=stop_reason)
+
+
+def _loop_stop_reason(
+    result: cycle.CycleResult, unit: budget.Unit, *, remaining_usd: float, iteration: int
+) -> str | None:
+    """루프를 멈출 이유가 있으면 그 이유를, 계속해도 되면 None 을 돌려준다.
+
+    Args:
+        result: 방금 끝난 실행 폴더의 결과
+        unit: 지난 회차들에서 잰 한 장의 비용
+        remaining_usd: 이 회차에 남은 예산
+        iteration: 지금이 몇 번째 반복인가
+
+    Returns:
+        멈출 이유, 계속해도 되면 None
+    """
+    if result.failure is not None:
+        # 미완성을 이어받는 것은 **다음 회차의 첫 단계**다. 같은 회차에서 계속 밀어붙이면
+        # 같은 자리에서 같은 이유로 막히며 예산만 태운다
+        return "미완성으로 끝났습니다 — 이어받기는 다음 회차의 첫 단계입니다"
+
+    if not result.produced:
+        # [중요] 이 한 조건이 세 경우를 덮는다 — 원장이 포화라 전부 건너뛴 회차 ·
+        # 탐색이 새 후보를 못 찾은 회차 · 「막힘」으로 접힌 폴더를 닫기만 한 회차.
+        # **셋 다 다음 반복이 같은 자리에 다시 서므로**, 안 막으면 비용 0 짜리 회차가
+        # 반복 상한까지 돈다
+        return "이 반복이 근거 문서를 내지 못했습니다 — 다음 반복도 같은 자리에 섭니다"
+
+    shortfall = budget.shortfall_reason(unit, remaining_usd)
+    if shortfall is not None:
+        return shortfall
+
+    if iteration >= MAX_CYCLE_ITERATIONS:
+        return f"반복 상한 {MAX_CYCLE_ITERATIONS}회에 닿았습니다 — 예산은 남았으나 여기서 끊습니다"
+
+    return None
+
+
+def _report_secrets(run_dir: Path) -> int | None:
+    """그 회차가 쓴 것에 자격증명이 들어갔는지 본다.
+
+    산출물이 생긴 «뒤에» 검사한다. 검사기는 사후 장치이고, 여기가 마지막 그물이다.
+
+    Args:
+        run_dir: 그 반복의 실행 폴더
+
+    Returns:
+        걸렸으면 자격증명 갈래의 종료 코드, 깨끗하면 None
+    """
     findings = secrets.scan(secrets.scan_roots(run_dir, dossier_path=_dossier_of(run_dir)))
-    if findings:
-        for finding in findings:
-            # 값은 싣지 않는다. 그 기록도 PUBLIC 저장소에 남는다
-            print(f"[자격증명] {finding.path}:{finding.line_number} ({finding.rule})", file=sys.stderr)
-        decision_log.record(run_dir, "gate", decision_log.EVENT_FAILED, secrets=len(findings))
-        return EXIT_SECRET
+    if not findings:
+        return None
 
-    return _report(run_dir, result)
+    for finding in findings:
+        # 값은 싣지 않는다. 그 기록도 PUBLIC 저장소에 남는다
+        print(f"[자격증명] {finding.path}:{finding.line_number} ({finding.rule})", file=sys.stderr)
+    decision_log.record(run_dir, "gate", decision_log.EVENT_FAILED, secrets=len(findings))
+    return EXIT_SECRET
 
 
 def dispatch(step: str, run_dir: Path, *, ledger_path: Path, ask: Callable[[str], invoke.AgentResult]) -> None:
@@ -202,10 +328,18 @@ def _dossier_of(run_dir: Path) -> Path | None:
         return None
 
 
-def _report(run_dir: Path, result: cycle.CycleResult) -> int:
-    """무엇이 됐고 무엇이 남았는지 알린다."""
+def _report(
+    run_dir: Path, result: cycle.CycleResult, *, produced: int, spent_usd: float, stop_reason: str
+) -> int:
+    """무엇이 됐고 무엇이 남았는지 알린다.
+
+    [중요] **마지막 실행 폴더가 아니라 «회차»를 보고한다.** 루프가 여러 장을 낼 수 있으므로
+    마지막 폴더만 알리면 그 회차가 무엇을 했는지가 드러나지 않는다.
+    """
     print(f"실행 폴더: {run_dir}")
     print(f"마친 단계: {list(result.settled)}  건너뛴 단계: {list(result.skipped)}")
+    print(f"이번 회차: 근거 문서 {produced}장 · ${spent_usd:.{budget.COST_DIGITS}f} 사용")
+    print(f"멈춘 이유: {stop_reason}")
 
     if result.failure is None:
         print("회차를 완주했습니다.")
@@ -254,8 +388,28 @@ def _resolve_run_dir(explicit: Path | None) -> Path:
         print(f"[이어받기] 미완성을 찾았습니다: {unfinished}")
         return unfinished
 
-    # 하루에 두 번 돌 수 있으므로 날짜만으로는 유일해지지 않아 시각까지 넣는다
-    return RUNS_DIR / datetime.now(KST).strftime(RUN_DIR_TIME_FORMAT)
+    return _new_run_dir()
+
+
+def _new_run_dir() -> Path:
+    """아직 쓰이지 않은 실행 폴더 이름을 고른다.
+
+    [중요] 이름이 분 단위(`YYYYMMDD_HHMM`)인데 **전부 건너뛴 회차는 비용 0 에 몇 초면
+    끝난다.** 그래서 예산 루프에서는 같은 분에 두 폴더가 필요해질 수 있고, 겹치면
+    방금 완주한 폴더를 다시 잡아 「남은 단계 없음」이 돌아온다 — **아무 일도 안 하는 회차가
+    반복 상한까지 돈다.**
+
+    **형식을 바꿔서 풀지 않는다.** 앞 여덟 글자를 날짜로 읽는 쪽과 문자열 정렬이 곧
+    시간 정렬이라는 전제가 거기 물려 있어, 초를 끼우면 그 둘이 함께 흔들린다.
+    뒤에 순번을 붙이면 둘 다 유지된다.
+    """
+    stamp = datetime.now(KST).strftime(RUN_DIR_TIME_FORMAT)
+    run_dir = RUNS_DIR / stamp
+    ordinal = 2
+    while run_dir.exists():
+        run_dir = RUNS_DIR / f"{stamp}_{ordinal}"
+        ordinal += 1
+    return run_dir
 
 
 def _latest_unfinished_run_dir() -> Path | None:
@@ -326,7 +480,14 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         "--budget-usd",
         type=float,
         default=DEFAULT_BUDGET_USD,
-        help="한 단계의 폭주 감지 상한. 과금 방지가 아닙니다 (기본값: %(default)s)",
+        help="한 «단계»의 폭주 감지 상한. 과금 방지가 아닙니다 (기본값: %(default)s)",
+    )
+    parser.add_argument(
+        "--cycle-budget-usd",
+        type=float,
+        default=DEFAULT_CYCLE_BUDGET_USD,
+        help="한 «회차»의 예산. 이만큼 남지 않으면 다음 근거 문서를 시작하지 않습니다. "
+        "상한이 아니라 «시작 판정»이라 마지막 한 장이 넘길 수 있습니다 (기본값: %(default)s)",
     )
     parser.add_argument("--ledger", type=Path, default=LEDGER_PATH, help="원장 경로 (기본값: %(default)s)")
     parser.add_argument(

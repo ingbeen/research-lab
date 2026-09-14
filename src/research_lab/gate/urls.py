@@ -82,6 +82,14 @@ MAX_LISTED_DEAD: Final = 5
 
 KEY_UNKNOWN_DETAILS: Final = "unknown_details"
 
+# 판정 못 한 «주소» 자체가 실리는 자리.
+#
+# [중요] 사유(`HEAD 403`)만 남기면 **어느 주소가 확인 안 됐는지 알 수 없다.** 그러면
+# 근거 문서를 받는 쪽은 표에 적힌 주소 중 무엇이 실제로 열렸고 무엇이 안 열렸는지
+# **읽어서 구별할 방법이 없다.** 봇 차단은 두 표본 연속 21% 로 나왔고, 게이트를 세게
+# 만드는 대신(그러면 멀쩡한 출처가 든 회차가 매번 죽는다) 사람이 볼 자리를 만드는 쪽이다
+KEY_UNKNOWN_URLS: Final = "unknown_urls"
+
 # 퍼센트 인코딩에서 «건드리지 않을» 글자.
 #
 # [중요] `%` 가 들어 있는 것이 핵심이다. 빼면 이미 인코딩된 URL 이 **다시** 인코딩되어
@@ -182,7 +190,10 @@ def tally(probed: Mapping[str, Probe]) -> dict[str, Any]:
         probed: `probe_all` 의 결과
 
     Returns:
-        판정별 개수와, 판정 못 한 사유들 (중복을 걷어내고 정렬한 것)
+        판정별 개수와, 판정 못 한 사유들 (중복을 걷어내고 정렬한 것),
+        그리고 **판정 못 한 주소들**. 주소를 사유와 «따로» 싣는 이유는 사유만으로는
+        어느 출처가 확인 안 됐는지 되짚을 수 없기 때문이다 — 그 목록이 근거 문서의
+        미검증 칸으로 간다. 정렬하는 것은 로그가 회차마다 같은 순서여야 견줄 수 있어서다
     """
     counted = Counter(result.liveness for result in probed.values())
     return {
@@ -192,6 +203,7 @@ def tally(probed: Mapping[str, Probe]) -> dict[str, Any]:
         KEY_UNKNOWN_DETAILS: sorted(
             {result.detail for result in probed.values() if result.liveness is Liveness.UNKNOWN}
         ),
+        KEY_UNKNOWN_URLS: sorted(url for url, result in probed.items() if result.liveness is Liveness.UNKNOWN),
     }
 
 

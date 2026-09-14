@@ -72,7 +72,8 @@ HEADER: Final = """# {claim}
 >   무엇인지 모르는 채 「이 주장을 깨라」만 받았습니다 — 한 자리에서 둘 다 시키면
 >   방금 지지한 것을 스스로 무너뜨리라는 요구가 되어 잘 되지 않습니다.
 > - 아래에 적힌 URL 은 **실제로 호출해** 살아 있는지 확인했습니다. 다만 자동 접근을 막는
->   사이트와 이름이 해석되지 않는 주소는 「판정 못 함」으로 통과하므로 완전하지는 않습니다.
+>   사이트와 이름이 해석되지 않는 주소는 확인할 수 없으므로, **그런 주소는 맨 끝의 미검증
+>   목록에 따로 적어 두었습니다** — 거기 없는 주소는 확인된 것입니다.
 > - **수수료 · 세금 · 슬리피지를 일부러 담지 않았습니다.** 증권사 · 계좌 · 이벤트에 따라
 >   자릿수가 달라지고 그 폭이 기대값과 같은 크기라, 값을 하나 고르면 **그 값이 판정을
 >   대신합니다.** 재는 쪽이 자기 조건으로 넣어야 합니다.
@@ -82,6 +83,14 @@ HEADER: Final = """# {claim}
 EVIDENCE_TABLE_HEAD: Final = "| 제목 | 발행일 | 1차/2차 | 무엇을 말하나 | 주소 |\n| --- | --- | --- | --- | --- |"
 
 EMPTY_SLOT: Final = "(적히지 않았습니다)"
+
+# 실재를 확인하지 못한 주소를 11번 칸에 적는 문구.
+#
+# [중요] **한 줄 안에서 뜻이 닫혀야 한다.** 이 문서는 이 파이프라인을 열 수 없는 곳에서
+# 읽히므로 「게이트에서 unknown 으로 판정됨」처럼 적으면 받는 사람에게 아무 뜻이 없다.
+# 그리고 **「내용이 틀렸다」가 아니라 「확인이 안 됐다」**임을 그 자리에서 밝힌다 —
+# 학술지·정부·언론 사이트가 자동 접근을 막는 것은 흔한 일이고, 두 표본 연속 21% 가 그랬다
+UNJUDGED_URL_NOTE: Final = "자동 접근이 막히거나 주소가 해석되지 않아, 이 주소가 실제로 열리는지 확인하지 못했습니다: {url}"
 
 
 def path_for(run_dir: Path, candidate: state.Candidate, *, dossier_dir: Path = DOSSIER_DIR) -> Path:
@@ -148,6 +157,7 @@ def assemble(
     decision: dict[str, Any],
     *,
     dossier_dir: Path = DOSSIER_DIR,
+    unverified_urls: list[str] | None = None,
 ) -> Path:
     """단계 산출물을 읽어 11칸짜리 근거 문서를 쓴다.
 
@@ -156,6 +166,12 @@ def assemble(
         candidate: 그 회차의 후보
         decision: 판정 단계가 낸 산출물
         dossier_dir: 문서를 쌓을 폴더
+        unverified_urls: 실재를 확인하지 «못한» 주소들. **인자로 받는다** —
+            이 모듈이 결정 로그를 직접 읽으면 조립부의 입력이 인자에 다 드러나지 않고,
+            에이전트가 낸 미검증과 한 덩어리가 되어 **나중에 「사람이 밝힌 것」과
+            「기계가 못 판정한 것」을 가를 수 없다**.
+            [주의] 목록이어야 한다 — 문자열 하나를 넘기면 파이썬에서는 순회가 «글자 단위»로
+            되어 **예외 없이** 주소 한 건이 글자 수만큼의 줄로 불어난다
 
     Returns:
         쓴 문서의 경로
@@ -164,7 +180,7 @@ def assemble(
         StepQualityFailed: 앞 단계의 산출물이 하나라도 없거나 읽히지 않을 때
     """
     output_dir = run_dir / naming.folder_name(candidate.claim, candidate.identifier)
-    document = _render(run_dir, candidate, decision, load_required(output_dir))
+    document = _render(run_dir, candidate, decision, load_required(output_dir), unverified_urls)
 
     path = path_for(run_dir, candidate, dossier_dir=dossier_dir)
     # 반쯤 쓰다 끊기면 완성본 자리에 잘린 문서가 남는다
@@ -174,7 +190,11 @@ def assemble(
 
 
 def _render(
-    run_dir: Path, candidate: state.Candidate, decision: dict[str, Any], loaded: dict[str, dict[str, Any]]
+    run_dir: Path,
+    candidate: state.Candidate,
+    decision: dict[str, Any],
+    loaded: dict[str, dict[str, Any]],
+    unverified_urls: list[str] | None,
 ) -> str:
     """11칸을 «문서 순서»로 펼친다 — 결론 먼저, 근거 뒤.
 
@@ -213,7 +233,7 @@ def _render(
         ),
         _named_slots("## 9. 왜 사라졌을 수 있나", mechanism.get(mechanism_gate.KEY_DECAY), mechanism_gate.DECAY_FIELDS),
         _measurement_section(plan),
-        _unverified_section(decision, loaded),
+        _unverified_section(decision, loaded, unverified_urls),
     ]
     return "\n\n".join(sections).rstrip() + "\n"
 
@@ -402,7 +422,9 @@ def _measurement_section(plan: dict[str, Any]) -> str:
     return "\n".join(lines).rstrip()
 
 
-def _unverified_section(decision: dict[str, Any], loaded: dict[str, dict[str, Any]]) -> str:
+def _unverified_section(
+    decision: dict[str, Any], loaded: dict[str, dict[str, Any]], unverified_urls: list[str] | None
+) -> str:
     """11번 칸 — 모든 단계의 미검증을 «러너가» 모은다.
 
     [중요] 에이전트에게 다시 옮겨 적게 하면 옮기다 빠뜨리고, 이 칸은 **비는 게 오히려
@@ -410,11 +432,17 @@ def _unverified_section(decision: dict[str, Any], loaded: dict[str, dict[str, An
 
     같은 문장이 여러 단계에서 나올 수 있으므로 중복은 접되, **처음 나온 순서를 지킨다** —
     정렬하면 어느 단계가 낸 것인지의 흐름이 사라진다.
+
+    [중요] 실재를 확인하지 «못한» 주소를 **맨 뒤에 붙인다.** 앞의 것들은 조사가 닿지 못한
+    자리이고 이것은 검사기가 판정을 못 한 자리라 성질이 다른데, 섞어 놓으면 읽는 사람이
+    그 둘을 가를 수 없다. 그리고 **덮어쓰지 않는다** — 하나가 다른 하나를 밀어내면
+    사라진 쪽은 아무 흔적도 남기지 않는다.
     """
     gathered: list[str] = []
     for found in loaded.values():
         gathered.extend(payload_helpers.as_strings(found.get("unverified")))
     gathered.extend(payload_helpers.as_strings(decision.get("unverified_extra")))
+    gathered.extend(UNJUDGED_URL_NOTE.format(url=url) for url in payload_helpers.as_strings(unverified_urls))
 
     lines = [
         "## 11. 미검증 목록",

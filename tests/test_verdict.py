@@ -192,3 +192,100 @@ def test_without_a_pinned_candidate_it_is_an_invariant_violation(tmp_path: Path)
     """
     with pytest.raises(RuntimeError):
         verdict.run(tmp_path / "run", tmp_path / "원장.md", lambda _: _answer(_payload()))
+
+
+# --------------------------------------------------------------------------
+# 판정 못 한 주소를 «회차의 로그에서» 모아 문서로 넘긴다
+# --------------------------------------------------------------------------
+
+BLOCKED_URL = "https://ssrn.example/abstract=1"
+OTHER_BLOCKED_URL = "https://sec.example/filing"
+
+
+def _record_url_check(run_dir: Path, step: str, *, unknown: list[str]) -> None:
+    """수집·반증이 URL 을 찌르고 남기는 줄을 흉내 낸다."""
+    from research_lab.gate import urls as url_gate
+    from research_lab.runner import url_check
+
+    decision_log.record(
+        run_dir,
+        step,
+        decision_log.EVENT_READ,
+        gate=url_check.GATE_NAME,
+        alive=1,
+        dead=0,
+        unknown=len(unknown),
+        unknown_details=["HEAD 403"],
+        **{url_gate.KEY_UNKNOWN_URLS: unknown},
+    )
+
+
+def test_unjudged_urls_from_every_step_reach_the_document(prepared: Any) -> None:
+    """
+    목적: [중요] 회차 «전체»의 판정 못 한 주소가 근거 문서에 닿는 계약을 고정한다.
+
+    수집과 반증이 각자 자기 출처를 찌르므로 그 기록이 단계별로 흩어져 있다. 한 단계만
+    보면 나머지가 조용히 빠지고, **빠졌다는 사실은 아무 에러도 내지 않는다** —
+    문서를 받는 쪽은 그 주소가 확인된 것이라고 읽게 된다.
+
+    Given: 수집과 반증이 각각 판정 못 한 주소를 남긴 회차
+    When: 판정 단계를 돈다
+    Then: 둘 다 근거 문서에 들어 있다
+    """
+    ready = prepared()
+    _record_url_check(ready.run_dir, "collect", unknown=[BLOCKED_URL])
+    _record_url_check(ready.run_dir, "rebut", unknown=[OTHER_BLOCKED_URL])
+
+    verdict.run(ready.run_dir, ready.ledger_path, lambda _: _answer(_payload()), dossier_dir=ready.dossier_dir)
+
+    written = next(ready.dossier_dir.glob("*.md")).read_text(encoding="utf-8")
+
+    assert BLOCKED_URL in written
+    assert OTHER_BLOCKED_URL in written
+
+
+def test_a_cycle_without_unjudged_urls_says_nothing_about_them(prepared: Any) -> None:
+    """
+    목적: 판정 못 한 주소가 없으면 문서가 그 이야기를 «안 하는» 계약을 고정한다.
+
+    Given: URL 을 전부 판정한 회차
+    When: 판정 단계를 돈다
+    Then: 확인 못 했다는 줄이 없다
+    """
+    ready = prepared()
+    _record_url_check(ready.run_dir, "collect", unknown=[])
+
+    verdict.run(ready.run_dir, ready.ledger_path, lambda _: _answer(_payload()), dossier_dir=ready.dossier_dir)
+
+    written = next(ready.dossier_dir.glob("*.md")).read_text(encoding="utf-8")
+
+    assert "ssrn.example" not in written
+
+
+def test_a_broken_url_check_line_does_not_stop_the_step(prepared: Any) -> None:
+    """
+    목적: 결정 로그의 모양이 어긋나도 판정 단계가 «끝까지 도는» 계약을 고정한다.
+
+    [중요] 이 값은 **문서에 덧붙이는 말**이지 판정의 입력이 아니다. 여기서 터지면
+    앞 단계 비용을 다 치른 회차가 **마지막에 깨지고**, 근거 문서가 안 나온다.
+    「판정을 못 하는 것」과 「실패로 판정하는 것」은 다르다.
+
+    Given: 목록 자리에 문자열이 든 어긋난 기록
+    When: 판정 단계를 돈다
+    Then: 예외 없이 문서가 나온다
+    """
+    from research_lab.gate import urls as url_gate
+    from research_lab.runner import url_check
+
+    ready = prepared()
+    decision_log.record(
+        ready.run_dir,
+        "collect",
+        decision_log.EVENT_READ,
+        gate=url_check.GATE_NAME,
+        **{url_gate.KEY_UNKNOWN_URLS: "주소가-아니라-문자열"},
+    )
+
+    verdict.run(ready.run_dir, ready.ledger_path, lambda _: _answer(_payload()), dossier_dir=ready.dossier_dir)
+
+    assert next(ready.dossier_dir.glob("*.md")).is_file()

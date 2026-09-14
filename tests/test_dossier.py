@@ -432,3 +432,132 @@ def test_every_measurement_slot_the_gate_demands_is_rendered() -> None:
     rendered = {key for key, _ in dossier._MEASUREMENT_SLOTS}
 
     assert demanded <= rendered
+
+
+# --------------------------------------------------------------------------
+# 판정 못 한 주소 — 게이트가 «막지 않고» 사람이 볼 자리를 만든다
+# --------------------------------------------------------------------------
+
+# 실측에서 실제로 걸린 모양. 학술지·정부·언론이 봇을 막아 두 표본 연속 21% 가 여기 떨어졌다
+BLOCKED_URL = "https://ssrn.example/abstract=1"
+
+
+def test_unjudged_urls_land_in_the_unverified_slot(prepared: Any) -> None:
+    """
+    목적: 실재를 «확인하지 못한» 주소가 11번 칸에 실리는 계약을 고정한다.
+
+    봇 차단(403)과 이름 해석 실패는 「판정 못 함」으로 통과한다 — 죽음으로 보면
+    **멀쩡한 출처가 든 회차가 매번 죽기** 때문이다. 그런데 그 사실이 문서에 안 남으면
+    받는 쪽은 표에 적힌 주소 중 무엇이 확인됐는지 **읽어서 구별할 수 없다.**
+
+    Given: 판정 못 한 주소가 하나 있는 회차
+    When: 조립한다
+    Then: 11번 칸에 그 주소가 든다
+    """
+    ready = prepared()
+    written = dossier.assemble(
+        ready.run_dir,
+        ready.candidate,
+        VERDICT_PAYLOAD,
+        dossier_dir=ready.dossier_dir,
+        unverified_urls=[BLOCKED_URL],
+    ).read_text(encoding="utf-8")
+
+    slot = written.split("## 11.")[-1]
+
+    assert BLOCKED_URL in slot
+
+
+def test_the_unjudged_url_line_stands_on_its_own(prepared: Any) -> None:
+    """
+    목적: [중요] 그 줄이 «자립 서술»인 계약을 고정한다 — 1순위 제약.
+
+    「URL 게이트에서 unknown 으로 판정됨」처럼 적으면 이 저장소를 열 수 없는 곳에서
+    **아무 뜻이 없는 종이**가 된다. 읽는 사람이 그 자리에서 「왜 확인이 안 됐고 그래서
+    무엇을 조심해야 하는가」를 알 수 있어야 한다.
+
+    Given: 판정 못 한 주소가 있는 회차
+    When: 조립한다
+    Then: 그 줄에 포인터가 하나도 없고, 확인하지 못했다는 사실이 말로 적혀 있다
+    """
+    ready = prepared()
+    written = dossier.assemble(
+        ready.run_dir,
+        ready.candidate,
+        VERDICT_PAYLOAD,
+        dossier_dir=ready.dossier_dir,
+        unverified_urls=[BLOCKED_URL],
+    ).read_text(encoding="utf-8")
+
+    line = next(row for row in written.splitlines() if BLOCKED_URL in row)
+
+    for pointer in FORBIDDEN_POINTERS:
+        assert pointer not in line, f"판정 못 한 주소 줄이 「{pointer}」 를 가리킨다"
+    assert "확인" in line, "확인하지 못했다는 사실이 말로 적혀야 한다"
+
+
+def test_no_unjudged_urls_adds_nothing(prepared: Any) -> None:
+    """
+    목적: 판정 못 한 주소가 «없으면 아무것도 더하지 않는» 계약을 고정한다.
+
+    없는 사실을 채워 넣으면 확인된 출처가 「확인 못 했다」로 읽힌다.
+
+    Given: 전부 판정된 회차
+    When: 조립한다
+    Then: 11번 칸이 앞 단계들이 낸 미검증 그대로다
+    """
+    ready = prepared()
+    without = _assembled(ready)
+    with_empty = dossier.assemble(
+        ready.run_dir, ready.candidate, VERDICT_PAYLOAD, dossier_dir=ready.dossier_dir, unverified_urls=[]
+    ).read_text(encoding="utf-8")
+
+    assert without == with_empty
+
+
+def test_the_same_unjudged_url_is_listed_once(prepared: Any) -> None:
+    """
+    목적: 같은 주소가 «한 번만» 실리는 계약을 고정한다.
+
+    수집과 반증이 각각 자기 출처를 찌르므로, 양쪽이 같은 논문을 인용하면 같은 주소가
+    두 번 올라온다 — 겹침 자체는 정상이라는 것이 이미 실측으로 확인됐다.
+
+    Given: 같은 주소가 두 번 들어온 회차
+    When: 조립한다
+    Then: 문서에 한 번만 나온다
+    """
+    ready = prepared()
+    written = dossier.assemble(
+        ready.run_dir,
+        ready.candidate,
+        VERDICT_PAYLOAD,
+        dossier_dir=ready.dossier_dir,
+        unverified_urls=[BLOCKED_URL, BLOCKED_URL],
+    ).read_text(encoding="utf-8")
+
+    assert written.count(BLOCKED_URL) == 1
+
+
+def test_unjudged_urls_do_not_replace_the_steps_own_unverified(prepared: Any) -> None:
+    """
+    목적: [중요] 기계가 못 판정한 주소가 «에이전트가 밝힌 미검증»을 밀어내지 않는 계약을 고정한다.
+
+    섞이거나 덮이면 「에이전트가 밝힌 것」과 「기계가 못 판정한 것」을 나중에 못 가른다.
+    둘은 성질이 다르다 — 앞은 조사가 닿지 못한 자리이고, 뒤는 검사기가 판정을 못 한 자리다.
+
+    Given: 단계마다 미검증을 남긴 회차와 판정 못 한 주소
+    When: 조립한다
+    Then: 둘 다 들어 있다
+    """
+    ready = prepared()
+    written = dossier.assemble(
+        ready.run_dir,
+        ready.candidate,
+        VERDICT_PAYLOAD,
+        dossier_dir=ready.dossier_dir,
+        unverified_urls=[BLOCKED_URL],
+    ).read_text(encoding="utf-8")
+
+    assert BLOCKED_URL in written
+    assert "국내 절세 매도 유인의 크기" in written
+    assert "판정 단계에서 새로 드러난 것" in written
