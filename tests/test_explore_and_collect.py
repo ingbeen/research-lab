@@ -6,6 +6,7 @@
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -550,3 +551,107 @@ def test_collect_records_the_parameter_grid(tmp_path: Path) -> None:
         (run_dir / naming.folder_name("공시 다음날 사서 단기 보유한다", None) / "찬성근거.json").read_text(encoding="utf-8")
     )
     assert written["params"] == _GRID
+
+
+# --------------------------------------------------------------------------
+# 출처 실재 — 배선까지 검사한다
+#
+# 게이트 «함수»만 검사하면 배선을 빠뜨려도 초록이고, 그 고장은 밤을 돌려 봐야 드러난다.
+# 로드맵의 검증 조건도 「없는 URL 을 섞은 «문서»를 넣어 잡는다」이지
+# 「게이트 함수가 잡는다」가 아니다.
+# --------------------------------------------------------------------------
+
+
+def test_collect_is_blocked_when_a_url_does_not_exist(tmp_path: Path, probing: Any) -> None:
+    """
+    목적: 지어낸 URL 이 든 찬성 근거가 «파일로 남지 않는» 계약을 고정한다.
+
+    백테스트가 없어 부풀릴 점수가 없는 대신 유일하게 남는 위조 위험이 「없는 출처」이고,
+    **읽어서는 구별되지 않는다.** 그래서 기계가 막는다.
+
+    Given: 실재하지 않는 URL 이 든 찬성 근거
+    When: 수집을 돈다
+    Then: 막히고 찬성근거 파일이 안 쓰인다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    ledger.append(ledger_path, "첫 후보")
+    dead_url = "https://example.com/지어낸-논문"
+    probing(dead={dead_url})
+    answer = _answer(
+        {
+            "claim": "첫 후보",
+            "queries": ["ㄱ", "ㄴ", "a"],
+            "evidence": [{"title": "없는 논문", "url": dead_url, "kind": "primary"}],
+        }
+    )
+
+    with pytest.raises(StepQualityFailed):
+        collect.run(run_dir, ledger_path, lambda _: answer)
+
+    assert list(run_dir.glob("**/찬성근거.json")) == []
+
+
+def test_collect_is_not_blocked_when_a_url_cannot_be_judged(tmp_path: Path, probing: Any) -> None:
+    """
+    목적: 찔러 봤지만 «가를 수 없었던» URL 이 밤을 죽이지 않는 계약을 고정한다.
+
+    학술지·뉴스 사이트는 봇을 막는다. 차단을 죽음으로 보면 **멀쩡한 출처가 든 밤이
+    매번 죽는다** — 게이트가 약해지는 것보다 나쁘다.
+
+    Given: 차단으로 판정 못 한 URL 이 든 찬성 근거
+    When: 수집을 돈다
+    Then: 막히지 않고 파일이 쓰인다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    ledger.append(ledger_path, "첫 후보")
+    blocked_url = "https://example.com/봇을-막는-학술지"
+    probing(unknown={blocked_url: "HEAD 403"})
+    answer = _answer(
+        {
+            "claim": "첫 후보",
+            "queries": ["ㄱ", "ㄴ", "a"],
+            "evidence": [{"title": "막힌 논문", "url": blocked_url, "kind": "primary"}],
+        }
+    )
+
+    collect.run(run_dir, ledger_path, lambda _: answer)
+
+    assert (run_dir / naming.slug("첫 후보") / "찬성근거.json").is_file()
+
+
+def test_collect_records_what_it_probed(tmp_path: Path, probing: Any) -> None:
+    """
+    목적: 판정 분포가 결정 로그에 남는 계약을 고정한다.
+
+    「404·410 만 죽음으로 본다」는 **가정**이고, 남는 구멍은 가짜 도메인이 이름 해석
+    실패로 통과하는 것이다. 그 가정을 나중에 다시 보려면 무엇이 얼마나 판정 못 됐는지가
+    쌓여 있어야 한다 — 실패 분류표를 원문으로 가르치는 것과 같은 방식이다.
+
+    Given: 살아 있는 URL 하나와 판정 못 한 URL 하나
+    When: 수집을 돈다
+    Then: 결정 로그에 판정별 개수와 판정 못 한 사유가 남는다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    ledger.append(ledger_path, "첫 후보")
+    unknown_url = "https://example.com/막힌-곳"
+    probing(unknown={unknown_url: "HEAD gaierror"})
+    answer = _answer(
+        {
+            "claim": "첫 후보",
+            "queries": ["ㄱ", "ㄴ", "a"],
+            "evidence": [
+                {"title": "멀쩡한 논문", "url": "https://example.com/p", "kind": "primary"},
+                {"title": "못 닿은 곳", "url": unknown_url, "kind": "secondary"},
+            ],
+        }
+    )
+
+    collect.run(run_dir, ledger_path, lambda _: answer)
+
+    probed = [e for e in decision_log.read(run_dir) if e.get("gate") == "urls"]
+    assert probed[0]["alive"] == 1
+    assert probed[0]["unknown"] == 1
+    assert probed[0]["unknown_details"] == ["HEAD gaierror"]

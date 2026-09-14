@@ -30,6 +30,12 @@ class Status(StrEnum):
     EXPLORED = "explored"
     # 잴 수 없다고 판정해 버린 것. 사유는 바로 아래 줄에 적힌다
     REJECTED = "rejected"
+    # 밤마다 같은 자리에서 막혀 더 해봐야 소용없다고 접은 것.
+    #
+    # [중요] 기각과 «성질이 다르다». 기각은 「잴 수 없다」는 **판정의 결과**이고,
+    # 막힘은 판정에 닿지도 못한 것이다. 한 표시로 합치면 「잴 수 없다고 판정한 것」이라는
+    # 머리말 설명이 거짓이 되고, 나중에 「막힌 것만 다시 풀자」를 골라낼 수도 없다
+    BLOCKED = "blocked"
 
 
 # 체크박스 안에 적히는 글자. 마크다운 체크리스트라 사람이 편집기에서 그대로 읽고 고칠 수 있다
@@ -37,6 +43,7 @@ MARK_OF: Final[dict[Status, str]] = {
     Status.UNEXPLORED: " ",
     Status.EXPLORED: "x",
     Status.REJECTED: "-",
+    Status.BLOCKED: "!",
 }
 STATUS_OF: Final[dict[str, Status]] = {mark: status for status, mark in MARK_OF.items()}
 
@@ -47,12 +54,20 @@ STATUS_OF: Final[dict[str, Status]] = {mark: status for status, mark in MARK_OF.
 #
 # 식별자 자리를 ASCII 소문자·숫자·하이픈으로 좁힌 것은 한 줄 주장이 우연히
 # 「백틱으로 감싼 말 + 대시」로 시작할 때 그것을 식별자로 오독하지 않게 하려는 것이다
-ENTRY_PATTERN: Final = re.compile(r"^- \[([ x-])\] (?:`([a-z0-9][a-z0-9-]*)` — )?(.+)$")
+#
+# [중요] 표시 자리의 `-` 는 반드시 **문자 클래스 끝**에 둔다. 가운데 두면 범위로 읽혀
+# 기존 원장이 통째로 안 읽히고, 원장은 **중복 방지의 전부**라 그 순간 모든 후보가
+# 매일 다시 팔린다 — 예외는 나지 않는다
+ENTRY_PATTERN: Final = re.compile(r"^- \[([ x!-])\] (?:`([a-z0-9][a-z0-9-]*)` — )?(.+)$")
 
-# 기각 사유를 적는 줄. 들여쓰기가 있어 `ENTRY_PATTERN` 에 걸리지 않으므로
-# **사유가 후보로 읽히지 않는다** — 사람이 적은 메모가 무시되는 것과 같은 방식이다
-REJECTION_INDENT: Final = "      "
+# 사유를 적는 줄. 들여쓰기가 있어 `ENTRY_PATTERN` 에 걸리지 않으므로
+# **사유가 후보로 읽히지 않는다** — 사람이 적은 메모가 무시되는 것과 같은 방식이다.
+#
+# 접두사가 둘인 이유는 상태가 갈리기 때문이다. 다만 **구분의 정본은 표시(`- [-]`/`- [!]`)이지
+# 이 문자열이 아니다** — 사람이 사유를 손으로 고쳐도 상태는 남아야 한다
+REASON_INDENT: Final = "      "
 REJECTION_PREFIX: Final = "기각: "
+BLOCKED_PREFIX: Final = "막힘: "
 
 # 파일이 없을 때 처음 한 번 쓰는 머리말.
 # 「사람이 손으로 고칩니다 · 없으면 어떻게 되나 · 틀리게 적으면 어떻게 되나」를 적는 것은
@@ -62,10 +77,10 @@ PREAMBLE: Final = """# 원장 — 후보 목록
 > **사람이 손으로 고쳐도 됩니다.** 프로그램은 줄을 덧붙이거나 체크 표시만 바꿉니다.
 >
 > - **갱신 시점**: 탐색 단계가 새 후보를 찾을 때, 밤이 후보 하나를 다 팠을 때,
->   잴 수 없다고 판정해 기각할 때
+>   잴 수 없다고 판정해 기각할 때, 같은 자리에서 밤마다 막혀 접을 때
 > - **없으면**: 첫 탐색이 이 파일을 새로 만듭니다. 그전까지 팔 후보가 없습니다
-> - **틀리게 적으면**: `- [ ]` / `- [x]` / `- [-]` 로 시작하지 않는 줄은 후보로 읽히지 않고
->   조용히 무시됩니다. 후보를 손으로 넣으려면 반드시 그 형식을 지키세요
+> - **틀리게 적으면**: `- [ ]` / `- [x]` / `- [-]` / `- [!]` 로 시작하지 않는 줄은 후보로
+>   읽히지 않고 조용히 무시됩니다. 후보를 손으로 넣으려면 반드시 그 형식을 지키세요
 >
 > | 표시 | 뜻 |
 > | --- | --- |
@@ -73,6 +88,9 @@ PREAMBLE: Final = """# 원장 — 후보 목록
 > | `- [x]` | 이미 판 후보. 다시 꺼내지 않습니다 |
 > | `- [-]` | **기각한 후보.** 잴 수 없다고 판정한 것이며 사유가 바로 아래 줄에 있습니다. |
 > |  | 다시 파고 싶으면 `- [ ]` 로 고치고 사유 줄을 지우세요 |
+> | `- [!]` | **막힌 후보.** 잴 수 없다는 판정이 아니라, 밤마다 같은 자리에서 실패해 |
+> |  | 접은 것입니다. 사유가 바로 아래 줄에 있습니다. **원인을 고친 뒤** `- [ ]` 로 |
+> |  | 고치고 사유 줄을 지우면 다시 팝니다 — 안 고치면 또 같은 자리에서 막힙니다 |
 >
 > 주장 앞의 `` `짧은이름` `` 은 산출물 폴더 이름입니다. 없어도 됩니다 —
 > 없으면 한 줄 주장에서 폴더 이름을 만듭니다.
@@ -183,7 +201,28 @@ def mark_explored(path: Path, claim: str) -> None:
         UnknownCandidateError: 그 후보가 원장에 없을 때. 조용히 넘어가면 그 후보는
             영원히 「안 판 것」으로 남아 **매일 밤 다시 팔린다**
     """
-    _rewrite(path, claim, status=Status.EXPLORED, reason=None)
+    _rewrite(path, claim, status=Status.EXPLORED, note=None)
+
+
+def mark_blocked(path: Path, claim: str, reason: str) -> None:
+    """후보를 「막힘」으로 표시하고 사유를 바로 아래 줄에 적는다.
+
+    같은 실행 폴더에서 같은 단계가 밤마다 실패할 때 부른다. **기각과 다르다** —
+    잴 수 없다고 판정한 것이 아니라 판정에 닿지도 못한 것이고, 그래서 원인을 고치면
+    다시 팔 가치가 있다.
+
+    걷어내지 않으면 다음 밤이 같은 후보를 다시 잡아 **탐색도 수집도 영영 다시 돌지 않고
+    매일 호출만 한 번씩 태운다.** 아침에 보면 「실패」가 아니라 「아무 일 없음」처럼 보인다.
+
+    Args:
+        path: 원장 파일 경로
+        claim: 막을 후보의 한 줄 주장
+        reason: 어느 단계가 왜 막혔나. 사람이 원인을 고칠 단서가 이것뿐이다
+
+    Raises:
+        UnknownCandidateError: 그 후보가 원장에 없을 때
+    """
+    _rewrite(path, claim, status=Status.BLOCKED, note=f"{BLOCKED_PREFIX}{reason}")
 
 
 def mark_rejected(path: Path, claim: str, reason: str) -> None:
@@ -200,7 +239,7 @@ def mark_rejected(path: Path, claim: str, reason: str) -> None:
     Raises:
         UnknownCandidateError: 그 후보가 원장에 없을 때
     """
-    _rewrite(path, claim, status=Status.REJECTED, reason=reason)
+    _rewrite(path, claim, status=Status.REJECTED, note=f"{REJECTION_PREFIX}{reason}")
 
 
 def assign_identifier(path: Path, claim: str, identifier: str) -> str:
@@ -225,7 +264,7 @@ def assign_identifier(path: Path, claim: str, identifier: str) -> str:
     if resolved is None:
         return ""
 
-    _rewrite(path, claim, status=None, reason=None, identifier=resolved)
+    _rewrite(path, claim, status=None, note=None, identifier=resolved)
     return resolved
 
 
@@ -267,6 +306,15 @@ def canonical_claim(claim: str) -> str:
         원장에 담을 형태
     """
     return claim.strip().lstrip("`").strip()
+
+
+def _is_reason_line(line: str) -> bool:
+    """프로그램이 적은 사유 줄인가.
+
+    접두사까지 보는 것이 핵심이다. 들여쓰기만 보면 **사람이 들여 쓴 메모가 지워진다** —
+    이 파일은 사람도 고치라고 만든 것이다.
+    """
+    return any(line.startswith(f"{REASON_INDENT}{prefix}") for prefix in (REJECTION_PREFIX, BLOCKED_PREFIX))
 
 
 def _format_entry(status: Status, identifier: str | None, claim: str) -> str:
@@ -314,26 +362,40 @@ def _rewrite(
     claim: str,
     *,
     status: Status | None,
-    reason: str | None,
+    note: str | None,
     identifier: str | None = None,
 ) -> None:
-    """그 후보의 줄 «하나»만 바꾼다.
+    """그 후보의 줄 «하나»만 바꾸고, 메모가 있으면 바로 아래에 붙인다.
 
     표시를 바꾸는 것도 식별자를 박는 것도 같은 일이라 한 곳에서 한다.
     두 곳에 생기면 한쪽만 고쳐질 때 **예외 없이 형식이 갈린다.**
+
+    메모의 «접두사까지 붙여서» 받는 이유는 기각과 막힘이 다른 말을 쓰기 때문이다.
+    여기서 상태를 보고 고르게 하면 상태가 없는 호출(식별자 박기)까지 갈래를 따져야 한다.
     """
     normalized = canonical_claim(claim)
     lines = path.read_text(encoding="utf-8").splitlines(keepends=True) if path.is_file() else []
 
     found = False
+    drop_stale_reason = False
     rewritten: list[str] = []
     for line in lines:
+        if drop_stale_reason:
+            drop_stale_reason = False
+            if _is_reason_line(line):
+                # 이 줄은 프로그램이 예전에 적은 사유다. 두면 표시와 사유가 어긋난 채 쌓여
+                # (`- [!]` 아래에 「기각: ...」이 남는 식) 머리말이 약속한
+                # 「사유가 바로 아래 줄에 있습니다」가 거짓이 된다.
+                # **사람이 적은 메모는 접두사가 달라 여기 걸리지 않는다**
+                continue
+
         matched = ENTRY_PATTERN.match(line.rstrip("\n"))
         if matched is None or matched.group(3).strip() != normalized or found:
             rewritten.append(line)
             continue
 
         found = True
+        drop_stale_reason = True
         rewritten.append(
             _format_entry(
                 status if status is not None else STATUS_OF[matched.group(1)],
@@ -342,11 +404,11 @@ def _rewrite(
             )
             + "\n"
         )
-        if reason is not None:
+        if note is not None:
             # 여러 줄 사유가 들어와도 한 줄로 눕힌다. 줄이 나뉘면 아래 줄이
             # 사유인지 다른 것인지 형식으로 구별되지 않는다
-            flattened = " ".join(reason.split())
-            rewritten.append(f"{REJECTION_INDENT}{REJECTION_PREFIX}{flattened}\n")
+            flattened = " ".join(note.split())
+            rewritten.append(f"{REASON_INDENT}{flattened}\n")
 
     if not found:
         raise UnknownCandidateError(f"원장에 없는 후보입니다: {normalized!r}")

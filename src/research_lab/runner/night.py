@@ -31,6 +31,27 @@ COLLECT: Final = steps.STEPS[1]
 # 쉬지 않으면 상한 세 번이 몇 밀리초 안에 소진된다
 RETRY_DELAY_SECONDS: Final = 30.0
 
+# 한 실행 폴더에서 같은 단계가 몇 «밤» 실패하면 접나.
+#
+# [중요] `failures.MAX_RETRIES` 는 **한 밤 «안»의 상한**이라 밤과 밤 사이를 세지 못한다.
+# 게이트가 막은 실패는 재시도 대상이 아니라 그 밤이 즉시 끝나고, 다음 밤은 같은 폴더를
+# 이어받아 같은 단계를 다시 부른다. 상한이 없으면 **탐색도 수집도 영영 다시 돌지 않고
+# 매일 밤 호출만 한 번씩 태우며**, 그런 밤은 「실패」가 아니라 「아무 일 없음」처럼 보여
+# 며칠 지나서야 알아챈다.
+#
+# 값이 3인 것은 `failures.MAX_RETRIES` · `collect.MAX_REJECTIONS` 와 같은 성질의 상한이라
+# 관용을 따른 것이다
+MAX_STEP_FAILURES_PER_RUN: Final = 3
+
+# 위 상한에 «세는» 실패의 갈래.
+#
+# [중요] 한도·인증·예산은 세지 않는다. **그것들은 후보의 문제가 아니다.**
+# 이 파이프라인은 남는 구독 토큰으로 돌기 때문에 한도에 걸리는 밤이 «정상»이고(설계 §9 의 ①),
+# 인증과 예산은 사람이 손대기 전에는 어떤 후보로 바꿔도 같은 자리에 선다.
+# 세어 버리면 **멀쩡한 후보가 사흘 만에 원장에서 걷어내지면서 「단계가 3밤 연속 실패했다」는
+# 사유가 붙는데, 그 사유는 사실이지만 원인을 가리키지 않아 사람을 엉뚱한 곳으로 보낸다.**
+COUNTED_FAILURE_KINDS: Final = frozenset({FailureKind.QUALITY.value, FailureKind.OTHER.value})
+
 
 @dataclass(frozen=True)
 class NightResult:
@@ -42,6 +63,16 @@ class NightResult:
     settled: tuple[str, ...]
     skipped: tuple[str, ...]
     failure: Failure | None
+    # 상한에 닿아 원장에서 걷어낸 후보. 걷어낼 후보가 없었으면 None 이다.
+    # 종료 코드를 늘리지 않는 대신 이 값으로 사람에게 알린다 —
+    # 「기각은 실패가 아니다」와 같은 축이다
+    blocked_claim: str | None = None
+    # 그 실행 폴더를 접었다면 그 사유.
+    #
+    # [중요] `blocked_claim` 과 «따로» 둔다. 걷어낼 후보가 없는 채로 접히는 경우가 있고
+    # (탐색이 막혔거나 원장에서 그 줄이 사라졌거나), 그때 알릴 것이 없으면
+    # **폴더가 영구히 버려진 밤이 평범한 미완성과 글자 하나 다르지 않게 보고된다**
+    closed_reason: str | None = None
 
     @property
     def finished(self) -> bool:
@@ -94,8 +125,10 @@ def run_night(
 
             failure = _execute_with_retries(run_dir, step, execute)
             if failure is not None:
-                # 실패한 단계는 `settled` 에 넣지 않는다. 다음 밤이 ①에서 바로 이 단계를 잡는다
-                return NightResult(tuple(settled), tuple(skipped), failure)
+                # 실패한 단계는 `settled` 에 넣지 않는다. 다음 밤이 ①에서 바로 이 단계를 잡는다.
+                # 다만 그 「다음 밤」이 영영 반복되지 않도록 여기서 밤과 밤 사이의 상한을 본다
+                blocked, closed = _close_if_stuck(run_dir, ledger_path, step)
+                return NightResult(tuple(settled), tuple(skipped), failure, blocked, closed)
 
             settled.append(step)
             _persist(run_dir, settled, skipped)
@@ -186,6 +219,89 @@ def _execute_with_retries(run_dir: Path, step: str, execute: StepExecutor) -> Fa
     # **마지막 실패를 그대로 돌려준다.** 「재시도를 다 썼다」로 바꿔 넘기면 원문이 사라져
     # 부르는 쪽이 무엇 때문에 막혔는지 알 수 없다. 몇 번 시도했는지는 결정 로그에 있다
     return failure
+
+
+def _close_if_stuck(run_dir: Path, ledger_path: Path, step: str) -> tuple[str | None, str | None]:
+    """그 단계가 이 폴더에서 상한만큼 막혔으면 후보를 걷어내고 폴더를 접는다.
+
+    Returns:
+        (걷어낸 후보의 한 줄 주장, 접은 사유). 아직 상한 전이면 둘 다 None
+    """
+    if _failed_nights(run_dir, step) < MAX_STEP_FAILURES_PER_RUN:
+        return None, None
+
+    reason = f"「{step}」 단계가 {MAX_STEP_FAILURES_PER_RUN}밤 연속 막혔습니다"
+    blocked = _block_candidate(run_dir, ledger_path, step, reason)
+
+    try:
+        # 후보를 걷어내도 이 폴더의 「그 밤의 후보」는 살아 있다. 접어 두지 않으면
+        # 다음 밤이 이어받아 **같은 단계를 또 부르고 또 막힌다**
+        state.close(run_dir, reason)
+    except OSError:
+        # 상태 파일이 반쯤 쓰이다 끊겼거나 쓸 수 없다. 여기서 터뜨리면 **이미 실패한 밤 위에
+        # 예외가 겹쳐 실패 원문이 묻히고**, 종료 코드도 정해진 다섯 중 어느 것도 아니게 된다.
+        # 접지 못했다는 사실만 남기고 넘어간다 — 다음 밤이 한 번 더 도는 것이 그보다 낫다
+        decision_log.record(run_dir, step, decision_log.EVENT_FAILED, gate="close", reason="실행 폴더를 접지 못했습니다")
+        return blocked, None
+
+    decision_log.record(run_dir, step, decision_log.EVENT_BLOCKED, reason=reason, claim=blocked)
+    return blocked, reason
+
+
+def _block_candidate(run_dir: Path, ledger_path: Path, step: str, reason: str) -> str | None:
+    """막힌 후보를 원장에서 걷어낸다.
+
+    [중요] 상태에 박힌 후보가 없으면 **원장의 「다음에 팔 후보」로 되짚는다.**
+    수집은 `_store` 에서야 후보를 박으므로 **게이트에 막힌 수집은 후보를 박은 적이 없고**,
+    그대로 두면 걷어낼 것이 없어 밤마다 같은 후보에서 같은 게이트에 막힌다 —
+    이 장치가 없애려던 무한 반복이 그대로 남는다.
+
+    되짚기를 «수집에 한정»하는 이유는 탐색이 원장에서 후보를 꺼내지 않기 때문이다.
+    거기서 되짚으면 탐색이 막힌 밤에 **애먼 후보가 걷어내진다.**
+    """
+    candidate = state.pinned_candidate(run_dir)
+    claim = candidate.claim if candidate is not None else None
+    if claim is None and step == COLLECT:
+        stuck = ledger.next_unexplored(ledger_path)
+        claim = stuck.claim if stuck is not None else None
+
+    if claim is None:
+        return None
+
+    try:
+        ledger.mark_blocked(ledger_path, claim, reason)
+    except ledger.UnknownCandidateError:
+        # 원장은 사람이 손으로 고치는 파일이라 그 사이 줄이 지워질 수 있다.
+        # 여기서 터뜨리면 이미 실패한 밤 위에 예외가 겹쳐 실패 원문이 묻힌다
+        return None
+    return claim
+
+
+def _failed_nights(run_dir: Path, step: str) -> int:
+    """그 단계가 «막혀서» 끝난 밤이 이 폴더에 몇 번 기록됐나 센다.
+
+    [중요] 좁히는 조건이 둘이고 **둘 다 없으면 상한이 엉뚱하게 앞당겨진다.**
+
+    - `attempt == 1` — 한 밤의 실패가 로그에 여러 줄을 남긴다. 게이트가 막으면 단계가
+      한 줄(`gate=`)·러너가 한 줄(`attempt=`)을 적고, 「그 외」 실패는 한 밤에 세 줄
+      (`attempt=1,2,3`)을 남긴다. 안 좁히면 두 배·세 배로 세어 첫 밤에 바로 닿는다
+    - `kind` — 한도·인증·예산은 **후보의 문제가 아니다.** 세면 멀쩡한 후보가 사흘 만에
+      걷어내진다 (`COUNTED_FAILURE_KINDS`)
+
+    첫 시도가 실패했지만 재시도로 성공한 밤도 한 줄을 남긴다. 그래도 안전한 이유는
+    **성공한 단계는 `settled` 에 들어가 이 폴더에서 다시 불리지 않고**, 이 판정은
+    방금 실패를 돌려받은 자리에서만 하기 때문이다.
+
+    **새 누적 상태를 만들지 않는다** — 셀 재료가 이미 그 폴더에 쌓여 있다.
+    """
+    return sum(
+        1
+        for entry in decision_log.read(run_dir)
+        if entry.get("step") == step
+        and entry.get("event") == decision_log.EVENT_FAILED
+        and entry.get("attempt") == 1
+        and entry.get("kind") in COUNTED_FAILURE_KINDS
+    )
 
 
 def _persist(run_dir: Path, settled: list[str], skipped: list[str]) -> None:

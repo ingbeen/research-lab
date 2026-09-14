@@ -442,6 +442,141 @@ def test_claim_that_looks_like_an_identifier_prefix_is_not_misread(tmp_path: Pat
     assert ledger.next_unexplored(path) is None
 
 
+# --------------------------------------------------------------------------
+# 막힘
+#
+# 기각과 «성질이 다르다». 기각은 「잴 수 없다」는 **판정의 결과**이고, 막힘은 그 후보를
+# 두고 같은 단계가 밤마다 실패해 **더 해봐야 소용없다**고 접는 것이다.
+# 원장 머리말이 `- [-]` 를 「잴 수 없다고 판정한 것」이라 명시하므로 거기 합치면
+# 그 설명이 거짓이 된다. 상태로 갈라 두면 나중에 「막힌 것만 다시 풀자」를 골라낼 수 있다.
+# --------------------------------------------------------------------------
+
+
+def test_blocked_candidate_is_not_dug_again(tmp_path: Path) -> None:
+    """
+    목적: 막힌 후보를 다시 꺼내지 않는 계약을 고정한다.
+
+    이것이 §10.1 E 의 본체다. 다시 꺼내면 다음 밤이 같은 자리에서 또 막히고,
+    **탐색도 수집도 영영 다시 돌지 않은 채 매일 호출만 탄다.**
+
+    Given: 후보 둘 중 첫째가 막힌 원장
+    When: 다음에 팔 후보를 묻는다
+    Then: 둘째가 돌아온다
+    """
+    path = tmp_path / "원장.md"
+    ledger.append(path, "첫 후보")
+    ledger.append(path, "둘째 후보")
+
+    ledger.mark_blocked(path, "첫 후보", "반증 단계가 세 밤 연속 막혔다")
+
+    candidate = ledger.next_unexplored(path)
+    assert candidate is not None
+    assert candidate.claim == "둘째 후보"
+
+
+def test_blocked_is_a_different_state_from_rejected(tmp_path: Path) -> None:
+    """
+    목적: 막힘과 기각이 «상태로» 갈리는 계약을 고정한다.
+
+    사유 문자열의 접두사로만 구분하면 파싱이 부서지기 쉽고, 사람이 사유를 손으로
+    고치는 순간 구분이 사라진다.
+
+    Given: 하나는 기각 · 하나는 막힘인 원장
+    When: 읽는다
+    Then: 두 상태가 서로 다르다
+    """
+    path = tmp_path / "원장.md"
+    ledger.append(path, "기각될 후보")
+    ledger.append(path, "막힐 후보")
+
+    ledger.mark_rejected(path, "기각될 후보", "축을 못 냈다")
+    ledger.mark_blocked(path, "막힐 후보", "세 밤 연속 막혔다")
+
+    status_of = {entry.claim: entry.status for entry in ledger.load(path)}
+    assert status_of["기각될 후보"] is ledger.Status.REJECTED
+    assert status_of["막힐 후보"] is ledger.Status.BLOCKED
+
+
+def test_block_reason_is_written_next_to_the_entry(tmp_path: Path) -> None:
+    """
+    목적: 막힌 사유가 사람이 읽을 수 있게 남는 계약을 고정한다.
+
+    「막혔다」만 남으면 사람이 그 후보를 다시 풀어야 할지 판단할 근거가 없다.
+
+    Given: 사유와 함께 막은 후보
+    When: 원장을 읽는다
+    Then: 사유가 파일에 있고, 후보로는 읽히지 않는다
+    """
+    path = tmp_path / "원장.md"
+    ledger.append(path, "첫 후보")
+
+    ledger.mark_blocked(path, "첫 후보", "계보 단계가 세 밤 연속 막혔다")
+
+    assert "계보 단계가 세 밤 연속 막혔다" in path.read_text(encoding="utf-8")
+    assert len(ledger.load(path)) == 1
+
+
+def test_blocked_entry_keeps_blocking_duplicates(tmp_path: Path) -> None:
+    """
+    목적: 막힌 후보가 «중복 방지»로 계속 작동하는 계약을 고정한다.
+
+    빠지면 다음 탐색이 같은 후보를 새 후보로 담고, 그 밤이 또 같은 자리에서 막힌다 —
+    막은 의미가 통째로 사라진다.
+
+    Given: 막힌 후보
+    When: 같은 주장을 다시 담으려 한다
+    Then: 담기지 않는다
+    """
+    path = tmp_path / "원장.md"
+    ledger.append(path, "첫 후보")
+    ledger.mark_blocked(path, "첫 후보", "세 밤 연속 막혔다")
+
+    assert ledger.append(path, "첫 후보") is False
+
+
+def test_blocking_an_unknown_candidate_is_rejected(tmp_path: Path) -> None:
+    """
+    목적: 원장에 없는 후보를 막으려는 시도가 «조용히» 넘어가지 않는 계약을 고정한다.
+
+    Given: 그 후보가 없는 원장
+    When: 막는다
+    Then: 예외가 오른다
+    """
+    path = tmp_path / "원장.md"
+    ledger.append(path, "첫 후보")
+
+    with pytest.raises(ledger.UnknownCandidateError):
+        ledger.mark_blocked(path, "원장에 없는 후보", "사유")
+
+
+def test_existing_marks_still_read_after_adding_blocked(tmp_path: Path) -> None:
+    """
+    목적: 상태를 넷으로 늘려도 **기존 세 표시가 그대로 읽히는** 계약을 고정한다 (회귀).
+
+    [중요] 줄을 읽는 정규식의 문자 클래스를 넓히는 변경이다. 잘못 넓히면 `-` 가 범위로
+    읽혀 기존 원장이 통째로 안 읽히고, 원장은 **중복 방지의 전부**라 그 순간
+    모든 후보가 매일 다시 팔린다.
+
+    Given: 네 표시가 모두 든 원장
+    When: 읽는다
+    Then: 넷이 각각 제 상태로 읽힌다
+    """
+    path = tmp_path / "원장.md"
+    path.write_text(
+        "- [ ] 안 판 후보\n" "- [x] 판 후보\n" "- [-] 기각된 후보\n" "      기각: 축을 못 냈다\n" "- [!] 막힌 후보\n" "      막힘: 세 밤 연속 막혔다\n",
+        encoding="utf-8",
+    )
+
+    status_of = {entry.claim: entry.status for entry in ledger.load(path)}
+
+    assert status_of == {
+        "안 판 후보": ledger.Status.UNEXPLORED,
+        "판 후보": ledger.Status.EXPLORED,
+        "기각된 후보": ledger.Status.REJECTED,
+        "막힌 후보": ledger.Status.BLOCKED,
+    }
+
+
 def test_disambiguated_identifier_stays_within_the_length_cap(tmp_path: Path) -> None:
     """
     목적: 겹침을 피해 붙인 꼬리가 «길이 한도에 잘려 사라지지 않는» 계약을 고정한다.
@@ -463,3 +598,63 @@ def test_disambiguated_identifier_stays_within_the_length_cap(tmp_path: Path) ->
 
     assert folders[0] != folders[1]
     assert all(len(folder) <= naming.MAX_IDENTIFIER_LENGTH for folder in folders)
+
+
+def test_a_new_reason_replaces_the_old_one(tmp_path: Path) -> None:
+    """
+    목적: [중요] 사유 줄이 «쌓이지 않는» 계약을 고정한다.
+
+    표시를 바꿀 때 예전 사유를 안 지우면 `- [!]` 아래에 「기각: ...」이 남는다.
+    머리말이 「사유가 바로 아래 줄에 있습니다」라고 약속하는데 그 약속이 거짓이 되고,
+    **아침에 원장을 읽는 사람이 지금 사유와 옛 사유를 구별할 방법이 없다.**
+
+    Given: 기각했다가 다시 막은 후보
+    When: 원장을 읽는다
+    Then: 막힘 사유만 남고 기각 사유는 사라진다
+    """
+    path = tmp_path / "원장.md"
+    ledger.append(path, "첫 후보")
+    ledger.mark_rejected(path, "첫 후보", "축을 못 냈다")
+
+    ledger.mark_blocked(path, "첫 후보", "세 밤 연속 막혔다")
+
+    written = path.read_text(encoding="utf-8")
+    assert "세 밤 연속 막혔다" in written
+    assert "축을 못 냈다" not in written
+
+
+def test_reviving_a_candidate_clears_its_reason(tmp_path: Path) -> None:
+    """
+    목적: 다시 판 후보 아래에 예전 사유가 «안 남는» 계약을 고정한다.
+
+    Given: 막혔다가 사람이 되살려 끝까지 판 후보
+    When: 판 것으로 표시한다
+    Then: 막힘 사유가 사라진다
+    """
+    path = tmp_path / "원장.md"
+    ledger.append(path, "첫 후보")
+    ledger.mark_blocked(path, "첫 후보", "세 밤 연속 막혔다")
+
+    ledger.mark_explored(path, "첫 후보")
+
+    assert "막힘" not in path.read_text(encoding="utf-8")
+
+
+def test_a_human_memo_under_an_entry_survives(tmp_path: Path) -> None:
+    """
+    목적: [중요] 사람이 후보 «바로 아래»에 적은 메모가 살아남는 계약을 고정한다.
+
+    예전 사유를 지우는 규칙이 들여쓰기만 보면 사람의 메모까지 같이 지운다.
+    이 파일은 사람도 고치라고 만든 것이고, 지워진 사실은 예외로 드러나지 않는다.
+    그래서 **프로그램이 쓰는 접두사까지** 보고 지운다.
+
+    Given: 후보 바로 아래에 사람이 들여 쓴 메모
+    When: 그 후보를 기각한다
+    Then: 메모가 그대로 남는다
+    """
+    path = tmp_path / "원장.md"
+    path.write_text("- [ ] 첫 후보\n      사람이 적어 둔 메모\n", encoding="utf-8")
+
+    ledger.mark_rejected(path, "첫 후보", "축을 못 냈다")
+
+    assert "사람이 적어 둔 메모" in path.read_text(encoding="utf-8")

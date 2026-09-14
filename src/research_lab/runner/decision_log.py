@@ -27,6 +27,13 @@ EVENT_SKIPPED: Final = "skipped"
 EVENT_FAILED: Final = "failed"
 EVENT_COST: Final = "cost"
 
+# 같은 자리에서 밤마다 실패해 그 후보와 실행 폴더를 접었다.
+#
+# [중요] 「버렸다」(`EVENT_DISCARDED`)와 갈라 둔다. 수집이 **기각 수를 그 이름으로 세므로**,
+# 막힘을 같은 이름으로 적으면 그 밤의 기각 상한이 조용히 앞당겨진다 —
+# 이름을 고정해 두는 이유가 바로 이런 자리다
+EVENT_BLOCKED: Final = "blocked"
+
 
 def record(run_dir: Path, step: str, event: str, **fields: Any) -> None:
     """결정 한 건을 덧붙인다.

@@ -24,6 +24,15 @@ KEY_CANDIDATE: Final = "candidate"
 KEY_CLAIM: Final = "claim"
 KEY_IDENTIFIER: Final = "identifier"
 
+# 그 실행 폴더를 «접었다»고 적는 자리.
+#
+# [중요] 이 표시가 없으면 「막힘」 처리가 통째로 헛돈다. 후보를 원장에서 걷어내도 여기
+# 박힌 「그 밤의 후보」는 살아 있어서, 다음 밤이 이 폴더를 이어받아 **같은 단계를 또 부르고
+# 또 막힌다.** 남은 단계를 「했다」로 적어 닫는 길도 있지만 그건 거짓말이라,
+# 무엇을 안 했는지가 기록에서 사라진다
+KEY_CLOSED: Final = "closed"
+KEY_REASON: Final = "reason"
+
 
 class AlreadyRunningError(RuntimeError):
     """같은 실행 폴더를 이미 다른 프로세스가 잡고 있을 때."""
@@ -122,6 +131,55 @@ def pinned_candidate(run_dir: Path) -> Candidate | None:
     identifier = raw.get(KEY_IDENTIFIER)
     usable = isinstance(identifier, str) and identifier.strip()
     return Candidate(claim=claim, identifier=identifier if usable else None)
+
+
+def close(run_dir: Path, reason: str) -> None:
+    """그 실행 폴더를 접는다 — 다음 밤이 이어받지 않는다.
+
+    이미 저장된 진행은 건드리지 않는다. **무엇을 못 했는지는 그대로 남아야** 나중에
+    「어디서 막혔나」를 되짚을 수 있다.
+
+    Args:
+        run_dir: 그 밤의 실행 폴더
+        reason: 왜 접었나
+    """
+    saved = load(run_dir) or {}
+    saved[KEY_CLOSED] = {KEY_REASON: reason}
+    save(run_dir, saved)
+
+
+def closed_reason(run_dir: Path) -> str | None:
+    """그 실행 폴더가 접혔으면 그 사유를, 아니면 None 을 돌려준다.
+
+    [중요] 모양이 어긋나거나 읽을 수 없으면 **「안 접혔다」로 읽는다.** 이 칸이 생기기 전에
+    만들어진 폴더가 이미 쌓여 있고, 없는 것을 접힌 것으로 읽으면 **이어받을 수 있던 밤이
+    통째로 버려진다.** `pinned_candidate` 가 같은 이유로 같게 동작한다.
+
+    Args:
+        run_dir: 그 밤의 실행 폴더
+
+    Returns:
+        접힌 사유. 안 접혔거나 판정할 수 없으면 None
+    """
+    try:
+        saved = load(run_dir)
+    except (OSError, json.JSONDecodeError):
+        return None
+
+    if not isinstance(saved, dict):
+        return None
+
+    raw: Any = saved.get(KEY_CLOSED)
+    if not isinstance(raw, dict):
+        return None
+
+    # [주의] `str(...)` 로 감싸지 않는다. 사람이 손으로 `null` 을 적어 두면 `str(None)` 이
+    # `"None"` 이 되어 **아래 기본값이 안 걸리고 사유가 「None」으로 보고된다**
+    stored: Any = raw.get(KEY_REASON)
+    reason = stored.strip() if isinstance(stored, str) else ""
+
+    # 사유가 비었어도 「접혔다」는 사실은 살린다. 사유를 잃는 것보다 폴더를 다시 잡는 편이 나쁘다
+    return reason or "사유가 적히지 않은 채 접혔습니다"
 
 
 @contextmanager

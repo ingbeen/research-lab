@@ -160,6 +160,28 @@ def test_unfinished_night_with_a_candidate_is_resumed(entrypoint: Any) -> None:
     assert entrypoint._resolve_run_dir(None) == unfinished
 
 
+def test_closed_night_is_not_resumed(entrypoint: Any) -> None:
+    """
+    목적: [중요] 「막힘」으로 «닫힌» 폴더를 이어받지 않는 계약을 고정한다 (설계 §10.1 E).
+
+    이것이 없으면 E 가 통째로 동작하지 않는다. 후보를 원장에서 걷어내도 그 폴더의
+    「그 밤의 후보」는 살아 있어, 다음 밤이 이어받아 **같은 단계를 또 부르고 또 막힌다.**
+    바로 위 계약(후보가 박힌 미완성은 이어받는다)이 여기서는 정확히 반대로 작용하므로
+    닫힘을 «먼저» 봐야 한다.
+
+    Given: 후보가 박혀 있지만 막힘으로 닫힌 실행 폴더
+    When: 인자 없이 실행 폴더를 고른다
+    Then: 그 폴더가 아니라 새 폴더가 돌아온다
+    """
+    from research_lab.runner import state
+
+    closed = _make_run(entrypoint, "20260101_0100", ["explore", "collect"])
+    state.pin_candidate(closed, state.Candidate(claim="막힌 후보", identifier="stuck"))
+    state.close(closed, "반증 단계가 세 밤 연속 막혔다")
+
+    assert entrypoint._resolve_run_dir(None) != closed
+
+
 def test_explicit_run_dir_wins(entrypoint: Any) -> None:
     """
     목적: 사람이 지정한 폴더를 그대로 쓰는 계약을 고정한다.

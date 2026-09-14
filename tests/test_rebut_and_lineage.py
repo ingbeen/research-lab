@@ -12,6 +12,7 @@
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -233,6 +234,51 @@ def test_rebut_cost_is_recorded_even_when_blocked(tmp_path: Path) -> None:
 
     costs = [e for e in decision_log.read(run_dir) if e["event"] == decision_log.EVENT_COST]
     assert costs and costs[0]["cost_usd"] == 0.5
+
+
+def test_rebut_is_blocked_when_a_url_does_not_exist(tmp_path: Path, probing: Any) -> None:
+    """
+    목적: 지어낸 URL 이 든 반증이 «파일로 남지 않는» 계약을 고정한다.
+
+    반증 세션은 「많이 찾을수록 잘한 것」이라 **지어낼 압력이 가장 큰 자리**다.
+    게이트가 결과의 수를 판정하지 않는 대신, 적어 낸 출처가 실재하는지는 반드시 본다.
+
+    Given: 실재하지 않는 URL 이 든 반증
+    When: 반증을 돈다
+    Then: 막히고 반증 파일이 안 쓰인다
+    """
+    run_dir = tmp_path / "run"
+    output_dir = _pin(run_dir, tmp_path / "원장.md")
+    dead_url = "https://example.com/지어낸-반증"
+    probing(dead={dead_url})
+    answer = _answer({"queries": QUERIES, "rebuttals": [{"title": "없는 글", "url": dead_url, "kind": "primary"}]})
+
+    with pytest.raises(StepQualityFailed):
+        rebut.run(run_dir, lambda _: answer)
+
+    assert not (output_dir / REBUTTAL_FILENAME).exists()
+
+
+def test_rebut_does_not_probe_when_a_cheaper_gate_already_blocked(tmp_path: Path, probing: Any) -> None:
+    """
+    목적: 값싼 게이트가 이미 막은 단계에서 «URL 을 찌르지 않는» 계약을 고정한다.
+
+    URL 검사만 네트워크를 쓴다. 어차피 막힐 단계에서 찌르는 것은 순 낭비이고,
+    남의 서버를 두드리는 일이기도 하다.
+
+    Given: 검색어가 모자라고 URL 도 든 반증
+    When: 반증을 돈다
+    Then: 막히고, 아무 URL 도 찌르지 않았다
+    """
+    run_dir = tmp_path / "run"
+    _pin(run_dir, tmp_path / "원장.md")
+    probed = probing()
+    answer = _answer({"queries": ["하나뿐"], "rebuttals": [{"title": "글", "url": "https://example.com/a"}]})
+
+    with pytest.raises(StepQualityFailed):
+        rebut.run(run_dir, lambda _: answer)
+
+    assert probed == []
 
 
 # --------------------------------------------------------------------------

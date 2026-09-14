@@ -127,6 +127,16 @@ def _report(run_dir: Path, result: night.NightResult) -> int:
     print(f"[미완성] 갈래={result.failure.kind.value}", file=sys.stderr)
     print(result.failure.raw, file=sys.stderr)
 
+    if result.closed_reason is not None:
+        # 종료 코드를 늘리지 않는다 — 「기각은 실패가 아니다」와 같은 축이다.
+        # 갈래를 늘리면 「인증이 끊겨 며칠 안 도는 상태」와의 구별이 흐려진다.
+        #
+        # [중요] 걷어낸 후보가 «없어도» 알린다. 이 실행 폴더는 영구히 버려진 것이라,
+        # 안 알리면 평범한 미완성과 **출력이 글자 하나 다르지 않다**
+        print(f"[막힘] {result.closed_reason} — 이 실행 폴더를 접었습니다.", file=sys.stderr)
+        if result.blocked_claim is not None:
+            print(f"[막힘] 이 후보를 원장에서 걷어냈습니다: {result.blocked_claim}", file=sys.stderr)
+
     if result.failure.kind is FailureKind.LIMIT:
         # 한도 소진은 «정상»이다. 넘어가서 과금되지 않고, 다음 밤이 이어받는다
         return EXIT_LIMIT
@@ -183,6 +193,13 @@ def _latest_unfinished_run_dir() -> Path | None:
             continue
 
         if saved is None:
+            continue
+
+        if state.closed_reason(run_dir) is not None:
+            # [중요] 「막힘」으로 접은 폴더다. 이것이 없으면 그 처리가 통째로 헛돈다 —
+            # 후보를 원장에서 걷어내도 이 폴더의 「그 밤의 후보」는 살아 있어서,
+            # 이어받으면 **같은 단계를 또 부르고 또 막힌다.** 아래 「후보가 박힌 미완성은
+            # 이어받는다」 갈래가 여기서는 정확히 반대로 작용하므로 «먼저» 본다
             continue
 
         try:
