@@ -18,15 +18,18 @@ from typing import Final
 #
 # 「반증」이 「수집」 뒤인 것은 순서가 중요해서가 아니라 **수집이 그 밤의 후보를 정하기**
 # 때문이다. 반증은 그 후보의 한 줄 주장만 받으며 수집이 무엇을 찾았는지 모른다.
-# 「계보」가 마지막인 것은 그것이 **양쪽 출처를 모두 받아야** 「누가 원본인가」를 묻기 때문이다
-STEPS: Final = ("explore", "collect", "rebut", "lineage")
+# 「계보」가 그 뒤인 것은 그것이 **양쪽 출처를 모두 받아야** 「누가 원본인가」를 묻기 때문이다.
+#
+# 「실현가능성」이 마지막인 것은 dossier 를 채우는 순서가 `6→7→8→9→4→5→3` 이라
+# **4·5번 칸이 출처 쪽 칸들 뒤**에 오기 때문이다. 그래서 「판 것」 표시도 이 단계가 한다
+STEPS: Final = ("explore", "collect", "rebut", "lineage", "feasibility")
 
 # 그 밤의 «후보»가 정해져 있어야 돌 수 있는 단계들.
 #
 # [중요] 후보가 없는데 이 단계를 돌리면 «끝나지 않는 실패»가 된다 — 예외가 나고 상한까지
 # 재시도한 뒤 「다음 밤이 이어받습니다」로 보고되며, 다음 밤도 같은 자리에서 같은 일을
 # 반복한다. 그래서 러너가 건너뛰고, 진입점이 그런 예전 상태 파일을 이어받지 않는다
-CANDIDATE_STEPS: Final = ("rebut", "lineage")
+CANDIDATE_STEPS: Final = ("rebut", "lineage", "feasibility")
 
 
 class UnknownStepError(ValueError):

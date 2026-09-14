@@ -27,14 +27,21 @@ def _executor(calls: list[str], ledger_path: Path | None = None):
     탐색은 원장을 채우고 수집은 그 밤의 후보를 상태에 박는다. 둘 다 안 하면 뒤따르는
     단계가 「팔 후보 없음」·「그 밤의 후보 없음」으로 건너뛰어진다 — 그게 정상 동작이라,
     흉내 내지 않으면 **건너뛰기 갈래만 검사하게 되고 진행 갈래는 검사되지 않는다.**
+
+    [중요] 수집은 **원장에서 꺼낸 후보**를 박는다. 진짜 수집이 그렇게 하기 때문이다
+    (`collect._store`). 원장에 없는 이름을 박으면 뒤 단계가 「원장에 그 후보가 없다」로
+    건너뛰어지는데, 그것은 **흉내가 틀린 것이지 러너가 틀린 것이 아니다** —
+    그 갈래는 사람이 원장 줄을 지웠을 때를 위한 것이다.
     """
 
     def execute(step: str, run_dir: Path) -> None:
         calls.append(step)
         if step == "explore" and ledger_path is not None:
             ledger.append(ledger_path, f"탐색이 찾은 후보 {len(calls)}")
-        if step == "collect":
-            state.pin_candidate(run_dir, state.Candidate(claim="그 밤이 판 후보", identifier=None))
+        if step == "collect" and ledger_path is not None:
+            candidate = ledger.next_unexplored(ledger_path)
+            if candidate is not None:
+                state.pin_candidate(run_dir, state.Candidate(claim=candidate.claim, identifier=None))
 
     return execute
 
@@ -75,9 +82,9 @@ def test_explore_is_skipped_when_stock_exists(tmp_path: Path) -> None:
     ledger.append(ledger_path, "첫 후보")
     calls: list[str] = []
 
-    result = night.run_night(run_dir=tmp_path / "run", ledger_path=ledger_path, execute=_executor(calls))
+    result = night.run_night(run_dir=tmp_path / "run", ledger_path=ledger_path, execute=_executor(calls, ledger_path))
 
-    assert calls == ["collect", "rebut", "lineage"]
+    assert calls == list(steps.STEPS[1:])
     assert result.skipped == ("explore",)
 
 
@@ -95,7 +102,7 @@ def test_skipped_step_still_counts_as_settled(tmp_path: Path) -> None:
     ledger_path = tmp_path / "원장.md"
     ledger.append(ledger_path, "첫 후보")
 
-    result = night.run_night(run_dir=tmp_path / "run", ledger_path=ledger_path, execute=_executor([]))
+    result = night.run_night(run_dir=tmp_path / "run", ledger_path=ledger_path, execute=_executor([], ledger_path))
 
     assert set(result.settled) == set(steps.STEPS)
     assert result.finished is True
@@ -125,7 +132,7 @@ def test_interrupted_night_resumes_at_the_failed_step(tmp_path: Path) -> None:
     calls: list[str] = []
     night.run_night(run_dir=run_dir, ledger_path=ledger_path, execute=_executor(calls, ledger_path))
 
-    assert calls == ["collect", "rebut", "lineage"]
+    assert calls == list(steps.STEPS[1:])
 
 
 def test_limit_failure_stops_without_retrying(tmp_path: Path) -> None:
@@ -255,11 +262,11 @@ def test_collect_is_skipped_when_explore_finds_nothing(tmp_path: Path) -> None:
     assert result.failure is None
 
 
-def test_rebuttal_and_lineage_are_skipped_without_a_candidate(tmp_path: Path) -> None:
+def test_candidate_steps_are_skipped_without_a_candidate(tmp_path: Path) -> None:
     """
     목적: 그 밤이 후보를 못 잡았을 때 «끝나지 않는 실패»가 되지 않는 계약을 고정한다.
 
-    [중요] 수집에 이미 같은 갈래가 있고, 새 단계 둘에 그것이 빠지면 같은 고장이 난다 —
+    [중요] 수집에 이미 같은 갈래가 있고, 후보를 보는 단계에 그것이 빠지면 같은 고장이 난다 —
     후보 없이 반증이 돌아 예외가 나고, 상한까지 재시도한 뒤 「다음 밤이 이어받습니다」로
     보고된다. 다음 밤도 같은 자리에서 같은 일을 반복하며, **아침에는 아무 일도 없었던
     것처럼 보인다.**
@@ -276,9 +283,8 @@ def test_rebuttal_and_lineage_are_skipped_without_a_candidate(tmp_path: Path) ->
         execute=_executor(calls),
     )
 
-    assert "rebut" not in calls
-    assert "lineage" not in calls
-    assert result.skipped == ("collect", "rebut", "lineage")
+    assert all(step not in calls for step in steps.CANDIDATE_STEPS)
+    assert result.skipped == tuple(steps.STEPS[1:])
     assert result.failure is None
 
 
@@ -298,8 +304,128 @@ def test_skip_reasons_are_recorded(tmp_path: Path) -> None:
     night.run_night(run_dir=run_dir, ledger_path=tmp_path / "원장.md", execute=_executor([]))
 
     skipped = [e for e in decision_log.read(run_dir) if e["event"] == decision_log.EVENT_SKIPPED]
-    assert {entry["step"] for entry in skipped} == {"collect", "rebut", "lineage"}
+    assert {entry["step"] for entry in skipped} == set(steps.STEPS[1:])
     assert all(entry["reason"].strip() for entry in skipped)
+
+
+def test_last_step_is_skipped_when_the_candidate_is_already_explored(tmp_path: Path) -> None:
+    """
+    목적: [중요] 그 밤의 후보가 «이미 판 것»이면 마지막 단계를 건너뛰는 계약을 고정한다.
+
+    단계를 하나 늘리면 **그 전에 완주한 실행 폴더가 「미완성」으로 보인다** — 끝난 단계는
+    전부 `settled` 에 있는데 새 단계만 남아 있기 때문이다. 그 폴더에는 후보가 박혀 있어
+    「후보 없음」 갈래로도 걸러지지 않으므로, 그대로 이어받으면 **이미 닫힌 후보를 두고
+    새 단계만 도는 밤**이 되고 그 후보를 두 번 「판 것」으로 표시한다.
+
+    가르는 사실은 하나다 — **원장에서 이미 「판 것」이면 더 물을 자리가 아니다.**
+    사람이 손으로 `- [x]` 로 바꾼 경우도 같은 갈래로 덮인다.
+
+    Given: 마지막 단계만 남았고, 박힌 후보가 원장에서 이미 판 것인 실행 폴더
+    When: 밤을 돈다
+    Then: 그 단계를 실행하지 않고 사유를 남긴 채 완주한다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    claim = "예전 판에서 이미 판 후보"
+
+    ledger.append(ledger_path, claim)
+    ledger.mark_explored(ledger_path, claim)
+    state.pin_candidate(run_dir, state.Candidate(claim=claim, identifier=None))
+    state.save(run_dir, {**(state.load(run_dir) or {}), "settled": list(steps.STEPS[:-1]), "skipped": []})
+
+    calls: list[str] = []
+    result = night.run_night(run_dir=run_dir, ledger_path=ledger_path, execute=_executor(calls))
+
+    assert steps.STEPS[-1] not in calls
+    assert steps.STEPS[-1] in result.skipped
+    assert result.failure is None
+
+    skipped = [e for e in decision_log.read(run_dir) if e["event"] == decision_log.EVENT_SKIPPED]
+    assert any(entry["step"] == steps.STEPS[-1] and entry["reason"].strip() for entry in skipped)
+
+
+def _resume_at_last_step(run_dir: Path, ledger_path: Path, claim: str) -> None:
+    """마지막 단계만 남은 폴더를 만든다 — 후보가 박혀 있고 앞 단계는 다 끝난 상태."""
+    state.pin_candidate(run_dir, state.Candidate(claim=claim, identifier=None))
+    state.save(run_dir, {**(state.load(run_dir) or {}), "settled": list(steps.STEPS[:-1]), "skipped": []})
+
+
+def test_last_step_is_skipped_when_the_candidate_is_rejected(tmp_path: Path) -> None:
+    """
+    목적: [중요] 기각된 후보를 「판 것」으로 «덮지 않는» 계약을 고정한다.
+
+    마지막 단계가 `mark_explored` 를 부르면 `- [-]` 가 `- [x]` 로 바뀌고
+    **바로 아래의 기각 사유 줄이 지워진다.** 원장 머리말은 기각된 줄이 사람이 고칠 때까지
+    남는다고 약속하는데 그것이 깨지고, **에러도 나지 않는다.**
+
+    Given: 박힌 후보가 원장에서 기각된 실행 폴더
+    When: 밤을 돈다
+    Then: 마지막 단계를 돌지 않고 기각 표시와 사유가 그대로 남는다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    claim = "기각된 후보"
+
+    ledger.append(ledger_path, claim)
+    ledger.mark_rejected(ledger_path, claim, "축을 못 냈다")
+    _resume_at_last_step(run_dir, ledger_path, claim)
+
+    calls: list[str] = []
+    night.run_night(run_dir=run_dir, ledger_path=ledger_path, execute=_executor(calls))
+
+    assert steps.STEPS[-1] not in calls
+    assert ledger.status_of(ledger_path, claim) is ledger.Status.REJECTED
+    assert "축을 못 냈다" in ledger_path.read_text(encoding="utf-8")
+
+
+def test_last_step_is_skipped_when_the_candidate_is_blocked(tmp_path: Path) -> None:
+    """
+    목적: 막힌 후보의 «사유»가 살아남는 계약을 고정한다.
+
+    막힘은 기각과 성질이 다르다 — 판정에 닿지도 못한 것이라 **원인을 고치면 다시 팔**
+    가치가 있고, 그 원인이 사유 줄에만 적혀 있다. 덮이면 고칠 단서가 사라진다.
+
+    Given: 박힌 후보가 원장에서 막힌 실행 폴더
+    When: 밤을 돈다
+    Then: 마지막 단계를 돌지 않고 막힘 표시와 사유가 그대로 남는다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    claim = "막힌 후보"
+
+    ledger.append(ledger_path, claim)
+    ledger.mark_blocked(ledger_path, claim, "세 밤 연속 막혔다")
+    _resume_at_last_step(run_dir, ledger_path, claim)
+
+    calls: list[str] = []
+    night.run_night(run_dir=run_dir, ledger_path=ledger_path, execute=_executor(calls))
+
+    assert steps.STEPS[-1] not in calls
+    assert ledger.status_of(ledger_path, claim) is ledger.Status.BLOCKED
+    assert "세 밤 연속 막혔다" in ledger_path.read_text(encoding="utf-8")
+
+
+def test_last_step_is_skipped_when_the_candidate_line_is_gone(tmp_path: Path) -> None:
+    """
+    목적: [중요] 원장에서 «줄이 사라진» 후보를 «상한까지 재시도하지 않는» 계약을 고정한다.
+
+    원장은 사람이 손으로 고치는 파일이다. 줄이 지워진 채로 마지막 단계가 돌면
+    산출물을 쓴 **뒤에** `mark_explored` 가 예외를 올리고, 그것이 「그 외」로 분류되어
+    **상한까지 재시도한다** — 재시도가 고칠 수 없는 조건에 단계 비용을 세 번 낸다.
+
+    Given: 박힌 후보가 원장에 없는 실행 폴더
+    When: 밤을 돈다
+    Then: 마지막 단계를 돌지 않고 실패 없이 끝난다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    _resume_at_last_step(run_dir, ledger_path, "원장에 없는 후보")
+
+    calls: list[str] = []
+    result = night.run_night(run_dir=run_dir, ledger_path=ledger_path, execute=_executor(calls))
+
+    assert steps.STEPS[-1] not in calls
+    assert result.failure is None
 
 
 def test_retry_waits_between_attempts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

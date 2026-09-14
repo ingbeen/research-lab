@@ -3,10 +3,12 @@
     "explore",
     "collect",
     "rebut",
-    "lineage"
+    "lineage",
+    "feasibility"
   ],
   "skipped": [
-    "explore"
+    "explore",
+    "feasibility"
   ],
   "candidate": {
     "claim": "S&P500 편입이 예정 발표된 종목을 발표일 매수해 편입 발효일까지 보유한다",

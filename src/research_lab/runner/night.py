@@ -140,7 +140,9 @@ def _skip_reason(step: str, ledger_path: Path, run_dir: Path) -> str | None:
     이유를 «문자열로» 돌리는 것은 결정 로그에 그대로 적기 위해서다.
     「건너뛰었다」만 남으면 나중에 왜 그랬는지 되짚을 수 없다.
     """
-    has_stock = ledger.next_unexplored(ledger_path) is not None
+    # [주의] 재고 판정은 탐색·수집에서만 쓴다. 뒤 단계에서도 계산하면 그 단계마다
+    # 원장을 한 번 더 읽는데 쓰이지는 않는다
+    has_stock = step in (EXPLORE, COLLECT) and ledger.next_unexplored(ledger_path) is not None
 
     if step == EXPLORE and has_stock:
         # 재고가 있는데도 매일 탐색을 돌리면 팔 후보를 쌓아 두고 예산만 쓴다
@@ -154,11 +156,36 @@ def _skip_reason(step: str, ledger_path: Path, run_dir: Path) -> str | None:
         # 아침에는 아무 일도 없었던 것처럼 보인다
         return "원장에 팔 후보가 없다 — 탐색이 새 후보를 찾지 못했다"
 
-    if step in steps.CANDIDATE_STEPS and state.pinned_candidate(run_dir) is None:
-        # 위와 «같은 고장»이다. 수집이 후보를 잡지 못하는 경우는 둘이다 —
-        # 팔 후보가 아예 없었거나, 꺼낸 후보가 모두 기각돼 상한에 닿았거나.
-        # 둘 다 정상 결과이고, 그 상태로 반증에 들어가면 끝나지 않는 실패가 된다
-        return "그 밤이 판 후보가 없다 — 수집이 후보를 잡지 못했다"
+    if step in steps.CANDIDATE_STEPS:
+        candidate = state.pinned_candidate(run_dir)
+        if candidate is None:
+            # 위와 «같은 고장»이다. 수집이 후보를 잡지 못하는 경우는 둘이다 —
+            # 팔 후보가 아예 없었거나, 꺼낸 후보가 모두 기각돼 상한에 닿았거나.
+            # 둘 다 정상 결과이고, 그 상태로 반증에 들어가면 끝나지 않는 실패가 된다
+            return "그 밤이 판 후보가 없다 — 수집이 후보를 잡지 못했다"
+
+        status = ledger.status_of(ledger_path, candidate.claim)
+        if status is not ledger.Status.UNEXPLORED:
+            # [중요] **단계를 늘리면 그 전에 완주한 실행 폴더가 「미완성」으로 보인다** —
+            # 끝난 단계는 전부 `settled` 에 있는데 새 단계만 남아 있기 때문이다. 그 폴더에는
+            # 후보가 박혀 있어 위 갈래로도 걸러지지 않으므로, 그대로 두면 **이미 닫힌 후보를
+            # 두고 새 단계만 도는 밤**이 되고 그 후보를 두 번 「판 것」으로 표시한다.
+            #
+            # [중요] 조건이 「판 것인가」가 아니라 **「아직 안 판 것인가」**인 이유가 셋이다.
+            #
+            # - **기각·막힘도 덮어야 한다.** 마지막 단계가 `mark_explored` 를 부르면
+            #   `- [-]`·`- [!]` 가 `- [x]` 로 바뀌고 **바로 아래의 사유 줄이 지워진다.**
+            #   원장 머리말은 기각된 줄이 사람이 고칠 때까지 남는다고 약속하는데 그것이 깨지고,
+            #   막힌 이유를 적어 둔 기록이 **에러 없이** 사라진다
+            # - **원장에서 줄이 사라진 경우도 덮어야 한다.** 사람이 손으로 지울 수 있는
+            #   파일이고, 그 상태로 돌면 산출물을 쓴 «뒤»에 `mark_explored` 가 예외를 올려
+            #   「그 외」로 분류되어 **상한까지 재시도한다** — 재시도가 고칠 수 없는 조건에
+            #   단계 비용을 세 번 낸다
+            # - 「판 것」 표시는 마지막 단계가 하므로 **정상적인 밤은 여기 걸리지 않는다**
+            #
+            # 사유에 표시를 함께 적는다. 「건너뛰었다」만 남으면 어느 경우였는지 모른다
+            mark = "원장에 그 후보가 없다" if status is None else f"원장에서 이미 「{status.value}」다"
+            return f"그 밤의 후보를 더 물을 자리가 아니다 — {mark}"
 
     return None
 

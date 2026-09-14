@@ -1,0 +1,57 @@
+{
+  "claim": "미국 주가지수 ETF 를 옵션 만기주 첫 거래일 시가에 매수해 만기일(셋째 금요일) 종가에 매도한다",
+  "groups": [
+    {
+      "origin": {
+        "title": "The Options Expiration Week Effect: Backtested Evidence and Trading Strategy Ideas",
+        "url": "https://quantifiedstrategies.substack.com/p/the-options-expiration-week-effect-aa2",
+        "published": "2026-03-20"
+      },
+      "copies": [],
+      "why": "목록에 찬성·반증 두 번 올라 있지만 URL이 완전히 동일한 하나의 글이다 — 이 글 자체가 자체 백테스트(1993년~현재, OPEX 주 CAGR 2%·승률 51.4%)로 강세를 제시하면서 동시에 '최근 4년간 효과가 약화되었는가'라는 비판적 질문을 같은 글 안에서 던진다. 복제가 아니라 한 문서가 양쪽 역할을 겸한 것"
+    },
+    {
+      "origin": {
+        "title": "March Options Expiration Week Generally Bullish (Almanac Trader)",
+        "url": "https://jeffhirsch.tumblr.com/post/171797225358/march-options-expiration-week-generally-bullish",
+        "published": "2018-03-12"
+      },
+      "copies": [],
+      "why": "NASDAQ 22승13패·10년 중 9년 상승이라는 고유 수치를 제시하고 Stock Trader's Almanac(p.78)을 인용한다. 다른 출처들의 승률·손익률 수치와 겹치지 않아 복제로 볼 근거가 없다"
+    },
+    {
+      "origin": {
+        "title": "Strategy: Triple Witching Trade in S&P 500",
+        "url": "https://trademachine.substack.com/p/strategy-triple-witching-trade-in",
+        "published": "2024-03-13"
+      },
+      "copies": [],
+      "why": "순이익 77.05%·거래 116건·승률 70.69%·평균 보유 4일이라는 독자적 백테스트 수치를 제시한다. 다른 세 출처와 숫자·예시가 전혀 겹치지 않는다. 자기 블로그의 다른 글(Triple Witching Explained)을 인용하지만 그 글은 이 목록에 없다"
+    },
+    {
+      "origin": {
+        "title": "Historic Market Performance During Triple Witching Weeks",
+        "url": "https://www.schaeffersresearch.com/content/analysis/2024/09/11/historic-market-performance-during-triple-witching-weeks",
+        "published": "2024-09-11"
+      },
+      "copies": [],
+      "why": "2017년 이후·2021년 이후로 구간을 나눈 독자적 데이터(트리플 위칭 주간 평균 -0.53%, 만기일 14개 중 2개만 상승)를 제시하며 결론이 오히려 약세 쪽이다. 앞의 강세 근거들과 방법론·수치·결론이 다 달라 복제가 아니다"
+    },
+    {
+      "origin": {
+        "title": "Does Academic Research Destroy Stock Return Predictability? (McLean & Pontiff, Journal of Finance, 2016)",
+        "url": "https://www.hec.ca/finance/Fichier/McLean.pdf",
+        "published": "2016-01-01"
+      },
+      "copies": [],
+      "why": "97개 횡단면 수익률 예측 변수의 표본외 26%·발표후 58% 수익률 감소를 다루는 일반 메커니즘 논문으로, 옵션 만기주 효과를 직접 테스트한 자료가 아니다. 다른 네 출처와 겹치는 문장·숫자가 없어 독립이지만 '이 특정 전략을 다루는가'는 별도로 미검증에 남긴다"
+    }
+  ],
+  "independent_source_count": 5,
+  "unverified": [
+    "McLean & Pontiff(2016) 논문 본문이 옵션 만기주/트리플 위칭 효과를 97개 변수 중 하나로 실제 포함하는지 (PDF 본문을 직접 열어 확인하지 못함, 검색 요약으로만 논문의 일반적 결론을 확인함)",
+    "quantifiedstrategies 글의 OPEX 주 전략 표본 거래 건수(구체적 n)",
+    "jeffhirsch 글의 '지난 10년' 판정 기준 연도 범위(정확한 시작·종료 연도)",
+    "schaeffersresearch 글이 제시한 집계 수치의 원본 일별 데이터"
+  ]
+}

@@ -7,9 +7,13 @@
 [중요] 찬성과 반증의 출처를 **함께** 받는다. 한쪽만 주면 반증 쪽 출처가 원본인 경우를
 통째로 놓친다.
 
-[중요] **밤의 마지막 단계라 여기서 후보를 「판 것」으로 표시한다.** 수집이 끝나자마자
-표시하면, 그 뒤 반증이 실패해 그 실행 폴더가 버려질 때 **후보가 반증 없이 「판 것」으로
-남아 영영 다시 안 파진다.**
+[중요] **이 단계는 후보를 「판 것」으로 표시하지 않는다.** 표시는 밤의 «마지막» 단계의
+일이고 그 자리는 실현가능성이다. 여기서 표시하면 그 뒤 4·5번 칸이 실패할 때
+**후보가 그 칸들 없이 「판 것」으로 남아 영영 다시 안 파진다** — 수집이 표시하던 때와
+똑같은 고장이다.
+
+[중요] **그래서 이 단계는 원장을 받지 않는다.** 안 쓰는 인자를 두면 「계보도 원장을
+고친다」로 읽힌다 — 반증이 같은 이유로 안 받는다.
 """
 
 import json
@@ -25,7 +29,7 @@ from research_lab.common_constants import (
     REBUTTAL_FILENAME,
 )
 from research_lab.gate import lineage as lineage_gate
-from research_lab.runner import decision_log, ledger, naming, state
+from research_lab.runner import decision_log, naming, state
 from research_lab.runner import payload as payload_helpers
 from research_lab.runner.atomic import atomic_write
 from research_lab.runner.steps import StepQualityFailed
@@ -78,12 +82,11 @@ def build_prompt(claim: str, sources: list[Any]) -> str:
     return PROMPT.format(claim=claim, sources=listed)
 
 
-def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
-    """찬성·반증의 출처로 계보표를 만들고, 그 후보를 「판 것」으로 표시한다.
+def run(run_dir: Path, ask: AgentCaller) -> None:
+    """찬성·반증의 출처로 계보표를 만든다.
 
     Args:
         run_dir: 그 밤의 실행 폴더
-        ledger_path: 원장 경로
         ask: 프롬프트를 받아 에이전트를 부르는 쪽
 
     Raises:
@@ -137,10 +140,6 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
         collected_sources=len(sources),
         independent_source_count=independent,
     )
-
-    # [중요] 여기가 밤의 «마지막» 단계라 이제야 표시한다. 앞 단계에서 표시했다면
-    # 반증이 실패한 밤의 후보가 반증 없이 「판 것」으로 남았을 것이다
-    ledger.mark_explored(ledger_path, candidate.claim)
 
 
 def _collected_sources(output_dir: Path) -> list[Any]:

@@ -318,7 +318,6 @@ def test_lineage_writes_its_own_file(tmp_path: Path) -> None:
 
     lineage.run(
         run_dir,
-        ledger_path,
         lambda _: _answer(
             {
                 "groups": [
@@ -337,27 +336,28 @@ def test_lineage_writes_its_own_file(tmp_path: Path) -> None:
     assert written["independent_source_count"] == 1
 
 
-def test_lineage_marks_the_candidate_explored_last(tmp_path: Path) -> None:
+def test_lineage_does_not_mark_the_candidate_explored(tmp_path: Path) -> None:
     """
-    목적: 후보를 「판 것」으로 표시하는 시점이 «마지막 단계 뒤»라는 계약을 고정한다.
+    목적: [중요] 계보가 후보를 「판 것」으로 표시하지 «않는» 계약을 고정한다.
 
-    [중요] 수집이 끝나며 표시하면, 그 뒤 반증이 실패해 그 실행 폴더가 버려질 때
-    **후보가 반증 없이 「판 것」으로 남아 영영 다시 안 파진다** —
-    설계가 경고한 「아무도 모르는 채 미완성만 쌓인다」 모양이다.
+    표시는 밤의 «마지막» 단계의 일이고 그 자리는 실현가능성이다. 계보가 표시하면
+    그 뒤 4·5번 칸이 실패할 때 **후보가 그 칸들 없이 「판 것」으로 남아 영영 다시
+    안 파진다** — 수집이 표시하던 때와 똑같은 고장이다.
+
+    그래서 이 단계는 **원장을 아예 받지 않는다.** 안 쓰는 인자를 두면
+    「계보도 원장을 고친다」로 읽힌다.
 
     Given: 후보 하나가 든 원장
-    When: 계보까지 끝난다
-    Then: 그 후보가 판 것으로 표시돼 다음 후보가 없다
+    When: 계보가 끝난다
+    Then: 그 후보가 «아직 안 판 것»으로 남아 있다
     """
     run_dir = tmp_path / "run"
     ledger_path = tmp_path / "원장.md"
     _pin(run_dir, ledger_path)
 
+    lineage.run(run_dir, lambda _: _answer({"groups": [], "independent_source_count": 0}))
+
     assert ledger.next_unexplored(ledger_path) is not None
-
-    lineage.run(run_dir, ledger_path, lambda _: _answer({"groups": [], "independent_source_count": 0}))
-
-    assert ledger.next_unexplored(ledger_path) is None
 
 
 def test_lineage_is_blocked_when_a_source_is_dropped(tmp_path: Path) -> None:
@@ -366,7 +366,7 @@ def test_lineage_is_blocked_when_a_source_is_dropped(tmp_path: Path) -> None:
 
     Given: 찬성 근거 둘 중 하나만 다룬 계보표
     When: 계보를 돈다
-    Then: 「질」 실패가 오르고, 후보는 «안 판 것»으로 남는다
+    Then: 「질」 실패가 오르고, 계보 파일이 생기지 않는다
     """
     run_dir = tmp_path / "run"
     ledger_path = tmp_path / "원장.md"
@@ -376,10 +376,9 @@ def test_lineage_is_blocked_when_a_source_is_dropped(tmp_path: Path) -> None:
     with pytest.raises(StepQualityFailed):
         lineage.run(
             run_dir,
-            ledger_path,
             lambda _: _answer(
                 {"groups": [{"origin": {"url": "https://example.com/원본"}, "copies": []}], "independent_source_count": 1}
             ),
         )
 
-    assert ledger.next_unexplored(ledger_path) is not None
+    assert not (output_dir / LINEAGE_FILENAME).exists()

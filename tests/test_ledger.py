@@ -658,3 +658,56 @@ def test_a_human_memo_under_an_entry_survives(tmp_path: Path) -> None:
     ledger.mark_rejected(path, "첫 후보", "축을 못 냈다")
 
     assert "사람이 적어 둔 메모" in path.read_text(encoding="utf-8")
+
+
+def test_status_of_finds_a_candidate(tmp_path: Path) -> None:
+    """
+    목적: 후보 하나의 «현재 표시»를 물어볼 수 있는 계약을 고정한다.
+
+    이것이 필요한 곳은 밤의 마지막 단계다 — 그 밤의 후보가 **이미 판 것이면**
+    실현가능성을 물을 자리가 아니다. 그 판정을 부르는 쪽에서 하면
+    「담긴 순서 그대로의 목록」을 직접 훑게 되고, 그때 **정규화를 빠뜨리면 조용히 안 맞는다.**
+
+    Given: 표시가 서로 다른 후보들
+    When: 각각의 표시를 묻는다
+    Then: 그 표시가 돌아온다
+    """
+    path = tmp_path / "원장.md"
+    ledger.append(path, "안 판 후보")
+    ledger.append(path, "판 후보")
+    ledger.mark_explored(path, "판 후보")
+
+    assert ledger.status_of(path, "안 판 후보") is ledger.Status.UNEXPLORED
+    assert ledger.status_of(path, "판 후보") is ledger.Status.EXPLORED
+
+
+def test_status_of_normalizes_the_claim(tmp_path: Path) -> None:
+    """
+    목적: [중요] 물어볼 때도 «정규화»를 지나는 계약을 고정한다.
+
+    담는 쪽은 `canonical_claim` 을 지나는데 묻는 쪽이 안 지나면, 앞뒤 공백이나
+    앞머리 백틱 하나 때문에 **같은 후보가 다르게 보인다.** 계보 게이트가 URL 을
+    정규화하지 않아 겪은 것과 같은 갈래이고, **에러 없이 매번 어긋난다.**
+
+    Given: 담긴 후보
+    When: 앞뒤에 공백을 붙여 묻는다
+    Then: 같은 표시가 돌아온다
+    """
+    path = tmp_path / "원장.md"
+    ledger.append(path, "첫 후보")
+
+    assert ledger.status_of(path, "  첫 후보  ") is ledger.Status.UNEXPLORED
+
+
+def test_status_of_an_unknown_candidate_is_none(tmp_path: Path) -> None:
+    """
+    목적: 원장에 없는 후보를 물으면 «없음»이 돌아오는 계약을 고정한다.
+
+    사람이 손으로 줄을 지울 수 있는 파일이라 「없다」는 정상 상태다.
+    여기서 예외를 올리면 부르는 쪽마다 감싸야 하고, 빠뜨린 곳에서 밤이 선다.
+
+    Given: 빈 원장
+    When: 아무 후보를 묻는다
+    Then: None 이 돌아온다
+    """
+    assert ledger.status_of(tmp_path / "없는원장.md", "아무 후보") is None

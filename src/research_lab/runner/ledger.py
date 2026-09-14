@@ -287,6 +287,32 @@ def next_unexplored(path: Path) -> Entry | None:
     return None
 
 
+def status_of(path: Path, claim: str) -> Status | None:
+    """후보 하나의 «현재 표시»를 묻는다.
+
+    이것이 필요한 곳은 밤의 마지막 단계다 — 그 밤의 후보가 **이미 판 것이면** 더 물을
+    자리가 아니다. 단계를 늘리면 그 전에 완주한 실행 폴더가 「미완성」으로 보이는데,
+    후보가 박혀 있어 「후보 없음」 갈래로도 걸러지지 않는다. 가르는 사실이 이 표시다.
+
+    [중요] **정규화를 여기서 지난다.** 부르는 쪽에서 목록을 직접 훑으면 앞뒤 공백이나
+    앞머리 백틱 하나 때문에 같은 후보가 다르게 보이고, **에러 없이 매번 어긋난다** —
+    계보 게이트가 URL 을 정규화하지 않아 겪은 것과 같은 갈래다.
+
+    Args:
+        path: 원장 파일 경로
+        claim: 물어볼 후보의 한 줄 주장
+
+    Returns:
+        그 후보의 표시. 원장에 없으면 None — 사람이 손으로 줄을 지울 수 있는 파일이라
+        「없다」는 정상 상태다
+    """
+    normalized = canonical_claim(claim)
+    for entry in load(path):
+        if entry.claim == normalized:
+            return entry.status
+    return None
+
+
 def canonical_claim(claim: str) -> str:
     """한 줄 주장을 원장에 담을 «정규 형태»로 만든다.
 

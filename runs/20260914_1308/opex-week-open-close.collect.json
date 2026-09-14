@@ -1,0 +1,53 @@
+{
+  "claim": "미국 주가지수 ETF 를 옵션 만기주 첫 거래일 시가에 매수해 만기일(셋째 금요일) 종가에 매도한다",
+  "identifier": "opex-week-open-close",
+  "queries": [
+    "options expiration week effect stock returns SPY first trading day to expiration Friday",
+    "\"OpEx week\" stock market seasonality returns study",
+    "옵션 만기주 효과 미국 지수 ETF 수익률",
+    "네 마녀의 날 효과 주가 수익률 만기주",
+    "quadruple witching week anomaly stock returns strategy",
+    "옵션 만기일 전 주 주가 상승 계절성 효과",
+    "Stivers Sun \"Returns and Option Activity\" option expiration week S&P 100"
+  ],
+  "params": [],
+  "evidence": [
+    {
+      "title": "The Options Expiration Week Effect: Backtested Evidence and Trading Strategy Ideas",
+      "url": "https://quantifiedstrategies.substack.com/p/the-options-expiration-week-effect-aa2",
+      "published": "2026-03-20",
+      "kind": "secondary",
+      "says": "SPY 를 옵션 만기주 첫 거래일 시가에 매수해 만기일 종가에 매도하는 전략을 실제로 이 문서의 진입/청산 규칙과 동일하게 백테스트함. 결과는 CAGR 2%, 평균 주간 수익 0.2%, 전체 기간의 약 18%만 포지션 보유. 다만 만기일 당일 하루만 떼어 보면(전일 종가~만기일 종가) 누적수익률 -23.55%, 승률 51.4%로 부진했고, 이 효과가 최근 4년간 약화됐다고 지적함."
+    },
+    {
+      "title": "Option-Expiration Week Effect",
+      "url": "https://quantpedia.com/strategies/option-expiration-week-effect",
+      "published": "unknown",
+      "kind": "secondary",
+      "says": "옵션 만기주간(셋째 금요일이 속한 주)에 S&P100 종목을 보유하고 나머지 기간엔 현금을 보유하는 전략을 1988~2010년 구간에서 백테스트: 연 수익률 9.3%, 변동성 8.7%, 샤프비율 0.61, 최대낙폭 -15.14%. 메커니즘은 옵션 마켓메이커의 델타헤지 숏포지션 축소로 인한 매수 압력이라고 설명하며, 원 출처로 Stivers·Sun 논문을 인용."
+    },
+    {
+      "title": "Returns and Option Activity over the Option-Expiration Week for S&P 100 Stocks (Stivers, C. & Sun, L., Journal of Banking & Finance, 2013, vol.37 no.11, pp.4226-4240)",
+      "url": "http://papers.ssrn.com/sol3/papers.cfm?abstract_id=1571786",
+      "published": "2013",
+      "kind": "primary",
+      "says": "S&P100 종목의 옵션 만기주(셋째 금요일 포함 주) 주간 수익률이 옵션 활동이 적은 다른 종목·같은 종목의 다른 주간 대비 유의하게 높고, 위험조정(자산가격결정 알파) 후에도 유지됨. 반대로 넷째 금요일이 속한 주는 소폭 부진. 원인으로 ① 옵션 마켓메이커의 델타헤지 숏포지션 축소, ② 만기주간 내재변동성 하락에 따른 리스크 인식 저하 두 가지를 제시."
+    },
+    {
+      "title": "Opex Week By Month & How March Stands Out",
+      "url": "https://quantifiableedges.com/opex-week-by-month-how-march-stands-out/",
+      "published": "2016-03-14",
+      "kind": "secondary",
+      "says": "1984년 이후 월별 옵션 만기주(op-ex week) 성과를 분석한 결과 3·4·10·12월 만기주가 특히 강세였고, 그중 3월 만기주의 누적 상승폭이 가장 컸다고 밝힘. 이는 이 주장(만기주 매수)의 방향성과 같은 계절성을 다른 저자가 별도로 관찰한 사례."
+    }
+  ],
+  "unverified": [
+    "Stivers·Sun(2013) 논문 원문: SSRN(papers.ssrn.com)과 ScienceDirect 두 곳 모두 실제로 열어봤으나 봇 차단(403)으로 본문·초록을 직접 확인하지 못함. 서지정보(저널·연도·권호)는 검색엔진 스니펫과 Semantic Scholar 검색결과로만 확인했고, 핵심 내용은 quantpedia 의 재서술에 의존함",
+    "quantpedia.com 문서 자체의 발행일 — 페이지에서 날짜를 찾지 못함",
+    "quantifiedstrategies.com 원문(quantifiedstrategies.substack.com 이 아닌 본진 도메인)은 봇 검증 페이지만 나와 직접 열람 실패 — 같은 필자로 추정되는 substack 미러만 열람함. 즉 '만기주 첫 거래일 시가~만기일 종가'라는 이 주장과 정확히 같은 형태의 백테스트를 재현한 완전히 독립된 두 번째 소스는 찾지 못함",
+    "quantbuffet.com 의 관련 글(S&P 100 Long Strategy During Option Expiry Week)은 URL 이 404 로 존재하지 않아 근거로 쓰지 않음",
+    "tandfonline.com 의 'Witching days and abnormal profits in the us stock market' 논문은 403 으로 열람 실패해 근거로 쓰지 않음",
+    "한국(코스피) '네 마녀의 날' 효과 자료는 다수 확인했으나 이 주장이 미국 주가지수 ETF 한정이라 직접 근거로 채택하지 않음 — 참고로만 남김",
+    "quantifiedstrategies.substack.com 백테스트의 정확한 표본 기간(시작·종료 연도)과 사용한 SPY 데이터 출처는 글에서 확인하지 못함"
+  ]
+}

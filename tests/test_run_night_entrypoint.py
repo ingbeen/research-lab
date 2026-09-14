@@ -90,20 +90,42 @@ def test_newest_unfinished_night_wins(entrypoint: Any) -> None:
 
 def test_locked_night_is_skipped(entrypoint: Any) -> None:
     """
-    목적: 다른 프로세스가 잡고 있는 폴더를 고르지 않는 계약을 고정한다.
+    목적: 다른 프로세스가 «지금 잡고 있는» 폴더를 고르지 않는 계약을 고정한다.
 
     골라 봐야 잠금에 막혀 그 밤은 아무것도 못 한다.
 
-    Given: 잠금 파일이 있는 미완성 폴더
+    Given: 실제로 잠겨 있는 미완성 폴더
     When: 인자 없이 실행 폴더를 고른다
     Then: 그 폴더가 아니다
     """
-    from research_lab.common_constants import LOCK_FILENAME
+    from research_lab.runner import state
 
     locked = _make_run(entrypoint, "20260101_0100", [])
-    (locked / LOCK_FILENAME).write_text("999", encoding="utf-8")
 
-    assert entrypoint._resolve_run_dir(None) != locked
+    with state.lock(locked):
+        assert entrypoint._resolve_run_dir(None) != locked
+
+
+def test_night_with_a_leftover_lock_file_is_resumed(entrypoint: Any) -> None:
+    """
+    목적: [중요] **강제 종료가 남긴 잠금 «파일»이 있어도 이어받는** 계약을 고정한다.
+
+    [실측 2026-09-14] 컨테이너가 죽으면 잠금 파일이 남는다(`SIGKILL`·`SIGTERM` 둘 다).
+    파일 존재를 「잠김」으로 읽으면 **그 폴더가 영구히 이어받히지 않는다** — 후보는
+    「판 것」이 안 됐으니 다음 밤이 원장에서 같은 후보를 다시 꺼내 **수집을 다시 사고**,
+    버려진 폴더가 쌓이는데 **에러도 경고도 없다.** 설계가 「컨테이너가 죽어도 같은 방식으로
+    복구된다」고 적어 둔 바로 그 자리다.
+
+    Given: 아무도 잡고 있지 않은 잠금 파일이 남은 미완성 폴더
+    When: 인자 없이 실행 폴더를 고른다
+    Then: 그 폴더를 이어받는다
+    """
+    from research_lab.common_constants import LOCK_FILENAME
+
+    leftover = _make_run(entrypoint, "20260101_0100", ["explore"])
+    (leftover / LOCK_FILENAME).write_text("죽은 밤이 남긴 것", encoding="utf-8")
+
+    assert entrypoint._resolve_run_dir(None) == leftover
 
 
 def test_stale_step_names_do_not_stop_the_pipeline(entrypoint: Any) -> None:

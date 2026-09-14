@@ -24,7 +24,6 @@ from research_lab.common_constants import (  # noqa: E402
     BASE_DIR,
     KST,
     LEDGER_PATH,
-    LOCK_FILENAME,
     RUN_DIR_TIME_FORMAT,
     RUNS_DIR,
 )
@@ -33,6 +32,7 @@ from research_lab.runner import (  # noqa: E402
     collect,
     decision_log,
     explore,
+    feasibility,
     lineage,
     night,
     rebut,
@@ -90,7 +90,11 @@ def main(argv: list[str] | None = None) -> int:
             # 안 쓰는 인자를 받아 두면 「반증도 원장을 고친다」로 읽힌다
             rebut.run(current_run_dir, ask)
         elif step == "lineage":
-            lineage.run(current_run_dir, args.ledger, ask)
+            # 위와 같은 이유로 원장을 안 받는다. 「판 것」 표시는 마지막 단계의 일이다
+            lineage.run(current_run_dir, ask)
+        elif step == "feasibility":
+            # 밤의 마지막 단계라 원장을 받는다 — 여기서 후보를 「판 것」으로 표시한다
+            feasibility.run(current_run_dir, args.ledger, ask)
         else:
             # 단계 목록은 `steps.STEPS` 하나가 정한다. 여기 도달했다는 것은 그 목록에
             # 이름을 더하면서 실행부를 안 붙였다는 뜻이라, 조용히 넘기면 그 단계가
@@ -180,8 +184,13 @@ def _latest_unfinished_run_dir() -> Path | None:
         return None
 
     for run_dir in sorted((path for path in RUNS_DIR.iterdir() if path.is_dir()), reverse=True):
-        if (run_dir / LOCK_FILENAME).exists():
-            # 다른 프로세스가 잡고 있다. 골라 봐야 잠금에 막히고, 그 사이 새 밤도 못 돈다
+        if state.is_locked(run_dir):
+            # 다른 프로세스가 잡고 있다. 골라 봐야 잠금에 막히고, 그 사이 새 밤도 못 돈다.
+            #
+            # [중요] 파일 «존재»를 보지 않는다. 강제 종료 뒤에도 잠금 파일은 남으므로
+            # 존재로 판정하면 **그 폴더가 영구히 이어받히지 않는다** — 후보는 「판 것」이
+            # 안 됐으니 다음 밤이 원장에서 같은 후보를 다시 꺼내 수집을 다시 사고,
+            # 버려진 폴더가 쌓이는데 **에러도 경고도 없다.** 판정은 `state` 한 곳이 한다
             continue
 
         try:

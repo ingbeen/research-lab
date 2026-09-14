@@ -4,6 +4,7 @@
 PC 가 재부팅돼도 같은 방식으로 복구된다.
 """
 
+import fcntl
 import json
 import os
 from collections.abc import Generator, Mapping
@@ -182,12 +183,58 @@ def closed_reason(run_dir: Path) -> str | None:
     return reason or "사유가 적히지 않은 채 접혔습니다"
 
 
+def is_locked(run_dir: Path) -> bool:
+    """그 폴더를 «지금 도는» 밤이 잡고 있나.
+
+    [중요] **파일 존재로 판정하지 않는다.** 강제 종료 뒤에도 파일은 남으므로, 존재를
+    잠김으로 읽으면 **그 파일 하나가 폴더를 영구히 잠근다** — 그것이 예전 구현의 고장이었다.
+    판정은 커널이 들고 있는 잠금이 한다: 잡아 보고 곧바로 놓는다.
+
+    Args:
+        run_dir: 그 밤의 실행 폴더
+
+    Returns:
+        지금 잡혀 있으면 True. **판정할 수 없으면 True 다** — 훔쳐서 두 밤이 한 폴더를
+        번갈아 쓰는 것보다 한 밤을 미루는 쪽이 낫다
+    """
+    path = run_dir / LOCK_FILENAME
+    if not path.is_file():
+        return False
+
+    try:
+        # [중요] **읽기로 연다.** `flock` 은 쓰기 권한을 요구하지 않는데, 쓰기로 열면
+        # 다른 uid 가 만든 잠금 파일에서 `PermissionError` 가 나고 아래 갈래가 그것을
+        # 「잠김」으로 읽는다 — **아무도 잡고 있지 않은 폴더가 영구히 건너뛰어진다.**
+        # 이 함수가 없애려던 고장이 권한을 타고 그대로 돌아오는 자리다.
+        with path.open("r") as handle:
+            # [중요] **공유 잠금으로 찔러 본다.** 배타 잠금으로 찌르면 «두 판정기»가
+            # 서로 충돌해, 아무도 밤을 돌리지 않는데도 한쪽이 「잠김」이라 답한다.
+            # 공유 잠금도 진짜 배타 홀더와는 부딪히므로 잡아야 할 것은 그대로 잡는다
+            fcntl.flock(handle.fileno(), fcntl.LOCK_SH | fcntl.LOCK_NB)
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+    except OSError:
+        return True
+    return False
+
+
 @contextmanager
 def lock(run_dir: Path) -> Generator[None]:
     """실행 폴더를 잠근다.
 
     rename 은 원자적이지만 **두 프로세스가 번갈아 쓰는 것**은 막지 못한다.
     그 경우 한쪽 갱신이 예외도 로그도 없이 사라진다.
+
+    [중요] **`flock` 을 쓴다. 커널이 프로세스 종료 시 놓아주기 때문이다.**
+    예전 구현은 `O_EXCL` 파일이었는데, [실측 2026-09-14] `SIGKILL`·`SIGTERM` 둘 다에서
+    **파일이 남았다** — 파이썬은 `SIGTERM` 핸들러를 기본으로 달지 않아 `finally` 가 안 돌고,
+    컨테이너 안 PID 1 은 핸들러 없는 시그널을 무시하므로 `docker stop` 도 `SIGKILL` 로 끝난다.
+    **「얌전히 멈추는」 경로가 없다.** 그래서 남은 파일이 실행 폴더를 영구히 잠그고,
+    원장 잠금까지 남아 **이후 모든 밤이 원장에서 즉시 멈췄다.**
+
+    [주의] **못 막는 것이 하나 있다** — [실측 2026-09-14] flock 은 **host↔container 경계를
+    넘지 않는다.** 컨테이너가 잡고 있는 동안 호스트에서 잡으면 잡힌다(반대도 같다).
+    컨테이너끼리는 같은 VM 커널이라 정상으로 막힌다. 운용 경로가 컨테이너 하나이므로
+    막는 대상은 **개발용 호스트 실행과의 동시 충돌**뿐이고, 그것은 사람이 자기 터미널에서 본다.
 
     Args:
         run_dir: 그 밤의 실행 폴더
@@ -198,22 +245,32 @@ def lock(run_dir: Path) -> Generator[None]:
     run_dir.mkdir(parents=True, exist_ok=True)
     path = run_dir / LOCK_FILENAME
 
+    # [중요] 잠금 파일을 «지우지 않는다». 다른 프로세스가 fd 를 든 채 unlink 되면
+    # **지워진 inode 를 잠그는** 고전적 경쟁이 생겨, 둘이 서로 다른 파일을 잠근 채 같은
+    # 폴더를 쓴다. 남아 있어도 해롭지 않다 — 존재가 잠김을 뜻하지 않기 때문이다.
+    #
+    # [중요] 내용도 쓰지 않는다. 파일은 잠금을 걸 «자리»일 뿐이라 빈 채로 둔다 —
+    # 예전 구현은 PID 를 적었는데 그것은 **사람이 파일을 지울지 판단할 재료**였고,
+    # 이제 지울 일이 없어 쓸 곳이 없다(컨테이너의 PID 1 은 호스트에서 의미도 없다).
+    #
+    # [중요] **읽기로 연다.** `flock` 은 쓰기 권한을 요구하지 않는데, 쓰기로 열면
+    # 다른 uid 가 만든 잠금 파일에서 `PermissionError` 가 난다. 그것은
+    # `AlreadyRunningError` 가 아니라 진입점이 잡지 않는 예외라 **트레이스백으로 끝나고**,
+    # 파일이 지워지지 않으므로 **이후 모든 밤이 같은 자리에서 같게 죽는다** —
+    # 이 구현이 없애려던 정지 버그가 권한을 타고 그대로 돌아오는 자리다.
+    # `O_CREAT` 로 없을 때만 만들고, 여는 의도는 읽기로 둔다
+    descriptor = os.open(path, os.O_RDONLY | os.O_CREAT)
     try:
-        # O_EXCL 은 「없을 때만 만든다」를 커널이 원자적으로 보장한다.
-        # `exists()` 로 먼저 보고 만들면 그 사이에 다른 프로세스가 끼어든다
-        descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-    except FileExistsError as conflict:
-        raise AlreadyRunningError(f"이미 실행 중입니다. 끝난 뒤에도 남아 있으면 이 파일을 지우세요: {path}") from conflict
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError as conflict:
+            raise AlreadyRunningError(f"이미 실행 중입니다: {run_dir}") from conflict
 
-    try:
-        # 누가 잡고 있는지 남긴다. 잠금이 남아 있을 때 사람이 판단할 재료가 된다
-        os.write(descriptor, str(os.getpid()).encode("ascii"))
+        try:
+            yield
+        finally:
+            # 커널이 파일을 닫을 때 어차피 놓아주지만, 명시적으로 놓아 「여기서 끝난다」를
+            # 코드에 남긴다
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
     finally:
         os.close(descriptor)
-
-    try:
-        yield
-    finally:
-        # 예외로 끝난 밤이 다음 밤을 «영구히» 막지 않게 한다.
-        # 무인 실행에서는 잠긴 채로 멈춘 사실을 며칠 뒤에나 알게 된다
-        path.unlink(missing_ok=True)
