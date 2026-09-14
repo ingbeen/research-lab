@@ -90,3 +90,44 @@ def test_step_names_are_stable_identifiers() -> None:
     """
     assert len(set(steps.STEPS)) == len(steps.STEPS)
     assert all(name.isascii() and name for name in steps.STEPS)
+
+
+def test_the_eleven_slots_each_have_a_step_that_fills_them() -> None:
+    """
+    목적: 11칸을 채우는 단계가 «하나도 빠짐없이» 정의돼 있는 계약을 고정한다.
+
+    칸이 하나라도 안 채워지면 그 근거 문서는 미완성이다. 단계 목록이 곧 「어느 칸이
+    채워지는가」이므로, 여기서 줄어들면 **칸이 조용히 비어 나간다.**
+
+    순서는 **입력이 준비되는 순서**다. 문서에서의 칸 번호 순서와 다른 것이 정상이며,
+    특히 판정은 앞의 모든 산출물을 읽어야 하므로 **맨 마지막**이다.
+
+    Given: 정의된 단계 목록
+    When: 순서를 본다
+    Then: 탐색부터 판정까지가 정의된 순서대로 있다
+    """
+    assert steps.STEPS == (
+        "explore",
+        "collect",
+        "rebut",
+        "lineage",
+        "feasibility",
+        "mechanism",
+        "measurement",
+        "verdict",
+    )
+
+
+def test_every_step_that_needs_the_candidate_declares_it() -> None:
+    """
+    목적: 그 회차의 후보를 요구하는 단계가 «전부» 선언돼 있는 계약을 고정한다.
+
+    빠뜨리면 러너가 건너뛰지 못해 **후보 없이 그 단계를 부르고**, 예외가 나서 상한까지
+    재시도한 뒤 「다음 회차가 이어받습니다」로 보고된다 — 다음 회차도 같은 자리에서
+    같은 일을 반복하므로, 나중에는 아무 일도 없었던 것처럼 보인다.
+
+    Given: 후보를 요구하는 단계 목록
+    When: 목록을 본다
+    Then: 탐색과 수집을 뺀 나머지가 모두 들어 있다
+    """
+    assert set(steps.CANDIDATE_STEPS) == set(steps.STEPS[2:])

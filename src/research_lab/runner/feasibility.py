@@ -1,9 +1,15 @@
 """실현가능성 단계 — dossier 의 4번 칸(데이터)과 5번 칸(집행)을 채운다.
 
-**회차의 마지막 단계다.** 채우는 순서가 `계보 → 찬성 → 반증 → 소멸 → 데이터 → 집행` 이라
-4·5번 칸이 출처 쪽 칸들 뒤에 오고, 그래서 「판 것」 표시가 이 자리로 왔다.
-계보가 끝나며 표시하면 그 뒤 이 단계가 실패할 때 **후보가 4·5번 칸 없이 「판 것」으로 남아
-영영 다시 안 파진다** — 수집이 표시하던 때와 똑같은 고장이다.
+채우는 순서가 `계보 → 찬성 → 반증 → 데이터 → 집행` 이라 4·5번 칸이 출처 쪽 칸들 뒤에 온다.
+
+[중요] **이 단계는 회차의 마지막이 «아니다».** 뒤에 메커니즘(3·9번 칸) · 측정 설계(10번 칸) ·
+판정(2번 칸)이 붙었으므로 「판 것」 표시는 여기서 하지 않는다. 여기서 표시하면 그 뒤 세
+단계가 실패할 때 **후보가 그 칸들 없이 「판 것」으로 남아 영영 다시 안 파진다** —
+수집이 표시하던 때와 똑같은 고장이고, 계층 계약 §4 가 「단계를 뒤에 더할 때마다 표시가
+함께 옮겨간다」를 규칙으로 박아 둔 이유가 이것이다.
+
+[중요] **그래서 이 단계는 원장을 받지 않는다.** 안 쓰는 인자를 두면 「실현가능성도 원장을
+고친다」로 읽힌다 — 반증과 계보가 같은 이유로 안 받는다.
 
 [중요] **러너가 데이터 카탈로그 본문을 읽어 프롬프트에 싣는다.** 경로만 가리키면 읽혔는지
 확인할 길이 없고, 안 읽어도 **에러 없이 「이미 있음」만 조용히 안 나온다.** 이 저장소는
@@ -28,7 +34,7 @@ from research_lab.agent import invoke
 from research_lab.agent.invoke import AgentResult
 from research_lab.common_constants import DATA_CATALOG_PATH, FEASIBILITY_FILENAME
 from research_lab.gate import feasibility as feasibility_gate
-from research_lab.runner import decision_log, ledger, naming, state, url_check
+from research_lab.runner import decision_log, naming, state, url_check
 from research_lab.runner import payload as payload_helpers
 from research_lab.runner.atomic import atomic_write
 from research_lab.runner.steps import StepQualityFailed
@@ -167,16 +173,14 @@ def catalog_ids(catalog: str) -> frozenset[str]:
 
 def run(
     run_dir: Path,
-    ledger_path: Path,
     ask: AgentCaller,
     *,
     catalog_path: Path = DATA_CATALOG_PATH,
 ) -> None:
-    """4·5번 칸을 파일로 남기고, 그 후보를 「판 것」으로 표시한다.
+    """4·5번 칸을 파일로 남긴다.
 
     Args:
         run_dir: 그 회차의 실행 폴더
-        ledger_path: 원장 경로
         ask: 프롬프트를 받아 에이전트를 부르는 쪽
         catalog_path: 데이터 카탈로그 경로. 없으면 카탈로그 없이 진행한다
 
@@ -235,10 +239,6 @@ def run(
     url_check.assert_sources_exist(run_dir, STEP_NAME, payload.get("sources"), what="실현가능성 출처")
 
     _store(run_dir, candidate, payload, hit=hit)
-
-    # [중요] 파일을 쓴 «뒤에» 표시한다. 순서가 반대면 산출물 없이 후보만 「판 것」으로 남아
-    # 4·5번 칸이 영영 비어 있게 되고, 나중에는 완주한 회차처럼 보인다
-    ledger.mark_explored(ledger_path, candidate.claim)
 
 
 def _store(run_dir: Path, candidate: state.Candidate, payload: dict[str, Any], *, hit: list[str]) -> None:

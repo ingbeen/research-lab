@@ -11,7 +11,7 @@ import argparse
 import json
 import os
 import sys
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from datetime import datetime
 from pathlib import Path
 from typing import Final
@@ -32,12 +32,16 @@ from research_lab.runner import (  # noqa: E402
     collect,
     cycle,
     decision_log,
+    dossier,
     explore,
     feasibility,
     lineage,
+    measurement,
+    mechanism,
     rebut,
     state,
     steps,
+    verdict,
 )
 from research_lab.runner.failures import FailureKind  # noqa: E402
 
@@ -55,6 +59,19 @@ EXIT_SECRET: Final = 4  # 자격증명 발견 — 그 회차를 실패로 만든
 # 폭주 감지**이며(과금은 `billing_guard` 가 막는다), 실측 뒤에 조정한다.
 # 구독 인증에서 이 플래그가 실제로 동작하는지도 [미검증]이다
 DEFAULT_BUDGET_USD: Final = 2.0
+
+# 응답 모양을 스키마로 강제할 단계들.
+#
+# [실측 2026-09-14] `--json-schema` 는 인라인 JSON 이고 구독 인증에서 동작하며, 파싱된 객체를
+# 응답의 `structured_output` 에 함께 실어 준다 — 산문·코드펜스로 파싱이 깨질 여지가 사라진다.
+#
+# [중요] **새로 붙인 세 단계에만 건다.** 앞의 다섯은 이미 실측으로 검증된 경로라,
+# 갈아 끼우면 «돌던 것»을 새 플래그에 얹는 셈이 된다. 새 단계의 실측이 쌓인 뒤에 정한다
+STEP_SCHEMAS: Final = {
+    mechanism.STEP_NAME: mechanism.JSON_SCHEMA,
+    measurement.STEP_NAME: measurement.JSON_SCHEMA,
+    verdict.STEP_NAME: verdict.JSON_SCHEMA,
+}
 
 # 컨테이너·호스트에서 에이전트에게 물려줄 환경변수.
 #
@@ -77,29 +94,27 @@ def main(argv: list[str] | None = None) -> int:
     run_dir = _resolve_run_dir(args.run_dir)
     agent_env = _agent_env(os.environ)
 
-    def ask(prompt: str) -> invoke.AgentResult:
-        return invoke.invoke(prompt=prompt, cwd=BASE_DIR, env=agent_env, budget_usd=args.budget_usd)
+    def ask_for(step: str) -> Callable[[str], invoke.AgentResult]:
+        """그 단계에 맞는 호출자를 만든다.
+
+        [중요] 스키마를 «단계마다» 다르게 건다. 그래서 어느 단계가 무엇을 내는지는
+        여기가 아니라 그 단계가 알고, 호출 계층은 값이 있을 때만 플래그를 붙인다 —
+        한 단계 때문에 호출 계층이 특수해지면 다음 단계에서 다시 갈라진다.
+        """
+
+        def ask(prompt: str) -> invoke.AgentResult:
+            return invoke.invoke(
+                prompt=prompt,
+                cwd=BASE_DIR,
+                env=agent_env,
+                budget_usd=args.budget_usd,
+                json_schema=STEP_SCHEMAS.get(step),
+            )
+
+        return ask
 
     def execute(step: str, current_run_dir: Path) -> None:
-        if step == "explore":
-            explore.run(current_run_dir, args.ledger, ask)
-        elif step == "collect":
-            collect.run(current_run_dir, args.ledger, ask)
-        elif step == "rebut":
-            # 원장을 안 받는다 — 이 단계는 그 회차의 후보를 «상태»에서 읽고 아무것도 표시하지 않는다.
-            # 안 쓰는 인자를 받아 두면 「반증도 원장을 고친다」로 읽힌다
-            rebut.run(current_run_dir, ask)
-        elif step == "lineage":
-            # 위와 같은 이유로 원장을 안 받는다. 「판 것」 표시는 마지막 단계의 일이다
-            lineage.run(current_run_dir, ask)
-        elif step == "feasibility":
-            # 회차의 마지막 단계라 원장을 받는다 — 여기서 후보를 「판 것」으로 표시한다
-            feasibility.run(current_run_dir, args.ledger, ask)
-        else:
-            # 단계 목록은 `steps.STEPS` 하나가 정한다. 여기 도달했다는 것은 그 목록에
-            # 이름을 더하면서 실행부를 안 붙였다는 뜻이라, 조용히 넘기면 그 단계가
-            # 「했다」로 기록된 채 아무 일도 안 일어난다
-            raise steps.StepNotImplementedError(f"내부 불변조건 위반: 실행부가 없는 단계입니다 — {step}")
+        dispatch(step, current_run_dir, ledger_path=args.ledger, ask=ask_for(step))
 
     try:
         result = cycle.run_cycle(run_dir=run_dir, ledger_path=args.ledger, execute=execute)
@@ -108,7 +123,7 @@ def main(argv: list[str] | None = None) -> int:
         return EXIT_INCOMPLETE
 
     # 산출물이 생긴 «뒤에» 검사한다. 검사기는 사후 장치이고, 여기가 마지막 그물이다
-    findings = secrets.scan(secrets.scan_roots(run_dir))
+    findings = secrets.scan(secrets.scan_roots(run_dir, dossier_path=_dossier_of(run_dir)))
     if findings:
         for finding in findings:
             # 값은 싣지 않는다. 그 기록도 PUBLIC 저장소에 남는다
@@ -117,6 +132,74 @@ def main(argv: list[str] | None = None) -> int:
         return EXIT_SECRET
 
     return _report(run_dir, result)
+
+
+def dispatch(step: str, run_dir: Path, *, ledger_path: Path, ask: Callable[[str], invoke.AgentResult]) -> None:
+    """이름으로 그 단계의 실행부를 부른다.
+
+    [중요] **모듈 바깥에 둔 이유는 이 자리가 검사되어야 하기 때문이다.** 단계 목록에
+    이름을 더하면서 여기 가지를 안 붙이면 회차가 그 자리에서 죽고, 이름을 잘못 적으면
+    같은 일이 난다 — 둘 다 **에이전트를 부르고 난 뒤**에야 드러나던 자리였다.
+
+    Args:
+        step: 실행할 단계 이름
+        run_dir: 그 회차의 실행 폴더
+        ledger_path: 원장 경로. **원장을 고치는 단계에만 넘긴다**
+        ask: 그 단계에 맞는 에이전트 호출자
+
+    Raises:
+        steps.StepNotImplementedError: 정의된 단계인데 실행부가 없을 때
+    """
+    if step == "explore":
+        explore.run(run_dir, ledger_path, ask)
+    elif step == "collect":
+        collect.run(run_dir, ledger_path, ask)
+    elif step == "rebut":
+        # 원장을 안 받는다 — 이 단계는 그 회차의 후보를 «상태»에서 읽고 아무것도 표시하지 않는다.
+        # 안 쓰는 인자를 받아 두면 「반증도 원장을 고친다」로 읽힌다
+        rebut.run(run_dir, ask)
+    elif step == "lineage":
+        # 위와 같은 이유로 원장을 안 받는다. 「판 것」 표시는 마지막 단계의 일이다
+        lineage.run(run_dir, ask)
+    elif step == "feasibility":
+        feasibility.run(run_dir, ask)
+    elif step == "mechanism":
+        mechanism.run(run_dir, ask)
+    elif step == "measurement":
+        measurement.run(run_dir, ask)
+    elif step == "verdict":
+        # 회차의 마지막 단계라 원장을 받는다 — 여기서 근거 문서를 조립하고
+        # 후보를 「판 것」으로 표시한다
+        verdict.run(run_dir, ledger_path, ask)
+    else:
+        # 단계 목록은 `steps.STEPS` 하나가 정한다. 여기 도달했다는 것은 그 목록에
+        # 이름을 더하면서 실행부를 안 붙였다는 뜻이라, 조용히 넘기면 그 단계가
+        # 「했다」로 기록된 채 아무 일도 안 일어난다
+        raise steps.StepNotImplementedError(f"내부 불변조건 위반: 실행부가 없는 단계입니다 — {step}")
+
+
+def _dossier_of(run_dir: Path) -> Path | None:
+    """그 회차가 썼을 근거 문서의 경로. 후보가 안 박혔으면 None.
+
+    [중요] 「이 회차가 쓴 문서 하나」만 자격증명 검사에 넣기 위해서다. 문서 폴더를 통째로
+    넘기면 회차마다 한 장씩 쌓이는 그 폴더에서 **한 장이 한 번 걸린 뒤 이후 모든 회차가
+    실패하고**, 무인 실행에는 그것을 치울 사람이 없다.
+
+    경로는 계산으로 나온다 — 상태에 따로 적어 두면 그 값과 실제 파일이 갈릴 수 있고,
+    갈렸다는 사실은 아무 에러도 내지 않는다. 아직 안 쓰인 경로는 「발견 없음」으로 다뤄진다.
+    """
+    try:
+        candidate = state.pinned_candidate(run_dir)
+        return dossier.path_for(run_dir, candidate) if candidate is not None else None
+    except Exception:
+        # [중요] **여기서 터뜨리면 「마지막 그물」이 통째로 안 쳐진다.** 완주한 회차가
+        # 산출물을 다 만들어 놓고 자격증명 검사 «직전»에 죽으며, 종료 코드도 정해진
+        # 다섯 중 어느 것도 아니게 되어 무인 실행에서는 무슨 일이 났는지 알 수 없다.
+        #
+        # 갈래를 좁혀 잡지 않는 이유는, 이름을 만드는 쪽(`naming`)이 올릴 수 있는 예외가
+        # 앞으로 늘어날 수 있고 **그때 이 자리가 조용히 다시 깨지기** 때문이다.
+        # 문서를 못 찾아도 실행 폴더와 원장은 그대로 검사받는다
+        return None
 
 
 def _report(run_dir: Path, result: cycle.CycleResult) -> int:

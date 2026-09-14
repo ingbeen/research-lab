@@ -158,25 +158,27 @@ def test_scan_scope_excludes_the_repository_root() -> None:
     assert common_constants.BASE_DIR / "src" not in roots
 
 
-def test_scan_scope_covers_everything_the_runner_writes() -> None:
+def test_scan_scope_covers_everything_the_cycle_writes() -> None:
     """
     목적: 범위를 좁히다가 «써야 할 곳»을 빠뜨리지 않는 계약을 고정한다.
 
     좁히기의 반대 실패다. 러너가 쓰는 곳이 범위 밖이면 검사기는 통과를 알리면서
     아무것도 안 본다 — 이쪽도 에러가 나지 않는다.
 
-    Given: 그 회차의 검사 범위와, 러너가 쓰는 곳의 목록
-    When: 둘을 견준다
-    Then: 실행 폴더·근거 문서·원장이 모두 들어 있다
+    Given: 그 회차의 실행 폴더와 그 회차가 쓴 근거 문서
+    When: 검사 범위를 만든다
+    Then: 셋이 모두 들어 있다
     """
     run_dir = common_constants.RUNS_DIR / "20260101_0100"
-    roots = set(secrets.scan_roots(run_dir))
+    written = common_constants.DOSSIER_DIR / "20260101_pead-us.md"
+    roots = set(secrets.scan_roots(run_dir, dossier_path=written))
 
     assert run_dir in roots
-    assert common_constants.DOSSIER_DIR in roots
+    assert written in roots
     assert common_constants.LEDGER_DIR in roots
-    # 러너가 쓰는 곳의 «종류»는 셋이고, 그 셋이 모두 덮인다
-    assert len(common_constants.WRITABLE_ROOTS) == len(roots)
+    # 범위는 언제나 «러너가 쓰는 곳» 안에 있다. 러너가 새 자리에 쓰기 시작하면
+    # 그 자리를 이 목록에 더해야 하고, 안 더하면 여기가 먼저 걸린다
+    assert all(any(root == base or base in root.parents for base in common_constants.WRITABLE_ROOTS) for root in roots)
 
 
 def test_scan_scope_does_not_include_past_cycles() -> None:
@@ -184,8 +186,7 @@ def test_scan_scope_does_not_include_past_cycles() -> None:
     목적: 지난 회차들의 실행 폴더가 범위에 «안» 들어가는 계약을 고정한다.
 
     `runs/` 를 통째로 넘기면 과거 어느 회차에 한 번 걸린 파일이 **이후 모든 회차를 영구히
-    실패시킨다.** 아무도 그 파일을 치우지 않고, `runs/` 는 git 에서 빠져 있어 눈에 띄지도
-    않으며, 회차마다 검사 대상이 누적돼 시간까지 늘어난다.
+    실패시킨다.** 아무도 그 파일을 치우지 않고, 회차마다 검사 대상이 누적돼 시간까지 늘어난다.
 
     Given: 그 회차의 검사 범위
     When: 목록을 본다
@@ -194,3 +195,44 @@ def test_scan_scope_does_not_include_past_cycles() -> None:
     roots = set(secrets.scan_roots(common_constants.RUNS_DIR / "20260102_0100"))
 
     assert common_constants.RUNS_DIR not in roots
+
+
+def test_scan_scope_does_not_include_past_dossiers() -> None:
+    """
+    목적: [중요] 지난 회차의 «근거 문서»도 범위에 안 들어가는 계약을 고정한다.
+
+    근거 문서는 회차마다 한 장씩 쌓인다 — `runs/` 와 정확히 같은 모양이다.
+    폴더를 통째로 넘기면 **한 장이 한 번 걸린 뒤 이후 모든 회차가 종료 코드 4 로 끝나고,
+    무인 실행에는 그것을 치울 사람이 없다.** 이 검사기는 «그 회차가 새로 쓴 것»을
+    막으려는 것이지 과거를 청소하려는 것이 아니다.
+
+    Given: 그 회차가 쓴 문서 하나를 넘긴 검사 범위
+    When: 목록을 본다
+    Then: 그 문서만 들어 있고 문서 폴더 전체는 안 들어 있다
+    """
+    roots = set(
+        secrets.scan_roots(
+            common_constants.RUNS_DIR / "20260102_0100",
+            dossier_path=common_constants.DOSSIER_DIR / "20260102_pead-us.md",
+        )
+    )
+
+    assert common_constants.DOSSIER_DIR not in roots
+
+
+def test_a_cycle_without_a_dossier_still_has_a_scope() -> None:
+    """
+    목적: 근거 문서가 안 나온 회차도 «나머지»는 검사받는 계약을 고정한다.
+
+    게이트에 막혀 끝난 회차는 문서를 안 남긴다. 그때 범위가 통째로 비면
+    **그 회차가 실행 폴더에 쓴 것들이 검사를 안 받는다.**
+
+    Given: 문서를 안 넘긴 검사 범위
+    When: 목록을 본다
+    Then: 실행 폴더와 원장은 그대로 들어 있다
+    """
+    run_dir = common_constants.RUNS_DIR / "20260103_0100"
+    roots = set(secrets.scan_roots(run_dir))
+
+    assert run_dir in roots
+    assert common_constants.LEDGER_DIR in roots

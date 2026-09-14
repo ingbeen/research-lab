@@ -1,0 +1,41 @@
+{
+  "claim": "직전 52주 신고가 대비 현재가 비율(근접도) 상위 30% 종목을 매수하고 하위 30%를 매도해 6~12개월 보유한다",
+  "rebuttals": [
+    {
+      "title": "Industry information and the 52-week high effect (Hong, Jordan & Liu, Pacific-Basin Finance Journal 32, 2015)",
+      "url": "https://gattonweb.uky.edu/faculty/lium/52weekhigh.pdf",
+      "published": "2015-03-07",
+      "kind": "primary",
+      "says": "원 논문(George & Hwang 2004)이 제시한 개별종목 52주 신고가 전략(상위30%매수/하위30%매도, 6개월 보유)의 원자료를 재현·확장한 결과: (1) size·book-to-market·모멘텀을 통제한 DGTW 위험조정수익률로 보면 전체 표본(1963~2009) 월 0.08%로 통계적으로 0과 다르지 않다(t=0.94) — 즉 알려진 위험요인을 통제하면 초과수익이 사라진다. (2) 1월에는 원자료 기준 월 -7.62%(t=-5.63)의 큰 음의 수익률을 보인다 — 손실주(loser)들이 절세매도(tax-loss selling) 반등으로 1월에 급등해 전략이 역전된다. (3) 가장 최근 하위기간인 1995~2009년만 떼어보면 DGTW 위험조정수익률이 월 0.01%(t=0.05)로 사실상 소멸했다 — 효과가 표본 후반부로 갈수록 약해진다는 것을 같은 논문 안에서 직접 보여준다."
+    },
+    {
+      "title": "52-Weeks High Effect in Stocks (Quantpedia)",
+      "url": "https://quantpedia.com/strategies/52-weeks-high-effect-in-stocks",
+      "published": "unknown",
+      "kind": "secondary",
+      "says": "\"OOS back-test shows slightly negative performance. It looks, that strategy's alpha is deteriorating in the out-of-sample period.\" — 원 연구의 표본 기간 밖에서 재검증하면 알파가 음(-)에 가깝게 악화된다고 요약한다."
+    },
+    {
+      "title": "Do foreign investors mitigate anchoring bias in stock market? Evidence based on post-earnings announcement drift (Shin & Park, Pacific-Basin Finance Journal 48, 2018)",
+      "url": "https://ideas.repec.org/a/eee/pacfin/v48y2018icp224-240.html",
+      "published": "2018",
+      "kind": "secondary",
+      "says": "한국거래소 2001~2014년 자료로, 현재가가 52주 신고가에 가까울수록 실적공시 후 주가drift(PEAD)가 커지는 현상(52주 신고가 앵커링 효과)이 존재하지만, 외국인 투자자 보유비중이 높은 종목에서는 이 관계가 소멸(disappear)한다고 밝힌다 — 국내 시장에서도 52주 신고가 근접도 효과가 투자자 구성(정교함)에 따라 사라지는 하위집단이 존재함을 보여준다."
+    },
+    {
+      "title": "Does Academic Research Destroy Stock Return Predictability? (McLean & Pontiff, Journal of Finance)",
+      "url": "https://www.fmg.ac.uk/sites/default/files/2020-08/Jeffrey-Pontiff.pdf",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "97개 수익률 예측 변수(모멘텀 계열 포함)를 표본-내/표본-외/발표-후 세 구간으로 나눠 비교하면, 표본-외에서 평균 약 26% 하락하고 발표(공표) 이후에는 평균 약 58% 하락한다는 일반적 발견이다 — 52주 신고가처럼 발표된 이례현상은 시간이 지나며 차익거래로 수익이 깎인다는 메커니즘을 뒷받침한다. 다만 PDF가 스캔 이미지라 52주 신고가 변수 개별 수치는 이 문서에서 직접 확인하지 못했다(웹검색 요약을 통해서만 확인) — «미검증» 항목에도 남긴다."
+    }
+  ],
+  "not_found_reason": "",
+  "unverified": [
+    "McLean & Pontiff (2016) 논문에서 52주 신고가(또는 모멘텀) 변수 개별 하락폭 수치 — 원문 PDF가 스캔 이미지라 표·본문 수치를 직접 읽지 못했고, 웹검색 요약(다른 도구의 합성 결과)에만 의존했다",
+    "Byun & Jeon, \"Momentum Crashes and the 52-Week High\" (Financial Analysts Journal 79(2), 2023) — SSRN(papers.ssrn.com), Taylor & Francis(tandfonline.com), ResearchGate 세 곳 모두 403으로 막혔고 Semantic Scholar 페이지는 본문이 비어 있어, 초록조차 실제로 열어 확인하지 못했다. 검색 스니펫상으로는 \"52주 신고가에서 먼 종목에 대한 투기 쏠림이 모멘텀 크래시를 설명하고, 52주 신고가 요인을 중립화하면 크래시가 완화된다\"는 내용으로, 이 반증 주장과의 정확한 관계(신고가 전략 자체의 약점인지, 신고가 정보를 이용해 다른 모멘텀 전략을 개선하는 처방인지)는 원문 확인 없이는 판단할 수 없다",
+    "Bettman, Sault & von Reibnitz (2010, Australian Journal of Management) — 호주 시장에서 유동주식만으로도 공매도 제약·유동성 제약을 반영하면 유의한 달러 수익이 사라진다는 취지의 논문이 검색됐으나, 이 회차의 지시에 따라 비용·세금·슬리피지 관련 내용은 기록 대상에서 제외했다. URL도 직접 열어 확인하지 못했다(검색 스니펫만 확인)",
+    "코스피/국내 시장을 대상으로 이 전략(52주 신고가 근접도 상하위 30% 매수·매도, 6~12개월 보유) 자체를 직접 반증한 논문 — 검색에서는 오히려 국내 시장에서 GH(52주 신고가)식 모멘텀 전략이 JT식보다 우월하다는 지지 논문만 발견되었고, 직접적인 국내 반증 연구는 찾지 못했다. 대신 관련 메커니즘(PEAD·앵커링)이 외국인 비중에 따라 약화된다는 간접 증거만 확보했다",
+    "Quantpedia 페이지의 발행일/최종수정일 — 페이지 본문에 날짜 표기가 없어 확인하지 못했다"
+  ]
+}

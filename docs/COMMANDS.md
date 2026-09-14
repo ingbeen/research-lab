@@ -61,6 +61,12 @@ docker build -t research-lab:latest .
 ./docker/run.sh --run-dir runs/20260913_0100
 ```
 
+> 🔴 **진입점 «파일명»이 바뀌면 이미지를 반드시 다시 빌드합니다.** `ENTRYPOINT` 가 이미지에
+> 구워져 있어, 안 빌드하면 `can't open file '/work/scripts/...': No such file or directory` 로
+> 회차가 죽습니다. **소스는 bind mount 라 평소에는 빌드가 필요 없어서** 더 놓치기 쉽습니다 —
+> 「코드를 고쳤는데 왜 옛날 걸 찾지」로 읽히고, 실행 로그만 봐서는 원인이 안 드러납니다.
+> `[실측] 2026-09-14` 실행 단위 개명 뒤 실제로 여기 걸렸습니다.
+>
 > **`CLAUDE_CODE_OAUTH_TOKEN` 이 환경에 있어야 합니다.** 없으면 스크립트가 시작을 거부합니다.
 > 발급은 호스트에서 `claude setup-token` 으로 한 번만 합니다.
 >

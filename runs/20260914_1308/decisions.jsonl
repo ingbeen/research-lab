@@ -15,3 +15,6 @@
 {"ts": "2026-09-14T13:22:37+09:00", "step": "feasibility", "event": "cost", "cost_usd": 0.3511204, "tokens": 49659, "elapsed_seconds": 135.1, "session_id": "7d7f5222-bf9b-42aa-8704-4016a7cc7d7a"}
 {"ts": "2026-09-14T13:22:39+09:00", "step": "feasibility", "event": "read", "gate": "urls", "alive": 2, "dead": 0, "unknown": 0, "unknown_details": []}
 {"ts": "2026-09-14T13:22:39+09:00", "step": "feasibility", "event": "judged", "claim": "미국 주가지수 ETF 를 옵션 만기주 첫 거래일 시가에 매수해 만기일(셋째 금요일) 종가에 매도한다", "market": "미국", "availability": "이미 있음", "unverified_count": 2}
+{"ts": "2026-09-14T17:49:30+09:00", "step": "mechanism", "event": "skipped", "reason": "그 회차의 후보를 더 물을 자리가 아니다 — 원장에서 이미 「explored」다"}
+{"ts": "2026-09-14T17:49:30+09:00", "step": "measurement", "event": "skipped", "reason": "그 회차의 후보를 더 물을 자리가 아니다 — 원장에서 이미 「explored」다"}
+{"ts": "2026-09-14T17:49:30+09:00", "step": "verdict", "event": "skipped", "reason": "그 회차의 후보를 더 물을 자리가 아니다 — 원장에서 이미 「explored」다"}

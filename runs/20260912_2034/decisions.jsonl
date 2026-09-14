@@ -8,3 +8,6 @@
 {"ts": "2026-09-12T20:44:58+09:00", "step": "lineage", "event": "cost", "cost_usd": 0.46695960000000003, "tokens": 70271, "elapsed_seconds": 172.2, "session_id": "054550f0-c585-484a-ab42-d2ff80a04d6f"}
 {"ts": "2026-09-12T20:44:58+09:00", "step": "lineage", "event": "judged", "claim": "S&P500 편입이 예정 발표된 종목을 발표일 매수해 편입 발효일까지 보유한다", "collected_sources": 12, "independent_source_count": 8}
 {"ts": "2026-09-14T13:07:37+09:00", "step": "feasibility", "event": "skipped", "reason": "그 밤의 후보가 원장에서 이미 「판 것」이다 — 더 물을 자리가 아니다"}
+{"ts": "2026-09-14T17:49:41+09:00", "step": "mechanism", "event": "skipped", "reason": "그 회차의 후보를 더 물을 자리가 아니다 — 원장에서 이미 「explored」다"}
+{"ts": "2026-09-14T17:49:41+09:00", "step": "measurement", "event": "skipped", "reason": "그 회차의 후보를 더 물을 자리가 아니다 — 원장에서 이미 「explored」다"}
+{"ts": "2026-09-14T17:49:41+09:00", "step": "verdict", "event": "skipped", "reason": "그 회차의 후보를 더 물을 자리가 아니다 — 원장에서 이미 「explored」다"}

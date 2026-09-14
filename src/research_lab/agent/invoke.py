@@ -65,6 +65,7 @@ def build_command(
     session_id: str,
     budget_usd: float,
     tools: Sequence[str] = DEFAULT_TOOLS,
+    json_schema: str | None = None,
 ) -> list[str]:
     """호출 인자를 만든다.
 
@@ -75,6 +76,9 @@ def build_command(
         session_id: **미리 정한** UUID. 출력에서 긁어낼 필요가 없고, 끊겼을 때 이 값으로 되붙는다
         budget_usd: 폭주 감지용 상한. **0 을 줄 수 없다** (아래 Raises)
         tools: 줄 도구 목록
+        json_schema: 응답 모양을 강제할 JSON Schema. **이 계층은 그 내용을 모른다** —
+            어느 단계가 어떤 모양을 원하는지는 부르는 쪽이 정하고, 여기는 값이 있을 때만
+            플래그를 붙인다. 한 단계 때문에 이 계층이 특수해지면 다음 단계에서 다시 갈라진다
 
     Returns:
         `subprocess` 에 그대로 넘길 인자 목록
@@ -91,7 +95,7 @@ def build_command(
             "이 값은 «폭주 감지»용입니다."
         )
 
-    return [
+    command = [
         CLAUDE_BINARY,
         "-p",
         prompt,
@@ -106,6 +110,14 @@ def build_command(
         "--tools",
         ",".join(tools),
     ]
+
+    if json_schema:
+        # [주의] 스키마를 걸어도 `parse_json_answer` 의 관대한 파싱을 걷어내지 않는다.
+        # 그쪽은 「모양이 어긋나도 멈추지 않는다」는 보험이고, 보험은 스키마가 있다고
+        # 버릴 것이 아니다 — CLI 가 스키마를 무시하는 경우에도 회차가 돌아야 한다
+        command.extend(["--json-schema", json_schema])
+
+    return command
 
 
 def new_session_id() -> str:
@@ -168,6 +180,7 @@ def invoke(
     budget_usd: float,
     session_id: str | None = None,
     tools: Sequence[str] = DEFAULT_TOOLS,
+    json_schema: str | None = None,
     timeout_seconds: float = 1800.0,
 ) -> AgentResult:
     """에이전트를 한 번 부른다.
@@ -179,6 +192,7 @@ def invoke(
         budget_usd: 폭주 감지용 상한
         session_id: 미리 정한 UUID. 없으면 새로 만든다
         tools: 줄 도구 목록
+        json_schema: 응답 모양을 강제할 JSON Schema. 부르는 쪽이 정한다
         timeout_seconds: 이 시간을 넘기면 끊는다
 
     Returns:
@@ -193,7 +207,13 @@ def invoke(
     assert_subscription_only(env)
 
     resolved_session = session_id or new_session_id()
-    command = build_command(prompt=prompt, session_id=resolved_session, budget_usd=budget_usd, tools=tools)
+    command = build_command(
+        prompt=prompt,
+        session_id=resolved_session,
+        budget_usd=budget_usd,
+        tools=tools,
+        json_schema=json_schema,
+    )
 
     started = time.monotonic()
     try:
@@ -249,14 +269,39 @@ def _parse(*, raw: str, elapsed: float, session_id: str) -> AgentResult:
 
     cost = payload.get("total_cost_usd")
 
+    # [실측 2026-09-14] `--json-schema` 를 걸면 CLI 가 **파싱된 객체**를 이 필드에 함께 싣는다.
+    # 그쪽을 먼저 쓰면 산문이나 코드펜스로 파싱이 깨질 여지가 구조적으로 사라진다 —
+    # 스키마를 켜는 이유가 바로 그것이다. 스키마가 없으면 이 필드가 없어 `result` 로 돌아간다
+    structured = payload.get("structured_output")
+    answer = structured if isinstance(structured, dict | list) else payload.get("result", raw)
+
     return AgentResult(
-        text=str(payload.get("result", raw)),
+        text=_answer_text(answer),
         raw=raw,
         cost_usd=float(cost) if isinstance(cost, int | float) else None,
         tokens=_new_tokens(payload.get("usage")),
         elapsed_seconds=elapsed,
         session_id=str(payload.get("session_id", session_id)),
     )
+
+
+def _answer_text(answer: Any) -> str:
+    """답을 «파싱할 수 있는» 문자열로 만든다.
+
+    [중요] `str()` 로 바로 찍지 않는다. `--json-schema` 로 모양을 강제하면 CLI 가 답을
+    **문자열이 아니라 객체로** 실어 보낼 수 있는데, 파이썬이 dict 를 문자열로 만들면
+    작은따옴표 표기(`{'ok': True}`)가 되어 **JSON 으로 다시 읽히지 않는다.**
+
+    그러면 그 회차는 「JSON 을 못 꺼냈습니다」로 실패하고 「그 외」로 분류돼 상한까지
+    재시도한다 — **모양을 «강제하려고» 켠 플래그가 정확히 그 모양 때문에 회차를 태우는**
+    자리이고, 원문만 봐서는 원인이 파서인지 에이전트인지 갈리지 않는다.
+
+    [주의] 스키마를 켜지 않아도 이 가드를 둔다. 응답 모양은 CLI 가 정하는 것이라
+    언제 바뀌어도 이상하지 않고, **바뀌는 날 이 가드가 없으면 조용히 재시도만 돈다.**
+    """
+    if isinstance(answer, dict | list):
+        return json.dumps(answer, ensure_ascii=False)
+    return str(answer)
 
 
 def _new_tokens(usage: Any) -> int | None:

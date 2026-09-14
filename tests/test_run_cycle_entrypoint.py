@@ -268,3 +268,70 @@ def test_exit_codes_are_all_distinct(entrypoint: Any) -> None:
     ]
 
     assert len(set(codes)) == len(codes)
+
+
+# --------------------------------------------------------------------------
+# 단계 배선 — 이름 하나가 회차를 통째로 죽이는 자리다
+# --------------------------------------------------------------------------
+
+
+def test_every_defined_step_has_an_implementation(entrypoint: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    목적: [중요] 정의된 단계가 «하나도 빠짐없이» 실행부에 연결된 계약을 고정한다.
+
+    단계 목록에 이름을 더하면서 배선을 안 붙이거나 이름을 잘못 적으면 그 회차가 그 자리에서
+    죽는다. 그 예외는 일부러 재시도 대상이 아니라 **그대로 터지므로** 회차가 통째로 끝난다.
+
+    무엇보다 그 고장은 **에이전트를 부르고 난 뒤**에야 드러나던 자리였다 — 앞 단계들의
+    비용을 다 치르고 마지막에 깨진다.
+
+    Given: 모든 단계 모듈을 부름만 기록하도록 바꾼 진입점
+    When: 정의된 단계 이름을 하나씩 넘긴다
+    Then: 전부 어딘가로 연결되고, 부른 단계 수가 정의된 수와 같다
+    """
+    from research_lab.runner import steps
+
+    called: list[str] = []
+
+    for name in ("explore", "collect", "rebut", "lineage", "feasibility", "mechanism", "measurement", "verdict"):
+        module = getattr(entrypoint, name)
+        monkeypatch.setattr(module, "run", lambda *_args, _name=name, **_kwargs: called.append(_name))
+
+    for step in steps.STEPS:
+        entrypoint.dispatch(step, Path("실행폴더"), ledger_path=Path("원장.md"), ask=lambda _: None)
+
+    assert called == list(steps.STEPS)
+
+
+def test_an_undefined_step_is_a_breakage_not_a_failure(entrypoint: Any) -> None:
+    """
+    목적: 실행부가 없는 이름이 «고장»으로 터지는 계약을 고정한다.
+
+    「그 외」 실패로 묻히면 상한까지 헛돈 뒤 「다음 회차가 이어받습니다」로 보고되어,
+    **아무 일도 안 하는 상태를 정상으로 알린다.**
+
+    Given: 정의에 없는 단계 이름
+    When: 배선에 넘긴다
+    Then: 실행부 없음으로 터진다
+    """
+    from research_lab.runner import steps
+
+    with pytest.raises(steps.StepNotImplementedError):
+        entrypoint.dispatch("없는단계", Path("실행폴더"), ledger_path=Path("원장.md"), ask=lambda _: None)
+
+
+def test_only_the_new_steps_carry_a_schema(entrypoint: Any) -> None:
+    """
+    목적: [실측 2026-09-14] 응답 모양 강제를 «새 세 단계»에만 거는 계약을 고정한다.
+
+    앞의 다섯은 이미 실측으로 검증된 경로다. 갈아 끼우면 돌던 것을 새 플래그에 얹는 셈이라,
+    스키마가 어긋나는 날 **되던 단계까지 함께 죽는다.**
+
+    Given: 단계별 스키마 표
+    When: 키를 본다
+    Then: 새 세 단계만 들어 있고, 전부 정의된 단계 이름이다
+    """
+    from research_lab.runner import steps
+
+    assert set(entrypoint.STEP_SCHEMAS) == {"mechanism", "measurement", "verdict"}
+    assert set(entrypoint.STEP_SCHEMAS) <= set(steps.STEPS)

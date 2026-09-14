@@ -1,9 +1,11 @@
-"""실현가능성 단계가 남기는 것의 계약을 고정한다 — 4·5번 칸과 「판 것」 표시.
+"""실현가능성 단계가 남기는 것의 계약을 고정한다 — 4번 칸(데이터)과 5번 칸(집행).
 
-이 단계가 **회차의 마지막**이라 「판 것」 표시가 여기로 옮겨왔다. 계보가 끝나며 표시하면
-그 뒤 실현가능성이 실패할 때 **후보가 4·5번 칸 없이 「판 것」으로 남아 영영 다시 안 파진다**
-— 수집이 표시하던 때와 똑같은 고장이고, 계층 계약 §4 의 「마지막 단계가 표시한다」가
-그것을 막으려고 있는 규칙이다.
+[중요] **이 단계는 회차의 마지막이 «아니다».** 뒤에 메커니즘·측정 설계·판정이 붙었으므로
+「판 것」 표시는 여기서 하지 않는다. 여기서 표시하면 그 뒤 세 단계가 실패할 때
+**후보가 그 칸들 없이 「판 것」으로 남아 영영 다시 안 파진다** — 수집이 표시하던 때와
+똑같은 고장이고, 계층 계약 §4 의 「마지막 단계가 표시한다」가 그것을 막으려고 있는 규칙이다.
+**그래서 이 단계는 원장을 받지 않는다** — 안 쓰는 인자를 두면 「실현가능성도 원장을 고친다」로
+읽힌다.
 
 [중요] **카탈로그를 러너가 읽어 프롬프트에 싣는다.** 경로만 가리키면 읽혔는지 확인할 길이
 없고, 안 읽어도 **에러가 안 나면서 「이미 있음」만 조용히 안 나온다.** 이 저장소는
@@ -176,7 +178,7 @@ def test_run_carries_the_catalog_into_the_prompt(tmp_path: Path) -> None:
         seen.append(prompt)
         return _answer(_filled())
 
-    feasibility.run(run_dir, ledger_path, ask, catalog_path=_catalog(tmp_path))
+    feasibility.run(run_dir, ask, catalog_path=_catalog(tmp_path))
 
     assert "us-etf-daily" in seen[0]
 
@@ -200,7 +202,7 @@ def test_writes_its_own_file(tmp_path: Path) -> None:
     ledger_path = tmp_path / "원장.md"
     output_dir = _pin(run_dir, ledger_path)
 
-    feasibility.run(run_dir, ledger_path, lambda _: _answer(_filled()), catalog_path=_catalog(tmp_path))
+    feasibility.run(run_dir, lambda _: _answer(_filled()), catalog_path=_catalog(tmp_path))
 
     written = json.loads((output_dir / FEASIBILITY_FILENAME).read_text(encoding="utf-8"))
     assert written["claim"] == CLAIM
@@ -209,34 +211,37 @@ def test_writes_its_own_file(tmp_path: Path) -> None:
     assert written["execution"]["signal_frequency"] == "월 1회 — 연 12건"
 
 
-def test_marks_the_candidate_explored(tmp_path: Path) -> None:
+def test_does_not_mark_the_candidate_explored(tmp_path: Path) -> None:
     """
-    목적: [중요] 「판 것」 표시를 «이 단계»가 하는 계약을 고정한다.
+    목적: [중요] 이 단계가 「판 것」 표시를 «하지 않는» 계약을 고정한다.
 
-    이 단계가 회차의 마지막이다. 계보가 끝나며 표시하면 그 뒤 이 단계가 실패할 때
-    **후보가 4·5번 칸 없이 「판 것」으로 남아 영영 다시 안 파진다.**
+    **이 단계는 더 이상 회차의 마지막이 아니다.** 뒤에 메커니즘·측정 설계·판정이 붙었고,
+    표시는 언제나 마지막 단계의 일이다. 여기서 표시하면 그 뒤 세 단계가 실패할 때
+    **후보가 3·9·10·2·11번 칸 없이 「판 것」으로 남아 영영 다시 안 파진다** —
+    수집이 표시하던 때와, 계보가 표시하던 때와 글자 하나 다르지 않은 고장이다.
+
+    계층 계약 §4 가 「단계를 뒤에 더할 때마다 표시가 함께 옮겨간다」를 규칙으로 박아 둔
+    자리이며, 이 테스트가 그 규칙의 집행부다.
 
     Given: 후보 하나가 든 원장
-    When: 이 단계까지 끝난다
-    Then: 그 후보가 판 것으로 표시돼 다음 후보가 없다
+    When: 이 단계가 끝난다
+    Then: 그 후보는 아직 «안 판 것»으로 남아 있다
     """
     run_dir = tmp_path / "run"
     ledger_path = tmp_path / "원장.md"
     _pin(run_dir, ledger_path)
 
+    feasibility.run(run_dir, lambda _: _answer(_filled()), catalog_path=_catalog(tmp_path))
+
     assert ledger.next_unexplored(ledger_path) is not None
 
-    feasibility.run(run_dir, ledger_path, lambda _: _answer(_filled()), catalog_path=_catalog(tmp_path))
 
-    assert ledger.next_unexplored(ledger_path) is None
-
-
-def test_writes_the_file_before_marking(tmp_path: Path) -> None:
+def test_a_blocked_step_leaves_no_file(tmp_path: Path) -> None:
     """
-    목적: 파일을 쓴 «뒤»에 표시하는 계약을 고정한다.
+    목적: 게이트에 막히면 «반쯤 채워진 칸»이 남지 않는 계약을 고정한다.
 
-    순서가 반대면 산출물 없이 후보만 「판 것」으로 남는다 — 그 후보는 다시 안 파지므로
-    4·5번 칸이 영영 비어 있게 되고, **나중에는 완주한 회차처럼 보인다.**
+    파일이 남으면 그 다음 회차가 이어받을 때 4·5번 칸이 «있는 것»으로 보이고,
+    그 칸은 게이트를 통과한 적이 없다.
 
     Given: 게이트에 막히는 산출물
     When: 단계를 돈다
@@ -249,7 +254,7 @@ def test_writes_the_file_before_marking(tmp_path: Path) -> None:
     blocked["execution"]["signal_frequency"] = ""
 
     with pytest.raises(StepQualityFailed):
-        feasibility.run(run_dir, ledger_path, lambda _: _answer(blocked), catalog_path=_catalog(tmp_path))
+        feasibility.run(run_dir, lambda _: _answer(blocked), catalog_path=_catalog(tmp_path))
 
     assert not (output_dir / FEASIBILITY_FILENAME).exists()
     assert ledger.next_unexplored(ledger_path) is not None
@@ -269,7 +274,7 @@ def test_without_a_pinned_candidate_it_is_an_invariant_violation(tmp_path: Path)
     run_dir = tmp_path / "run"
 
     with pytest.raises(RuntimeError):
-        feasibility.run(run_dir, tmp_path / "원장.md", lambda _: _answer(_filled()), catalog_path=_catalog(tmp_path))
+        feasibility.run(run_dir, lambda _: _answer(_filled()), catalog_path=_catalog(tmp_path))
 
 
 # --------------------------------------------------------------------------
@@ -296,7 +301,7 @@ def test_is_blocked_when_a_source_url_does_not_exist(tmp_path: Path, probing: An
     payload = _filled(sources=[{"title": "지어낸 문서", "url": "https://example.com/없는문서"}])
 
     with pytest.raises(StepQualityFailed):
-        feasibility.run(run_dir, ledger_path, lambda _: _answer(payload), catalog_path=_catalog(tmp_path))
+        feasibility.run(run_dir, lambda _: _answer(payload), catalog_path=_catalog(tmp_path))
 
     assert ledger.next_unexplored(ledger_path) is not None
 
@@ -321,7 +326,7 @@ def test_does_not_probe_when_a_cheaper_gate_already_blocked(tmp_path: Path, prob
     blocked["market"] = ""
 
     with pytest.raises(StepQualityFailed):
-        feasibility.run(run_dir, ledger_path, lambda _: _answer(blocked), catalog_path=_catalog(tmp_path))
+        feasibility.run(run_dir, lambda _: _answer(blocked), catalog_path=_catalog(tmp_path))
 
     assert probed == []
 
@@ -357,7 +362,7 @@ def test_cost_and_measurements_survive_a_block(tmp_path: Path) -> None:
     blocked["data"]["fallback"] = ""
 
     with pytest.raises(StepQualityFailed):
-        feasibility.run(run_dir, ledger_path, lambda _: _answer(blocked), catalog_path=_catalog(tmp_path))
+        feasibility.run(run_dir, lambda _: _answer(blocked), catalog_path=_catalog(tmp_path))
 
     assert _entries(run_dir, decision_log.EVENT_COST)
     assert _entries(run_dir, decision_log.EVENT_READ)
@@ -379,7 +384,7 @@ def test_catalog_hits_are_recorded(tmp_path: Path) -> None:
     ledger_path = tmp_path / "원장.md"
     _pin(run_dir, ledger_path)
 
-    feasibility.run(run_dir, ledger_path, lambda _: _answer(_filled()), catalog_path=_catalog(tmp_path))
+    feasibility.run(run_dir, lambda _: _answer(_filled()), catalog_path=_catalog(tmp_path))
 
     read = _entries(run_dir, decision_log.EVENT_READ)[0]
     assert sorted(read["catalog_hit"]) == ["expiry-calendar", "us-etf-daily"]
@@ -403,7 +408,7 @@ def test_unknown_catalog_hits_are_counted_separately(tmp_path: Path) -> None:
     _pin(run_dir, ledger_path)
 
     payload = _filled(catalog_hit=["us-etf-daily", "지어낸-항목"])
-    feasibility.run(run_dir, ledger_path, lambda _: _answer(payload), catalog_path=_catalog(tmp_path))
+    feasibility.run(run_dir, lambda _: _answer(payload), catalog_path=_catalog(tmp_path))
 
     read = _entries(run_dir, decision_log.EVENT_READ)[0]
     assert read["catalog_hit"] == ["us-etf-daily"]
@@ -424,7 +429,7 @@ def test_cost_terms_in_execution_are_recorded_but_do_not_block(tmp_path: Path) -
 
     payload = _filled()
     payload["execution"]["leverage"] = "미국은 3배까지 있으나 왕복 수수료가 크다"
-    feasibility.run(run_dir, ledger_path, lambda _: _answer(payload), catalog_path=_catalog(tmp_path))
+    feasibility.run(run_dir, lambda _: _answer(payload), catalog_path=_catalog(tmp_path))
 
     read = _entries(run_dir, decision_log.EVENT_READ)[0]
     assert read["cost_terms"] == ["수수료"]
@@ -445,7 +450,7 @@ def test_judgement_records_the_availability(tmp_path: Path) -> None:
     ledger_path = tmp_path / "원장.md"
     _pin(run_dir, ledger_path)
 
-    feasibility.run(run_dir, ledger_path, lambda _: _answer(_filled()), catalog_path=_catalog(tmp_path))
+    feasibility.run(run_dir, lambda _: _answer(_filled()), catalog_path=_catalog(tmp_path))
 
     judged = _entries(run_dir, decision_log.EVENT_JUDGED)[0]
     assert judged["availability"] == "이미 있음"

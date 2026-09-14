@@ -137,6 +137,65 @@ def test_successful_response_fields_are_read() -> None:
     assert parsed.raw == raw
 
 
+def test_structured_output_wins_over_prose() -> None:
+    """
+    목적: [실측 2026-09-14] 스키마가 낸 «파싱된 객체»를 먼저 쓰는 계약을 고정한다.
+
+    `--json-schema` 를 걸면 CLI 가 `structured_output` 에 객체를 함께 싣는다. 그쪽을
+    먼저 쓰면 **산문이나 코드펜스로 파싱이 깨질 여지가 구조적으로 사라진다** —
+    스키마를 켜는 이유가 바로 그것이고, 안 쓰면 켜 놓고도 예전 위험을 그대로 안고 간다.
+
+    Given: 산문이 섞인 `result` 와 «제대로 된» `structured_output` 이 함께 온 응답
+    When: 호출 계층이 읽는다
+    Then: 객체 쪽이 쓰인다
+    """
+    raw = json.dumps(
+        {
+            "type": "result",
+            "is_error": False,
+            "result": '말씀하신 대로 정리했습니다. ```json\n{"verdict": "엉뚱한 값"}\n```',
+            "structured_output": {"verdict": "보류", "reason": "표본이 모자란다"},
+            "session_id": "세션",
+        }
+    )
+
+    parsed = invoke._parse(raw=raw, elapsed=1.0, session_id="쓰이지-않는-값")
+
+    assert invoke.parse_json_answer(parsed, what="판정")["verdict"] == "보류"
+
+
+def test_an_object_answer_stays_parsable() -> None:
+    """
+    목적: [중요] 답이 «객체»로 와도 JSON 으로 다시 읽히는 계약을 고정한다.
+
+    `--json-schema` 로 모양을 강제하면 CLI 가 답을 문자열이 아니라 객체로 실어 보낼 수 있다.
+    그때 파이썬이 dict 를 그대로 문자열로 만들면 작은따옴표 표기(`{'ok': True}`)가 되어
+    **JSON 으로 다시 읽히지 않는다.** 그 회차는 「JSON 을 못 꺼냈습니다」로 실패하고
+    「그 외」로 분류돼 상한까지 재시도하는데, **모양을 강제하려고 켠 플래그가 정확히
+    그 모양 때문에 회차를 태우는** 꼴이 된다.
+
+    스키마를 안 켜도 이 가드를 둔다 — 응답 모양은 CLI 가 정하는 것이라 언제 바뀌어도
+    이상하지 않고, **바뀌는 날 이 가드가 없으면 조용히 재시도만 돈다.**
+
+    Given: `result` 가 객체인 응답
+    When: 호출 계층이 읽고, 단계가 JSON 을 꺼낸다
+    Then: 예외 없이 그 객체가 나온다
+    """
+    raw = json.dumps(
+        {
+            "type": "result",
+            "is_error": False,
+            "result": {"verdict": "보류", "candidates": ["ㄱ"]},
+            "session_id": "세션",
+            "total_cost_usd": 0.1,
+        }
+    )
+
+    parsed = invoke._parse(raw=raw, elapsed=1.0, session_id="쓰이지-않는-값")
+
+    assert invoke.parse_json_answer(parsed, what="판정") == {"verdict": "보류", "candidates": ["ㄱ"]}
+
+
 MEASURED_FENCED_ANSWER = '```json\n{"queries": ["ㄱ", "ㄴ", "ㄷ"], "candidates": []}\n```'
 
 MEASURED_SESSION_LIMIT = json.dumps(

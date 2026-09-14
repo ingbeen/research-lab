@@ -1,0 +1,87 @@
+{
+  "claim": "직전 52주 신고가 대비 현재가 비율(근접도) 상위 30% 종목을 매수하고 하위 30%를 매도해 6~12개월 보유한다",
+  "groups": [
+    {
+      "origin": {
+        "title": "The 52-Week High and Momentum Investing (원저자 워킹페이퍼 PDF)",
+        "url": "https://www.bauer.uh.edu/tgeorge/papers/gh4-paper.pdf",
+        "published": "2004"
+      },
+      "copies": [
+        {
+          "title": "The 52-Week High and Momentum Investing (Wiley, The Journal of Finance, Vol.59)",
+          "url": "https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1540-6261.2004.00695.x"
+        }
+      ],
+      "why": "같은 저자(George·Hwang)의 같은 논문을 두 경로로 받은 것이다 — 저자 개인 홈페이지의 워킹페이퍼 PDF와 Journal of Finance 공식 게재본으로, 제목·저자·핵심 주장(52주 고가 근접도가 모멘텀 수익의 상당 부분을 설명하며 장기 반전이 없다)이 동일하다. 워킹페이퍼 PDF는 바이너리라 직접 본문 대조는 못 했고 검색 요약(Journal of Finance 59권, 2145-2176쪽)으로 동일 논문임을 확인했다."
+    },
+    {
+      "origin": {
+        "title": "The 52-week high momentum strategy in international stock markets (Liu, Liu & Ma)",
+        "url": "https://www.sciencedirect.com/science/article/abs/pii/S0261560610001099",
+        "published": "2011"
+      },
+      "copies": [],
+      "why": "20개국 시장 데이터로 새로 수행한 별도 실증 연구다. George & Hwang(2004)의 방법론을 적용하지만 표본·시장·결과(18/20개국에서 수익, 10개국에서 유의)가 새로 만든 것이라 복제가 아니라 독립된 확장 연구로 본다. 사이트가 403을 반환해 초록 원문은 검색 요약으로 대체했다."
+    },
+    {
+      "origin": {
+        "title": "Industry information and the 52-week high effect (Hong, Jordan & Liu)",
+        "url": "https://gattonweb.uky.edu/faculty/lium/52weekhigh.pdf",
+        "published": "2015-03-07"
+      },
+      "copies": [
+        {
+          "title": "52-Weeks High Effect in Stocks (Quantpedia)",
+          "url": "https://quantpedia.com/strategies/52-weeks-high-effect-in-stocks"
+        }
+      ],
+      "why": "Quantpedia 페이지의 핵심 수익률 숫자(월간 0.60%, 1963~2009년, 산업 기반 전략)가 Hong·Jordan·Liu(2015) 논문의 수치와 정확히 일치한다 — Quantpedia는 이 논문(과 George&Hwang 방법론)을 요약·재서술한 2차 자료이며 독립된 새 실증을 만든 것이 아니다. 원 PDF는 바이너리라 본문 직접 대조는 못 했고 검색 요약으로 수치를 맞췄다."
+    },
+    {
+      "origin": {
+        "title": "52주 고가와 주가 모멘텀 투자전략 (JKDAS 2021)",
+        "url": "https://scholar.kyobobook.co.kr/article/detail/4010028467563",
+        "published": "2021-08"
+      },
+      "copies": [],
+      "why": "한국 주식시장에서 JT·GH·RR 세 모멘텀 전략을 비교한 별도 실증 연구로, 표본과 분석(투자유예기간 효과 등)이 위 영어권 논문들과 다르다. 저자명은 페이지에 나타나지 않아 미검증이다."
+    },
+    {
+      "origin": {
+        "title": "한국 주식시장에서 52주 고가가 투자자의 매매심리에 미치는 영향 (이호·김은정, 경영교육연구 2013)",
+        "url": "https://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART001814834",
+        "published": "2013"
+      },
+      "copies": [],
+      "why": "저자·발행연도·초점(기준점설정이론에 따른 투자자 매매심리·과소반응)이 JKDAS(2021) 논문과 다르고 일치하는 숫자나 예시가 없어 별도 실증으로 본다. 다만 같은 '한국+52주고가+앵커링' 주제라 두 한국 논문이 서로를 인용했을 가능성은 확인하지 못했다(미검증)."
+    },
+    {
+      "origin": {
+        "title": "Do foreign investors mitigate anchoring bias in stock market? Evidence based on post-earnings announcement drift (Shin & Park, PBFJ 48)",
+        "url": "https://ideas.repec.org/a/eee/pacfin/v48y2018icp224-240.html",
+        "published": "2018"
+      },
+      "copies": [],
+      "why": "한국거래소 2001~2014년 표본으로 52주 고가 앵커링이 실적발표 후 드리프트(PEAD)와 외국인 투자자 보유비중에 미치는 영향을 새로 분석한 연구다. 표본기간·핵심 변수(외국인 보유비중)가 다른 소스들과 겹치지 않아 독립으로 본다."
+    },
+    {
+      "origin": {
+        "title": "Does Academic Research Destroy Stock Return Predictability? (McLean & Pontiff, Journal of Finance 2016)",
+        "url": "https://www.fmg.ac.uk/sites/default/files/2020-08/Jeffrey-Pontiff.pdf",
+        "published": "2016"
+      },
+      "copies": [],
+      "why": "97개 이상현상 변수 전반의 발표 전후 수익률 감소(표본외 -26%, 발표후 -58%)를 다룬 별도의 광범위한 실증 연구로, 52주 고가 전략에 국한되지 않은 독자적 데이터셋을 쓴다. 다만 이 논문이 52주 고가 변수를 실제로 포함해 다뤘는지는 PDF가 바이너리라 본문 대조를 못 했고, 검색 요약도 '~일 수 있다'는 추론성 서술이라 미검증으로 남긴다."
+    }
+  ],
+  "independent_source_count": 7,
+  "unverified": [
+    "Wiley(onlinelibrary.wiley.com) 논문 초록 원문 — 403으로 직접 열지 못해 검색 요약으로 대체함",
+    "ScienceDirect(Liu·Liu·Ma 2011) 초록 원문 — 403으로 직접 열지 못해 검색 요약으로 대체함",
+    "Hong·Jordan·Liu(2015) PDF 본문 — 바이너리 인코딩이라 직접 텍스트 대조를 못 하고 검색 요약 수치(월간 0.60%)로만 확인함",
+    "McLean & Pontiff(2016) PDF 본문에 52주 고가 전략이 실제로 다뤄지는지 — 검색 결과가 직접 인용이 아니라 추론성 연결로 보여 확인하지 못함",
+    "JKDAS 2021 논문의 저자명 — 페이지에 표기되지 않음",
+    "경영교육연구(2013) 논문과 JKDAS(2021) 논문 사이의 상호 인용 여부 — 확인하지 못함"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "claim": "직전 52주 신고가 대비 현재가 비율(근접도) 상위 30% 종목을 매수하고 하위 30%를 매도해 6~12개월 보유한다",
+  "queries": [
+    "52-week high momentum strategy George Hwang",
+    "nearness to 52-week high stock returns anomaly",
+    "52-week high effect anchoring bias underreaction momentum",
+    "52주 신고가 근접도 모멘텀 전략 수익률",
+    "52주 최고가 근접 매수 하위 매도 국내주식 효과"
+  ]
+}

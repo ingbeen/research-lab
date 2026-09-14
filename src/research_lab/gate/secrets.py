@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
-from research_lab.common_constants import DOSSIER_DIR, LEDGER_DIR
+from research_lab.common_constants import LEDGER_DIR
 
 # 탐지 규칙. **이름을 붙이는 이유**는 발견을 기록할 때 값 대신 이름을 남기기 위해서다.
 #
@@ -43,7 +43,7 @@ class Finding:
     line_number: int
 
 
-def scan_roots(run_dir: Path) -> tuple[Path, ...]:
+def scan_roots(run_dir: Path, *, dossier_path: Path | None = None) -> tuple[Path, ...]:
     """그 회차의 검사 범위를 만든다.
 
     [중요] **지난 회차들의 실행 폴더를 넣지 않는다.** `runs/` 전체를 넘기면 과거 어느 회차에
@@ -51,17 +51,27 @@ def scan_roots(run_dir: Path) -> tuple[Path, ...]:
     회차마다 검사 대상이 누적돼 시간도 계속 늘어난다. 이 검사기는 **그 회차가 새로 쓴 것**을
     막으려는 것이지 과거를 청소하려는 것이 아니다.
 
+    [중요] **근거 문서도 «그 회차가 쓴 한 장»만 넣는다.** 그 폴더는 회차마다 한 장씩
+    쌓이므로 `runs/` 와 정확히 같은 모양이다. 폴더를 통째로 넘기면 한 장이 한 번 걸린 뒤
+    **이후 모든 회차가 종료 코드 4 로 끝나고, 무인 실행에는 그것을 치울 사람이 없다.**
+    문서가 안 나온 회차(게이트에 막혀 끝난 회차)는 넘길 것이 없으므로 나머지만 검사한다.
+
     [주의] 그래서 남는 구멍이 하나 있다 — **지난 회차에 이미 들어간 자격증명은 다시 안 본다.**
-    `runs/` 가 git 에 포함되므로(2026-09-12 결정) 그런 파일은 공개 이력에 그대로 올라간다.
+    `runs/` 와 근거 문서가 git 에 포함되므로 그런 파일은 공개 이력에 그대로 올라간다.
     이 검사기가 «그 회차에» 막는 것이 1차 방어이고, 그때 막힌 회차는 종료 코드 4 로 사람을 부른다.
+
+    [주의] **원장은 폴더째로 둔다.** 회차마다 다시 쓰는 «공유 상태»라 「그 회차가 쓴 줄」만
+    가릴 수 없고, 파일 하나라 걸리면 사람이 바로 본다.
 
     Args:
         run_dir: 그 회차의 실행 폴더
+        dossier_path: 그 회차가 쓴 근거 문서. 안 나왔으면 None
 
     Returns:
-        그 회차에 러너가 쓴 곳들 — 이번 실행 폴더 · 근거 문서 · 원장
+        그 회차에 러너가 쓴 곳들
     """
-    return (run_dir, DOSSIER_DIR, LEDGER_DIR)
+    written = (dossier_path,) if dossier_path is not None else ()
+    return (run_dir, *written, LEDGER_DIR)
 
 
 def scan(roots: Iterable[Path]) -> list[Finding]:
@@ -69,7 +79,7 @@ def scan(roots: Iterable[Path]) -> list[Finding]:
 
     Args:
         roots: 검사할 폴더 또는 파일. **러너가 그 회차에 쓴 곳만** 넘긴다
-            (`common_constants.SECRET_SCAN_ROOTS`)
+            (`scan_roots` 가 만든다)
 
     Returns:
         발견 목록. 없으면 빈 목록
