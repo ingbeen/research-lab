@@ -13,7 +13,7 @@ from research_lab.runner import decision_log
 
 def test_missing_log_reads_as_empty(tmp_path: Path) -> None:
     """
-    목적: 아직 아무것도 안 적힌 밤을 「빈 기록」으로 다루는 계약을 고정한다.
+    목적: 아직 아무것도 안 적힌 회차를 「빈 기록」으로 다루는 계약을 고정한다.
 
     Given: 아무것도 없는 실행 폴더
     When: 결정 로그를 읽는다
@@ -44,7 +44,7 @@ def test_records_append_and_keep_order(tmp_path: Path) -> None:
     """
     목적: 기록이 «덧붙기»만 하는 계약을 고정한다.
 
-    다시 쓰면 그 밤의 앞부분이 사라지고 **예외도 나지 않는다.**
+    다시 쓰면 그 회차의 앞부분이 사라지고 **예외도 나지 않는다.**
 
     Given: 두 번의 기록
     When: 읽는다
@@ -62,7 +62,7 @@ def test_every_entry_is_timestamped(tmp_path: Path) -> None:
     """
     목적: 모든 기록에 시각이 붙는 계약을 고정한다.
 
-    시각이 없으면 밤 예산을 정할 때 「무엇이 얼마나 걸렸나」를 되짚을 수 없다.
+    시각이 없으면 회차 예산을 정할 때 「무엇이 얼마나 걸렸나」를 되짚을 수 없다.
 
     Given: 기록 한 건
     When: 읽는다
@@ -77,7 +77,7 @@ def test_cost_and_tokens_are_recordable(tmp_path: Path) -> None:
     """
     목적: 비용·토큰이 «저장소 안»에 남는 계약을 고정한다.
 
-    이것이 있어야 밤 예산 집계가 저장소 안에서 완결되어, 컨테이너 HOME 의 세션 로그에
+    이것이 있어야 회차 예산 집계가 저장소 안에서 완결되어, 컨테이너 HOME 의 세션 로그에
     의존하지 않고 **기계를 옮겨도 과거 기록이 git 으로 따라온다.**
 
     Given: 비용과 토큰과 소요 시간을 적은 기록
@@ -120,7 +120,7 @@ def test_korean_is_not_escaped(tmp_path: Path) -> None:
 
 def test_broken_line_does_not_hide_the_rest(tmp_path: Path) -> None:
     """
-    목적: 깨진 한 줄이 그 밤의 기록 전부를 가리지 않는 계약을 고정한다.
+    목적: 깨진 한 줄이 그 회차의 기록 전부를 가리지 않는 계약을 고정한다.
 
     한 줄이 깨졌다고 전부 못 읽게 되면, 정작 원인을 되짚어야 할 때 아무것도 못 본다.
 

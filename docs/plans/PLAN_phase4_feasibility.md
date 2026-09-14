@@ -3,7 +3,7 @@
 > 작성/운영 규칙(SoT): `/impl-plan` 스킬(`~/.claude/skills/impl-plan/SKILL.md`)을 반드시 참고하세요.  
 > (이 템플릿을 수정하거나 새로운 양식의 계획서를 만들 때도 해당 스킬을 포인터로 두고 준수합니다.)
 
-**상태**: 🔄 In Progress
+**상태**: ✅ Done
 
 ---
 
@@ -21,7 +21,7 @@
 ---
 
 **작성일**: 2026-09-14 11:47
-**마지막 업데이트**: 2026-09-14 11:47
+**마지막 업데이트**: 2026-09-14 13:50
 **관련 범위**: 러너(밤의 다섯째 단계) · 게이트 · 리서치 스킬 · 문서(데이터 카탈로그)
 **관련 문서**: `CLAUDE.md`, `docs/DESIGN.md`, `src/research_lab/CLAUDE.md`, `docs/INDEX.md`, `.claude/skills/night-research/SKILL.md`
 

@@ -7,7 +7,7 @@
 [중요] 찬성과 반증의 출처를 **함께** 받는다. 한쪽만 주면 반증 쪽 출처가 원본인 경우를
 통째로 놓친다.
 
-[중요] **이 단계는 후보를 「판 것」으로 표시하지 않는다.** 표시는 밤의 «마지막» 단계의
+[중요] **이 단계는 후보를 「판 것」으로 표시하지 않는다.** 표시는 회차의 «마지막» 단계의
 일이고 그 자리는 실현가능성이다. 여기서 표시하면 그 뒤 4·5번 칸이 실패할 때
 **후보가 그 칸들 없이 「판 것」으로 남아 영영 다시 안 파진다** — 수집이 표시하던 때와
 똑같은 고장이다.
@@ -36,7 +36,7 @@ from research_lab.runner.steps import StepQualityFailed
 
 AgentCaller = Callable[[str], AgentResult]
 
-PROMPT: Final = """이 저장소의 `.claude/skills/night-research/SKILL.md` 를 먼저 읽고 그 규율을 그대로 따르세요.
+PROMPT: Final = """이 저장소의 `.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 그 규율을 그대로 따르세요.
 
 ## 할 일 — 출처 계보
 
@@ -72,7 +72,7 @@ def build_prompt(claim: str, sources: list[Any]) -> str:
     """계보 지시문을 만든다.
 
     Args:
-        claim: 그 밤의 한 줄 주장
+        claim: 그 회차의 한 줄 주장
         sources: 찬성과 반증이 모은 출처 전부
 
     Returns:
@@ -86,11 +86,11 @@ def run(run_dir: Path, ask: AgentCaller) -> None:
     """찬성·반증의 출처로 계보표를 만든다.
 
     Args:
-        run_dir: 그 밤의 실행 폴더
+        run_dir: 그 회차의 실행 폴더
         ask: 프롬프트를 받아 에이전트를 부르는 쪽
 
     Raises:
-        RuntimeError: 그 밤의 후보가 상태에 없을 때 — 러너가 건너뛰었어야 하는 자리다
+        RuntimeError: 그 회차의 후보가 상태에 없을 때 — 러너가 건너뛰었어야 하는 자리다
         StepFailed: 응답이 약속한 모양이 아닐 때
         StepQualityFailed: 모았던 출처를 빠뜨렸을 때
     """
@@ -98,7 +98,7 @@ def run(run_dir: Path, ask: AgentCaller) -> None:
 
     candidate = state.pinned_candidate(run_dir)
     if candidate is None:
-        raise RuntimeError(f"내부 불변조건 위반: 그 밤의 후보가 상태에 없습니다 — {run_dir}")
+        raise RuntimeError(f"내부 불변조건 위반: 그 회차의 후보가 상태에 없습니다 — {run_dir}")
 
     output_dir = run_dir / naming.folder_name(candidate.claim, candidate.identifier)
     sources = _collected_sources(output_dir)
@@ -107,7 +107,7 @@ def run(run_dir: Path, ask: AgentCaller) -> None:
     payload = invoke.parse_json_answer(result, what="계보")
 
     # 무엇을 놓고 판단했고 얼마를 썼는지는 «게이트 앞»에서 남긴다.
-    # 막혀서 끝나도 그 밤이 무엇을 했고 얼마를 태웠는지는 기록에 남아야 한다
+    # 막혀서 끝나도 그 회차가 무엇을 했고 얼마를 태웠는지는 기록에 남아야 한다
     decision_log.record(run_dir, "lineage", decision_log.EVENT_READ, source_count=len(sources))
     decision_log.record_cost(run_dir, "lineage", result)
 

@@ -1,7 +1,7 @@
 """탐색 단계 — 후보 «목록»을 만들어 원장에 담는다.
 
 넓게 훑고 얕아도 된다. 산출물은 후보마다 **한 줄 주장** 하나다.
-수집보다 싸고, **이 단계가 있어서 사람이 후보를 적어 넣지 않아도 첫 밤이 돈다.**
+수집보다 싸고, **이 단계가 있어서 사람이 후보를 적어 넣지 않아도 첫 회차가 돈다.**
 """
 
 import json
@@ -23,11 +23,11 @@ from research_lab.runner.steps import StepQualityFailed
 # 그래야 호출 계층이 단계에 맞춰 깎이지 않고, 돌려보지 않고도 이 단계를 검사할 수 있다
 AgentCaller = Callable[[str], AgentResult]
 
-# 한 밤에 담을 후보 수의 상한. 많이 담는 것이 목적이 아니라 **수집이 팔 재고**를 만드는 것이라,
+# 한 회차에 담을 후보 수의 상한. 많이 담는 것이 목적이 아니라 **수집이 팔 재고**를 만드는 것이라,
 # 한 번에 너무 많이 담으면 오래된 후보가 계속 뒤로 밀린다
 MAX_CANDIDATES: Final = 15
 
-PROMPT: Final = """이 저장소의 `.claude/skills/night-research/SKILL.md` 를 먼저 읽고 그 규율을 그대로 따르세요.
+PROMPT: Final = """이 저장소의 `.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 그 규율을 그대로 따르세요.
 
 ## 할 일 — 탐색
 
@@ -70,7 +70,7 @@ def build_prompt(known_claims: list[str]) -> str:
     """탐색 지시문을 만든다.
 
     Args:
-        known_claims: 원장에 이미 있는 후보들. 같은 것을 또 담으면 그만큼 그 밤이 헛돈다
+        known_claims: 원장에 이미 있는 후보들. 같은 것을 또 담으면 그만큼 그 회차가 헛돈다
 
     Returns:
         에이전트에게 줄 지시문
@@ -83,7 +83,7 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
     """탐색을 한 번 돌고 원장에 담는다.
 
     Args:
-        run_dir: 그 밤의 실행 폴더
+        run_dir: 그 회차의 실행 폴더
         ledger_path: 원장 경로
         ask: 프롬프트를 받아 에이전트를 부르는 쪽
 
@@ -134,8 +134,8 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
 
     decision_log.record_cost(run_dir, "explore", result)
 
-    # [중요] 후보를 «담은 뒤에» 검사한다. 찾은 후보를 버리면 그 밤이 통째로 헛돌고,
-    # 다음 밤은 원장에 재고가 생겨 탐색을 건너뛰므로 이 실패가 반복되지도 않는다
+    # [중요] 후보를 «담은 뒤에» 검사한다. 찾은 후보를 버리면 그 회차가 통째로 헛돌고,
+    # 다음 회차는 원장에 재고가 생겨 탐색을 건너뛰므로 이 실패가 반복되지도 않는다
     shortfall = query_gate.shortfall_reason(queries)
     if shortfall is not None:
         decision_log.record(run_dir, "explore", decision_log.EVENT_FAILED, gate="queries", reason=shortfall)
@@ -146,7 +146,7 @@ def _store(ledger_path: Path, candidates: list[Any]) -> tuple[int, list[str], li
     """후보를 원장에 담고, 담은 수와 중복·기각으로 버린 것을 돌려준다.
 
     [중요] **기각된 후보도 원장에 남긴다.** 지우면 다음 탐색이 같은 후보를 새 후보로
-    다시 담고 그 밤이 또 기각한다 — 기각은 「본 적 없다」가 아니다.
+    다시 담고 그 회차가 또 기각한다 — 기각은 「본 적 없다」가 아니다.
     """
     added = 0
     duplicates: list[str] = []
@@ -155,7 +155,7 @@ def _store(ledger_path: Path, candidates: list[Any]) -> tuple[int, list[str], li
     # 건드리지 않는다.
     #
     # [주의] 이것이 원장 읽기를 «한 번»으로 만들지는 않는다 — `append` 는 호출마다 다시 읽고
-    # `mark_rejected` 는 다시 쓴다. 한 밤의 후보 수가 `MAX_CANDIDATES` 로 묶여 있어 실제
+    # `mark_rejected` 는 다시 쓴다. 한 회차의 후보 수가 `MAX_CANDIDATES` 로 묶여 있어 실제
     # 비용은 작지만, **원장이 아주 커지면 여기가 먼저 느려진다.** 그때는 줄 단위 손질을
     # 한 번에 모아 쓰는 쪽으로 바꾼다
     seen = {entry.claim for entry in ledger.load(ledger_path)}

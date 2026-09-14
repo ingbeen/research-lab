@@ -24,7 +24,7 @@ def assert_sources_exist(run_dir: Path, step: str, sources: Any, *, what: str) -
     """출처의 URL 을 찔러 보고, 실재하지 않는 것이 있으면 막는다.
 
     Args:
-        run_dir: 그 밤의 실행 폴더
+        run_dir: 그 회차의 실행 폴더
         step: 부르는 단계 이름. 결정 로그에 그대로 적힌다
         sources: `{"url": ...}` 모양의 출처 목록. 모양이 어긋나 있어도 된다
         what: 실패 원문 앞에 붙일 말 (예: 「수집 출처」)
@@ -32,7 +32,7 @@ def assert_sources_exist(run_dir: Path, step: str, sources: Any, *, what: str) -
     Raises:
         StepQualityFailed: 실재하지 않는 URL 이 있을 때
     """
-    # 정렬해서 넘기는 것은 로그를 밤마다 같은 순서로 남기기 위해서다.
+    # 정렬해서 넘기는 것은 로그를 회차마다 같은 순서로 남기기 위해서다.
     # `urls_in` 이 집합을 돌려주므로 그대로 쓰면 순서가 실행마다 달라진다
     probed = url_gate.probe_all(sorted(payload_helpers.urls_in(sources)), probe=url_gate.probe_url)
 

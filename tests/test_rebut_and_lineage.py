@@ -5,7 +5,7 @@
 **사람도 잘 못 한다.** 그래서 이 세션은 **한 줄 주장만** 받는다.
 
 [중요] 세션이 갈리는 것은 구조가 보장하지만 **파일을 일부러 찾아 읽는 것까지는 못 막는다.**
-스킬을 읽히려면 `Read` 도구가 필요해 도구를 뺄 수 없고, 실행 디렉터리가 저장소라 그 밤의
+스킬을 읽히려면 `Read` 도구가 필요해 도구를 뺄 수 없고, 실행 디렉터리가 저장소라 그 회차의
 폴더가 보인다. 그래서 판정 대신 **계측을 심는다** — 반증 URL 과 찬성 URL 이 얼마나 겹쳤나를
 로그에 적되, 그것으로 막지는 않는다. 겹치는 것 자체는 정상일 수도 있다(같은 논문을 양쪽이 인용).
 """
@@ -37,7 +37,7 @@ def _answer(payload: object) -> AgentResult:
 
 
 def _pin(run_dir: Path, ledger_path: Path) -> Path:
-    """그 밤의 후보를 원장과 상태에 박고 후보 폴더를 돌려준다."""
+    """그 회차의 후보를 원장과 상태에 박고 후보 폴더를 돌려준다."""
     ledger.append(ledger_path, CLAIM, identifier="sell-in-may")
     state.pin_candidate(run_dir, state.Candidate(claim=CLAIM, identifier="sell-in-may"))
     return run_dir / naming.folder_name(CLAIM, "sell-in-may")
@@ -139,10 +139,10 @@ def test_rebut_records_overlap_with_pro_evidence(tmp_path: Path) -> None:
 
 def test_rebut_is_blocked_when_the_field_is_missing(tmp_path: Path) -> None:
     """
-    목적: 반증 칸이 없는 응답이 그 밤을 «미완성»으로 만드는 계약을 고정한다.
+    목적: 반증 칸이 없는 응답이 그 회차를 «미완성»으로 만드는 계약을 고정한다.
 
     이것이 게이트 1차의 본체다. 재시도 대상이 아닌 「질」 갈래로 올라가야
-    같은 밤에 full 예산으로 세 번 더 부르지 않는다.
+    같은 회차에 full 예산으로 세 번 더 부르지 않는다.
 
     Given: 반증 칸이 없는 응답
     When: 반증을 돈다
@@ -219,7 +219,7 @@ def test_rebut_cost_is_recorded_even_when_blocked(tmp_path: Path) -> None:
     """
     목적: 막혀서 끝난 반증도 «얼마를 썼는지»는 남기는 계약을 고정한다.
 
-    게이트에 걸렸어도 그 호출은 이미 토큰을 썼다. 기록이 없으면 밤 예산을 정할 때
+    게이트에 걸렸어도 그 호출은 이미 토큰을 썼다. 기록이 없으면 회차 예산을 정할 때
     그만큼이 통째로 빠진 값으로 계산된다.
 
     Given: 게이트에 걸리는 응답
@@ -340,7 +340,7 @@ def test_lineage_does_not_mark_the_candidate_explored(tmp_path: Path) -> None:
     """
     목적: [중요] 계보가 후보를 「판 것」으로 표시하지 «않는» 계약을 고정한다.
 
-    표시는 밤의 «마지막» 단계의 일이고 그 자리는 실현가능성이다. 계보가 표시하면
+    표시는 회차의 «마지막» 단계의 일이고 그 자리는 실현가능성이다. 계보가 표시하면
     그 뒤 4·5번 칸이 실패할 때 **후보가 그 칸들 없이 「판 것」으로 남아 영영 다시
     안 파진다** — 수집이 표시하던 때와 똑같은 고장이다.
 

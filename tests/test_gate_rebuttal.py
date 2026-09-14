@@ -16,7 +16,7 @@ from research_lab.gate import rebuttal
 
 def test_rebuttals_found_pass() -> None:
     """
-    목적: 반증을 찾아 온 밤이 막히지 않는 계약을 고정한다.
+    목적: 반증을 찾아 온 회차가 막히지 않는 계약을 고정한다.
 
     Given: 반증 하나가 든 산출물
     When: 검사한다
@@ -89,7 +89,7 @@ def test_gate_does_not_judge_the_quality_of_rebuttals() -> None:
     목적: 게이트가 반증의 «질»을 판정하지 «않는» 계약을 고정한다.
 
     판정하려 들면 게이트가 또 하나의 판단자가 된다 — 설계 §5.5 A 가 훅에서 그대로
-    가져온 결정이다. 내용이 부실한지는 아침에 사람이 본다.
+    가져온 결정이다. 내용이 부실한지는 나중에 사람이 본다.
 
     Given: 내용이 빈약한 반증 하나
     When: 검사한다

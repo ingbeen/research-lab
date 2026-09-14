@@ -1,4 +1,4 @@
-# 밤을 도는 컨테이너.
+# 회차를 도는 컨테이너.
 #
 # [중요] 컨테이너는 «보안 샌드박스가 아니다». 리서치는 인터넷이 필수라 그 조건을 못 맞춘다.
 # 여기가 막는 것은 파일 시스템이지 네트워크가 아니며, 그래서 안에 넣는 자격증명은
@@ -36,4 +36,4 @@ ENV PYTHONUNBUFFERED=1 \
 # 소스는 굽지 않고 bind mount 로 받는다. 산출물이 호스트 폴더에 그대로 생겨야
 # VSCode 소스 컨트롤에 diff 로 뜨고, 컨테이너가 죽어도 남는다
 
-ENTRYPOINT ["python3", "/work/scripts/run_night.py"]
+ENTRYPOINT ["python3", "/work/scripts/run_cycle.py"]

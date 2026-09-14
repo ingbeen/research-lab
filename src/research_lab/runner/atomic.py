@@ -1,7 +1,7 @@
 """반쯤 쓴 파일이 완성본 자리에 남지 않게 한다.
 
 상태 파일과 원장이 함께 쓴다. 완성본 자리에 직접 쓰면 도중에 죽은 순간
-**읽을 수도 없고 되돌릴 수도 없는 파일**이 남는데, 둘 다 그렇게 되면 밤이 복구되지 않는다.
+**읽을 수도 없고 되돌릴 수도 없는 파일**이 남는데, 둘 다 그렇게 되면 회차가 복구되지 않는다.
 """
 
 import os
@@ -37,6 +37,6 @@ def atomic_write(path: Path) -> Generator[TextIO]:
             os.fsync(file.fileno())
         os.replace(temporary, path)
     finally:
-        # 실패해도 쓰레기를 남기지 않는다. 쌓이면 밤마다 늘어나고
+        # 실패해도 쓰레기를 남기지 않는다. 쌓이면 회차마다 늘어나고
         # 다음 사람이 그중 무엇이 진짜인지 판별해야 한다
         temporary.unlink(missing_ok=True)

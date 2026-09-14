@@ -1,4 +1,4 @@
-"""밤의 상태를 파일로 소유한다.
+"""회차의 상태를 파일로 소유한다.
 
 상태의 진실은 대화가 아니라 파일에 있다. 그래서 한도로 끊겨도 · 컨테이너가 죽어도 ·
 PC 가 재부팅돼도 같은 방식으로 복구된다.
@@ -16,7 +16,7 @@ from typing import Any, Final
 from research_lab.common_constants import LOCK_FILENAME, STATE_FILENAME
 from research_lab.runner.atomic import atomic_write
 
-# 그 밤이 파고 있는 후보가 적히는 자리.
+# 그 회차가 파고 있는 후보가 적히는 자리.
 #
 # [중요] 수집·반증·계보가 **같은 후보**를 봐야 한다. 단계마다 원장에 「다음에 팔 후보」를
 # 새로 물으면, 수집이 표시를 마친 뒤에는 다른 후보가 돌아오거나 아무것도 안 돌아온다.
@@ -28,7 +28,7 @@ KEY_IDENTIFIER: Final = "identifier"
 # 그 실행 폴더를 «접었다»고 적는 자리.
 #
 # [중요] 이 표시가 없으면 「막힘」 처리가 통째로 헛돈다. 후보를 원장에서 걷어내도 여기
-# 박힌 「그 밤의 후보」는 살아 있어서, 다음 밤이 이 폴더를 이어받아 **같은 단계를 또 부르고
+# 박힌 「그 회차의 후보」는 살아 있어서, 다음 회차가 이 폴더를 이어받아 **같은 단계를 또 부르고
 # 또 막힌다.** 남은 단계를 「했다」로 적어 닫는 길도 있지만 그건 거짓말이라,
 # 무엇을 안 했는지가 기록에서 사라진다
 KEY_CLOSED: Final = "closed"
@@ -41,7 +41,7 @@ class AlreadyRunningError(RuntimeError):
 
 @dataclass(frozen=True)
 class Candidate:
-    """그 밤이 파고 있는 후보."""
+    """그 회차가 파고 있는 후보."""
 
     claim: str
     # 산출물 폴더 이름이 된다. 예전에 담긴 후보에는 없다
@@ -52,10 +52,10 @@ def load(run_dir: Path) -> dict[str, Any] | None:
     """상태를 읽는다.
 
     Args:
-        run_dir: 그 밤의 실행 폴더
+        run_dir: 그 회차의 실행 폴더
 
     Returns:
-        저장된 상태. 아직 없으면 None — 첫 밤은 「빈 상태」이지 오류가 아니다
+        저장된 상태. 아직 없으면 None — 첫 회차는 「빈 상태」이지 오류가 아니다
     """
     path = run_dir / STATE_FILENAME
     if not path.is_file():
@@ -73,7 +73,7 @@ def save(run_dir: Path, payload: Mapping[str, Any]) -> None:
     도중에 죽은 순간 **읽을 수도 없고 되돌릴 수도 없는 파일**이 남는다.
 
     Args:
-        run_dir: 그 밤의 실행 폴더
+        run_dir: 그 회차의 실행 폴더
         payload: 저장할 상태
 
     Raises:
@@ -84,13 +84,13 @@ def save(run_dir: Path, payload: Mapping[str, Any]) -> None:
 
 
 def pin_candidate(run_dir: Path, candidate: Candidate) -> None:
-    """그 밤이 파고 있는 후보를 상태에 박는다.
+    """그 회차가 파고 있는 후보를 상태에 박는다.
 
     이미 저장된 진행은 건드리지 않는다 — 읽어서 후보만 얹는다.
 
     Args:
-        run_dir: 그 밤의 실행 폴더
-        candidate: 이 밤이 파는 후보
+        run_dir: 그 회차의 실행 폴더
+        candidate: 이 회차가 파는 후보
     """
     saved = load(run_dir) or {}
     saved[KEY_CANDIDATE] = {KEY_CLAIM: candidate.claim, KEY_IDENTIFIER: candidate.identifier}
@@ -98,14 +98,14 @@ def pin_candidate(run_dir: Path, candidate: Candidate) -> None:
 
 
 def pinned_candidate(run_dir: Path) -> Candidate | None:
-    """그 밤이 파고 있는 후보를 읽는다.
+    """그 회차가 파고 있는 후보를 읽는다.
 
     [중요] 모양이 어긋나면 **예외 대신 「없음」**을 돌려준다. 사람이 상태 파일을 손으로
     고칠 수도 있고 단계를 늘리기 전의 예전 파일이 남아 있을 수도 있는데, 여기서 터뜨리면
-    그 실행 폴더 하나 때문에 파이프라인이 선다. 「없음」이면 그 밤은 새로 시작하면 된다.
+    그 실행 폴더 하나 때문에 파이프라인이 선다. 「없음」이면 그 회차는 새로 시작하면 된다.
 
     Args:
-        run_dir: 그 밤의 실행 폴더
+        run_dir: 그 회차의 실행 폴더
 
     Returns:
         박아 둔 후보. 아직 안 잡았거나 모양이 어긋나면 None
@@ -114,7 +114,7 @@ def pinned_candidate(run_dir: Path) -> Candidate | None:
         saved = load(run_dir)
     except (OSError, json.JSONDecodeError):
         # 반쯤 쓰이다 끊긴 파일이나 사람이 손으로 고치다 깨진 파일이다.
-        # 「없음」으로 읽으면 그 밤은 새로 시작하면 되지만, 여기서 터뜨리면
+        # 「없음」으로 읽으면 그 회차는 새로 시작하면 되지만, 여기서 터뜨리면
         # 그 실행 폴더 하나 때문에 파이프라인이 선다
         return None
 
@@ -135,13 +135,13 @@ def pinned_candidate(run_dir: Path) -> Candidate | None:
 
 
 def close(run_dir: Path, reason: str) -> None:
-    """그 실행 폴더를 접는다 — 다음 밤이 이어받지 않는다.
+    """그 실행 폴더를 접는다 — 다음 회차가 이어받지 않는다.
 
     이미 저장된 진행은 건드리지 않는다. **무엇을 못 했는지는 그대로 남아야** 나중에
     「어디서 막혔나」를 되짚을 수 있다.
 
     Args:
-        run_dir: 그 밤의 실행 폴더
+        run_dir: 그 회차의 실행 폴더
         reason: 왜 접었나
     """
     saved = load(run_dir) or {}
@@ -153,11 +153,11 @@ def closed_reason(run_dir: Path) -> str | None:
     """그 실행 폴더가 접혔으면 그 사유를, 아니면 None 을 돌려준다.
 
     [중요] 모양이 어긋나거나 읽을 수 없으면 **「안 접혔다」로 읽는다.** 이 칸이 생기기 전에
-    만들어진 폴더가 이미 쌓여 있고, 없는 것을 접힌 것으로 읽으면 **이어받을 수 있던 밤이
+    만들어진 폴더가 이미 쌓여 있고, 없는 것을 접힌 것으로 읽으면 **이어받을 수 있던 회차가
     통째로 버려진다.** `pinned_candidate` 가 같은 이유로 같게 동작한다.
 
     Args:
-        run_dir: 그 밤의 실행 폴더
+        run_dir: 그 회차의 실행 폴더
 
     Returns:
         접힌 사유. 안 접혔거나 판정할 수 없으면 None
@@ -184,18 +184,18 @@ def closed_reason(run_dir: Path) -> str | None:
 
 
 def is_locked(run_dir: Path) -> bool:
-    """그 폴더를 «지금 도는» 밤이 잡고 있나.
+    """그 폴더를 «지금 도는» 회차가 잡고 있나.
 
     [중요] **파일 존재로 판정하지 않는다.** 강제 종료 뒤에도 파일은 남으므로, 존재를
     잠김으로 읽으면 **그 파일 하나가 폴더를 영구히 잠근다** — 그것이 예전 구현의 고장이었다.
     판정은 커널이 들고 있는 잠금이 한다: 잡아 보고 곧바로 놓는다.
 
     Args:
-        run_dir: 그 밤의 실행 폴더
+        run_dir: 그 회차의 실행 폴더
 
     Returns:
-        지금 잡혀 있으면 True. **판정할 수 없으면 True 다** — 훔쳐서 두 밤이 한 폴더를
-        번갈아 쓰는 것보다 한 밤을 미루는 쪽이 낫다
+        지금 잡혀 있으면 True. **판정할 수 없으면 True 다** — 훔쳐서 두 회차가 한 폴더를
+        번갈아 쓰는 것보다 한 회차를 미루는 쪽이 낫다
     """
     path = run_dir / LOCK_FILENAME
     if not path.is_file():
@@ -208,7 +208,7 @@ def is_locked(run_dir: Path) -> bool:
         # 이 함수가 없애려던 고장이 권한을 타고 그대로 돌아오는 자리다.
         with path.open("r") as handle:
             # [중요] **공유 잠금으로 찔러 본다.** 배타 잠금으로 찌르면 «두 판정기»가
-            # 서로 충돌해, 아무도 밤을 돌리지 않는데도 한쪽이 「잠김」이라 답한다.
+            # 서로 충돌해, 아무도 회차를 돌리지 않는데도 한쪽이 「잠김」이라 답한다.
             # 공유 잠금도 진짜 배타 홀더와는 부딪히므로 잡아야 할 것은 그대로 잡는다
             fcntl.flock(handle.fileno(), fcntl.LOCK_SH | fcntl.LOCK_NB)
             fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
@@ -229,7 +229,7 @@ def lock(run_dir: Path) -> Generator[None]:
     **파일이 남았다** — 파이썬은 `SIGTERM` 핸들러를 기본으로 달지 않아 `finally` 가 안 돌고,
     컨테이너 안 PID 1 은 핸들러 없는 시그널을 무시하므로 `docker stop` 도 `SIGKILL` 로 끝난다.
     **「얌전히 멈추는」 경로가 없다.** 그래서 남은 파일이 실행 폴더를 영구히 잠그고,
-    원장 잠금까지 남아 **이후 모든 밤이 원장에서 즉시 멈췄다.**
+    원장 잠금까지 남아 **이후 모든 회차가 원장에서 즉시 멈췄다.**
 
     [주의] **못 막는 것이 하나 있다** — [실측 2026-09-14] flock 은 **host↔container 경계를
     넘지 않는다.** 컨테이너가 잡고 있는 동안 호스트에서 잡으면 잡힌다(반대도 같다).
@@ -237,7 +237,7 @@ def lock(run_dir: Path) -> Generator[None]:
     막는 대상은 **개발용 호스트 실행과의 동시 충돌**뿐이고, 그것은 사람이 자기 터미널에서 본다.
 
     Args:
-        run_dir: 그 밤의 실행 폴더
+        run_dir: 그 회차의 실행 폴더
 
     Raises:
         AlreadyRunningError: 이미 잡혀 있을 때
@@ -256,7 +256,7 @@ def lock(run_dir: Path) -> Generator[None]:
     # [중요] **읽기로 연다.** `flock` 은 쓰기 권한을 요구하지 않는데, 쓰기로 열면
     # 다른 uid 가 만든 잠금 파일에서 `PermissionError` 가 난다. 그것은
     # `AlreadyRunningError` 가 아니라 진입점이 잡지 않는 예외라 **트레이스백으로 끝나고**,
-    # 파일이 지워지지 않으므로 **이후 모든 밤이 같은 자리에서 같게 죽는다** —
+    # 파일이 지워지지 않으므로 **이후 모든 회차가 같은 자리에서 같게 죽는다** —
     # 이 구현이 없애려던 정지 버그가 권한을 타고 그대로 돌아오는 자리다.
     # `O_CREAT` 로 없을 때만 만들고, 여는 의도는 읽기로 둔다
     descriptor = os.open(path, os.O_RDONLY | os.O_CREAT)

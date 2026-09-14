@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""밤 하나를 돌린다 — 이 저장소의 유일한 진입점.
+"""회차 하나를 돌린다 — 이 저장소의 유일한 진입점.
 
 무인 실행이라 **아무도 화면을 보지 않는다.** 그래서 결과를 종료 코드로 가르고,
-과정은 그 밤의 실행 폴더에 파일로 남긴다.
+과정은 그 회차의 실행 폴더에 파일로 남긴다.
 
 사용법은 `docs/COMMANDS.md` 가 SoT다.
 """
@@ -30,11 +30,11 @@ from research_lab.common_constants import (  # noqa: E402
 from research_lab.gate import secrets  # noqa: E402
 from research_lab.runner import (  # noqa: E402
     collect,
+    cycle,
     decision_log,
     explore,
     feasibility,
     lineage,
-    night,
     rebut,
     state,
     steps,
@@ -42,12 +42,12 @@ from research_lab.runner import (  # noqa: E402
 from research_lab.runner.failures import FailureKind  # noqa: E402
 
 # 종료 코드. **무인 실행에서 사람이 받는 신호가 이것뿐**이라 갈래마다 다른 값을 준다.
-# 전부 0 이나 1 로 뭉치면 「인증이 끊겨 며칠 안 돈 상태」와 「그냥 한도에 걸린 밤」이 구별되지 않는다
+# 전부 0 이나 1 로 뭉치면 「인증이 끊겨 며칠 안 돈 상태」와 「그냥 한도에 걸린 회차」가 구별되지 않는다
 EXIT_OK: Final = 0
-EXIT_INCOMPLETE: Final = 1  # 그 외 실패 — 다음 밤이 이어받는다
+EXIT_INCOMPLETE: Final = 1  # 그 외 실패 — 다음 회차가 이어받는다
 EXIT_LIMIT: Final = 2  # 한도 소진 — 정상이다. 재시도하지 않는다
 EXIT_AUTH: Final = 3  # 인증·과금 거부 — 사람이 손대야 한다
-EXIT_SECRET: Final = 4  # 자격증명 발견 — 그 밤을 실패로 만든다
+EXIT_SECRET: Final = 4  # 자격증명 발견 — 그 회차를 실패로 만든다
 
 # 한 단계에 거는 폭주 감지 상한.
 #
@@ -64,7 +64,7 @@ PASSED_ENV_VARS: Final = ("PATH", "HOME", "LANG", "LC_ALL", "TZ", "CLAUDE_CODE_O
 
 
 def main(argv: list[str] | None = None) -> int:
-    """밤을 돌고 결과를 종료 코드로 알린다."""
+    """회차를 돌고 결과를 종료 코드로 알린다."""
     args = _parse_args(argv)
 
     try:
@@ -86,14 +86,14 @@ def main(argv: list[str] | None = None) -> int:
         elif step == "collect":
             collect.run(current_run_dir, args.ledger, ask)
         elif step == "rebut":
-            # 원장을 안 받는다 — 이 단계는 그 밤의 후보를 «상태»에서 읽고 아무것도 표시하지 않는다.
+            # 원장을 안 받는다 — 이 단계는 그 회차의 후보를 «상태»에서 읽고 아무것도 표시하지 않는다.
             # 안 쓰는 인자를 받아 두면 「반증도 원장을 고친다」로 읽힌다
             rebut.run(current_run_dir, ask)
         elif step == "lineage":
             # 위와 같은 이유로 원장을 안 받는다. 「판 것」 표시는 마지막 단계의 일이다
             lineage.run(current_run_dir, ask)
         elif step == "feasibility":
-            # 밤의 마지막 단계라 원장을 받는다 — 여기서 후보를 「판 것」으로 표시한다
+            # 회차의 마지막 단계라 원장을 받는다 — 여기서 후보를 「판 것」으로 표시한다
             feasibility.run(current_run_dir, args.ledger, ask)
         else:
             # 단계 목록은 `steps.STEPS` 하나가 정한다. 여기 도달했다는 것은 그 목록에
@@ -102,7 +102,7 @@ def main(argv: list[str] | None = None) -> int:
             raise steps.StepNotImplementedError(f"내부 불변조건 위반: 실행부가 없는 단계입니다 — {step}")
 
     try:
-        result = night.run_night(run_dir=run_dir, ledger_path=args.ledger, execute=execute)
+        result = cycle.run_cycle(run_dir=run_dir, ledger_path=args.ledger, execute=execute)
     except state.AlreadyRunningError as running:
         print(f"[중지] {running}", file=sys.stderr)
         return EXIT_INCOMPLETE
@@ -119,13 +119,13 @@ def main(argv: list[str] | None = None) -> int:
     return _report(run_dir, result)
 
 
-def _report(run_dir: Path, result: night.NightResult) -> int:
+def _report(run_dir: Path, result: cycle.CycleResult) -> int:
     """무엇이 됐고 무엇이 남았는지 알린다."""
     print(f"실행 폴더: {run_dir}")
     print(f"마친 단계: {list(result.settled)}  건너뛴 단계: {list(result.skipped)}")
 
     if result.failure is None:
-        print("밤을 완주했습니다.")
+        print("회차를 완주했습니다.")
         return EXIT_OK
 
     print(f"[미완성] 갈래={result.failure.kind.value}", file=sys.stderr)
@@ -142,7 +142,7 @@ def _report(run_dir: Path, result: night.NightResult) -> int:
             print(f"[막힘] 이 후보를 원장에서 걷어냈습니다: {result.blocked_claim}", file=sys.stderr)
 
     if result.failure.kind is FailureKind.LIMIT:
-        # 한도 소진은 «정상»이다. 넘어가서 과금되지 않고, 다음 밤이 이어받는다
+        # 한도 소진은 «정상»이다. 넘어가서 과금되지 않고, 다음 회차가 이어받는다
         return EXIT_LIMIT
     if result.failure.kind is FailureKind.AUTH:
         return EXIT_AUTH
@@ -150,11 +150,11 @@ def _report(run_dir: Path, result: night.NightResult) -> int:
 
 
 def _resolve_run_dir(explicit: Path | None) -> Path:
-    """이번에 쓸 실행 폴더를 고른다 — **밤의 첫 단계인 「① 미완성」이 여기다.**
+    """이번에 쓸 실행 폴더를 고른다 — **회차의 첫 단계인 「① 미완성」이 여기다.**
 
     [중요] 미완성을 찾지 않고 언제나 새 폴더를 만들면 **이어받기가 영영 동작하지 않는다.**
-    무인 실행은 인자 없이 불리므로, 어제 끊긴 밤은 아무도 이어받지 못한 채 폴더만 쌓이고
-    끝난 단계를 매일 다시 돈다. 설계가 「미완성은 구조적으로 최대 1개」라고 말하는 근거가
+    무인 실행은 인자 없이 불리므로, 끊긴 지난 회차는 아무도 이어받지 못한 채 폴더만 쌓이고
+    끝난 단계를 회차마다 다시 돈다. 설계가 「미완성은 구조적으로 최대 1개」라고 말하는 근거가
     바로 이 분기이며, 사람이 `--run-dir` 를 손으로 칠 때만 되는 것은 그 설계가 아니다.
 
     Args:
@@ -185,19 +185,19 @@ def _latest_unfinished_run_dir() -> Path | None:
 
     for run_dir in sorted((path for path in RUNS_DIR.iterdir() if path.is_dir()), reverse=True):
         if state.is_locked(run_dir):
-            # 다른 프로세스가 잡고 있다. 골라 봐야 잠금에 막히고, 그 사이 새 밤도 못 돈다.
+            # 다른 프로세스가 잡고 있다. 골라 봐야 잠금에 막히고, 그 사이 새 회차도 못 돈다.
             #
             # [중요] 파일 «존재»를 보지 않는다. 강제 종료 뒤에도 잠금 파일은 남으므로
             # 존재로 판정하면 **그 폴더가 영구히 이어받히지 않는다** — 후보는 「판 것」이
-            # 안 됐으니 다음 밤이 원장에서 같은 후보를 다시 꺼내 수집을 다시 사고,
+            # 안 됐으니 다음 회차가 원장에서 같은 후보를 다시 꺼내 수집을 다시 사고,
             # 버려진 폴더가 쌓이는데 **에러도 경고도 없다.** 판정은 `state` 한 곳이 한다
             continue
 
         try:
             saved = state.load(run_dir)
         except (OSError, json.JSONDecodeError):
-            # 깨진 상태 파일이다. 이어받을 수 없으므로 건너뛰고 새 밤을 시작한다 —
-            # 여기서 터뜨리면 그 폴더 하나 때문에 **이후 모든 밤이 서고**,
+            # 깨진 상태 파일이다. 이어받을 수 없으므로 건너뛰고 새 회차를 시작한다 —
+            # 여기서 터뜨리면 그 폴더 하나 때문에 **이후 모든 회차가 서고**,
             # 무인 실행에서는 그 사실을 며칠 뒤에나 알게 된다
             continue
 
@@ -206,7 +206,7 @@ def _latest_unfinished_run_dir() -> Path | None:
 
         if state.closed_reason(run_dir) is not None:
             # [중요] 「막힘」으로 접은 폴더다. 이것이 없으면 그 처리가 통째로 헛돈다 —
-            # 후보를 원장에서 걷어내도 이 폴더의 「그 밤의 후보」는 살아 있어서,
+            # 후보를 원장에서 걷어내도 이 폴더의 「그 회차의 후보」는 살아 있어서,
             # 이어받으면 **같은 단계를 또 부르고 또 막힌다.** 아래 「후보가 박힌 미완성은
             # 이어받는다」 갈래가 여기서는 정확히 반대로 작용하므로 «먼저» 본다
             continue
@@ -215,16 +215,16 @@ def _latest_unfinished_run_dir() -> Path | None:
             remaining = steps.next_step(saved.get("settled", []))
         except steps.UnknownStepError:
             # 단계 이름을 바꾼 뒤에 남은 예전 상태다. 이어받을 수 없으므로 건너뛰고
-            # 새 밤을 시작한다 — 여기서 터뜨리면 그 폴더 하나 때문에 파이프라인이 선다
+            # 새 회차를 시작한다 — 여기서 터뜨리면 그 폴더 하나 때문에 파이프라인이 선다
             continue
 
         if remaining is None:
             continue
 
         if remaining in steps.CANDIDATE_STEPS and state.pinned_candidate(run_dir) is None:
-            # [중요] 단계를 늘리기 «전»에 끝난 밤이 여기 걸린다. 수집까지 끝냈지만
-            # 그 밤이 어느 후보를 팠는지 상태에 없어, 이어받으면 후보 없이 반증이 돌고
-            # 상한까지 헛돈다. 위 갈래와 같은 이유로 건너뛰고 새 밤을 시작한다
+            # [중요] 단계를 늘리기 «전»에 끝난 회차가 여기 걸린다. 수집까지 끝냈지만
+            # 그 회차가 어느 후보를 팠는지 상태에 없어, 이어받으면 후보 없이 반증이 돌고
+            # 상한까지 헛돈다. 위 갈래와 같은 이유로 건너뛰고 새 회차를 시작한다
             continue
 
         return run_dir
@@ -238,7 +238,7 @@ def _agent_env(source: Mapping[str, str]) -> dict[str, str]:
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="밤 하나를 돌린다")
+    parser = argparse.ArgumentParser(description="회차 하나를 돌린다")
     parser.add_argument(
         "--budget-usd",
         type=float,

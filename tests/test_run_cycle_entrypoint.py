@@ -1,4 +1,4 @@
-"""진입점(`scripts/run_night.py`)의 계약을 고정한다.
+"""진입점(`scripts/run_cycle.py`)의 계약을 고정한다.
 
 [중요] 이 파일이 없어서 **「이어받기가 무인 실행에서 아예 안 된다」를 105개 테스트가
 전부 통과하면서 놓쳤다.** 러너 «라이브러리»의 이어받기는 검사됐지만, 그 라이브러리를
@@ -16,7 +16,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 def _load_entrypoint() -> Any:
     """스크립트를 모듈로 읽어 온다 (패키지가 아니라 파일이다)."""
-    spec = importlib.util.spec_from_file_location("run_night", PROJECT_ROOT / "scripts" / "run_night.py")
+    spec = importlib.util.spec_from_file_location("run_cycle", PROJECT_ROOT / "scripts" / "run_cycle.py")
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -40,13 +40,13 @@ def _make_run(module: Any, name: str, settled: list[str]) -> Path:
     return run_dir
 
 
-def test_resume_picks_up_the_unfinished_night(entrypoint: Any) -> None:
+def test_resume_picks_up_the_unfinished_cycle(entrypoint: Any) -> None:
     """
     목적: 인자 «없이» 불렸을 때 미완성을 이어받는 계약을 고정한다.
 
-    이것이 밤의 첫 단계인 「① 미완성」이다. 무인 실행은 언제나 인자 없이 불리므로,
-    여기서 새 폴더를 만들면 **이어받기가 영영 동작하지 않는다** — 어제 끊긴 밤은
-    아무도 손대지 않은 채 쌓이고, 끝난 단계를 매일 다시 돈다.
+    이것이 회차의 첫 단계인 「① 미완성」이다. 무인 실행은 언제나 인자 없이 불리므로,
+    여기서 새 폴더를 만들면 **이어받기가 영영 동작하지 않는다** — 끊긴 지난 회차는
+    아무도 손대지 않은 채 쌓이고, 끝난 단계를 회차마다 다시 돈다.
 
     Given: 탐색만 끝난 실행 폴더
     When: 인자 없이 실행 폴더를 고른다
@@ -57,9 +57,9 @@ def test_resume_picks_up_the_unfinished_night(entrypoint: Any) -> None:
     assert entrypoint._resolve_run_dir(None) == unfinished
 
 
-def test_finished_night_is_not_resumed(entrypoint: Any) -> None:
+def test_finished_cycle_is_not_resumed(entrypoint: Any) -> None:
     """
-    목적: 다 끝난 밤을 다시 잡지 않는 계약을 고정한다.
+    목적: 다 끝난 회차를 다시 잡지 않는 계약을 고정한다.
 
     이어받으면 완성된 산출물 위에 다시 쓴다.
 
@@ -74,7 +74,7 @@ def test_finished_night_is_not_resumed(entrypoint: Any) -> None:
     assert entrypoint._resolve_run_dir(None) != finished
 
 
-def test_newest_unfinished_night_wins(entrypoint: Any) -> None:
+def test_newest_unfinished_cycle_wins(entrypoint: Any) -> None:
     """
     목적: 미완성이 여럿이면 «가장 최근» 것을 잡는 계약을 고정한다.
 
@@ -88,11 +88,11 @@ def test_newest_unfinished_night_wins(entrypoint: Any) -> None:
     assert entrypoint._resolve_run_dir(None) == newer
 
 
-def test_locked_night_is_skipped(entrypoint: Any) -> None:
+def test_locked_cycle_is_skipped(entrypoint: Any) -> None:
     """
     목적: 다른 프로세스가 «지금 잡고 있는» 폴더를 고르지 않는 계약을 고정한다.
 
-    골라 봐야 잠금에 막혀 그 밤은 아무것도 못 한다.
+    골라 봐야 잠금에 막혀 그 회차는 아무것도 못 한다.
 
     Given: 실제로 잠겨 있는 미완성 폴더
     When: 인자 없이 실행 폴더를 고른다
@@ -106,13 +106,13 @@ def test_locked_night_is_skipped(entrypoint: Any) -> None:
         assert entrypoint._resolve_run_dir(None) != locked
 
 
-def test_night_with_a_leftover_lock_file_is_resumed(entrypoint: Any) -> None:
+def test_cycle_with_a_leftover_lock_file_is_resumed(entrypoint: Any) -> None:
     """
     목적: [중요] **강제 종료가 남긴 잠금 «파일»이 있어도 이어받는** 계약을 고정한다.
 
     [실측 2026-09-14] 컨테이너가 죽으면 잠금 파일이 남는다(`SIGKILL`·`SIGTERM` 둘 다).
     파일 존재를 「잠김」으로 읽으면 **그 폴더가 영구히 이어받히지 않는다** — 후보는
-    「판 것」이 안 됐으니 다음 밤이 원장에서 같은 후보를 다시 꺼내 **수집을 다시 사고**,
+    「판 것」이 안 됐으니 다음 회차가 원장에서 같은 후보를 다시 꺼내 **수집을 다시 사고**,
     버려진 폴더가 쌓이는데 **에러도 경고도 없다.** 설계가 「컨테이너가 죽어도 같은 방식으로
     복구된다」고 적어 둔 바로 그 자리다.
 
@@ -123,7 +123,7 @@ def test_night_with_a_leftover_lock_file_is_resumed(entrypoint: Any) -> None:
     from research_lab.common_constants import LOCK_FILENAME
 
     leftover = _make_run(entrypoint, "20260101_0100", ["explore"])
-    (leftover / LOCK_FILENAME).write_text("죽은 밤이 남긴 것", encoding="utf-8")
+    (leftover / LOCK_FILENAME).write_text("죽은 회차가 남긴 것", encoding="utf-8")
 
     assert entrypoint._resolve_run_dir(None) == leftover
 
@@ -133,7 +133,7 @@ def test_stale_step_names_do_not_stop_the_pipeline(entrypoint: Any) -> None:
     목적: 예전 단계 이름이 든 상태가 파이프라인을 세우지 «않는» 계약을 고정한다.
 
     단계 이름을 바꾸면 예전 상태 파일이 남는다. 그걸 만나 터지면 **그 폴더 하나 때문에
-    이후 모든 밤이 시작조차 못 한다.**
+    이후 모든 회차가 시작조차 못 한다.**
 
     Given: 정의에 없는 단계 이름이 든 실행 폴더
     When: 인자 없이 실행 폴더를 고른다
@@ -144,12 +144,12 @@ def test_stale_step_names_do_not_stop_the_pipeline(entrypoint: Any) -> None:
     assert entrypoint._resolve_run_dir(None) != stale
 
 
-def test_unfinished_night_without_a_candidate_is_skipped(entrypoint: Any) -> None:
+def test_unfinished_cycle_without_a_candidate_is_skipped(entrypoint: Any) -> None:
     """
-    목적: 그 밤의 후보가 «안 박힌» 미완성을 이어받지 않는 계약을 고정한다.
+    목적: 그 회차의 후보가 «안 박힌» 미완성을 이어받지 않는 계약을 고정한다.
 
-    [중요] 단계를 늘리면 예전 상태 파일이 그대로 남는다. 수집까지 끝난 예전 밤은
-    남은 단계가 반증인데 **그 밤이 어느 후보를 팠는지 상태에 없다.** 그대로 이어받으면
+    [중요] 단계를 늘리면 예전 상태 파일이 그대로 남는다. 수집까지 끝난 예전 회차는
+    남은 단계가 반증인데 **그 회차가 어느 후보를 팠는지 상태에 없다.** 그대로 이어받으면
     후보 없이 반증이 돌아 상한까지 헛돈다. 단계 이름을 바꿨을 때 예전 상태를 건너뛰는
     것과 같은 갈래이며, 그 폴더 하나 때문에 파이프라인이 서면 안 된다.
 
@@ -162,11 +162,11 @@ def test_unfinished_night_without_a_candidate_is_skipped(entrypoint: Any) -> Non
     assert entrypoint._resolve_run_dir(None) != stale
 
 
-def test_unfinished_night_with_a_candidate_is_resumed(entrypoint: Any) -> None:
+def test_unfinished_cycle_with_a_candidate_is_resumed(entrypoint: Any) -> None:
     """
     목적: 후보가 박힌 미완성은 «그대로 이어받는» 계약을 고정한다.
 
-    위 계약이 지나치게 넓으면 정상적인 이어받기까지 버린다 — 반증에서 끊긴 밤은
+    위 계약이 지나치게 넓으면 정상적인 이어받기까지 버린다 — 반증에서 끊긴 회차는
     후보가 박혀 있으므로 반드시 이어받아야 한다. 다시 돌면 수집을 처음부터 하게 되어
     **그 후보의 찬성 근거를 한 번 더 사게 된다.**
 
@@ -177,17 +177,17 @@ def test_unfinished_night_with_a_candidate_is_resumed(entrypoint: Any) -> None:
     from research_lab.runner import state
 
     unfinished = _make_run(entrypoint, "20260101_0100", ["explore", "collect"])
-    state.pin_candidate(unfinished, state.Candidate(claim="그 밤이 판 후보", identifier="pinned"))
+    state.pin_candidate(unfinished, state.Candidate(claim="그 회차가 판 후보", identifier="pinned"))
 
     assert entrypoint._resolve_run_dir(None) == unfinished
 
 
-def test_closed_night_is_not_resumed(entrypoint: Any) -> None:
+def test_closed_cycle_is_not_resumed(entrypoint: Any) -> None:
     """
     목적: [중요] 「막힘」으로 «닫힌» 폴더를 이어받지 않는 계약을 고정한다 (설계 §10.1 E).
 
     이것이 없으면 E 가 통째로 동작하지 않는다. 후보를 원장에서 걷어내도 그 폴더의
-    「그 밤의 후보」는 살아 있어, 다음 밤이 이어받아 **같은 단계를 또 부르고 또 막힌다.**
+    「그 회차의 후보」는 살아 있어, 다음 회차가 이어받아 **같은 단계를 또 부르고 또 막힌다.**
     바로 위 계약(후보가 박힌 미완성은 이어받는다)이 여기서는 정확히 반대로 작용하므로
     닫힘을 «먼저» 봐야 한다.
 
@@ -199,7 +199,7 @@ def test_closed_night_is_not_resumed(entrypoint: Any) -> None:
 
     closed = _make_run(entrypoint, "20260101_0100", ["explore", "collect"])
     state.pin_candidate(closed, state.Candidate(claim="막힌 후보", identifier="stuck"))
-    state.close(closed, "반증 단계가 세 밤 연속 막혔다")
+    state.close(closed, "반증 단계가 세 회차 연속 막혔다")
 
     assert entrypoint._resolve_run_dir(None) != closed
 
@@ -240,7 +240,7 @@ def test_billing_guard_blocks_the_run(entrypoint: Any, monkeypatch: pytest.Monke
     목적: API 키가 있으면 «한 줄도 돌기 전에» 멈추는 계약을 고정한다.
 
     Given: API 키가 설정된 환경
-    When: 밤을 돌린다
+    When: 회차를 돌린다
     Then: 인증 갈래의 종료 코드로 끝난다
     """
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-예시")
@@ -253,7 +253,7 @@ def test_exit_codes_are_all_distinct(entrypoint: Any) -> None:
     목적: 갈래마다 다른 종료 코드를 주는 계약을 고정한다.
 
     무인 실행에서 사람이 받는 신호가 이것뿐이다. 둘이 겹치면
-    「인증이 끊겨 며칠 안 돈 상태」와 「그냥 한도에 걸린 밤」이 구별되지 않는다.
+    「인증이 끊겨 며칠 안 돈 상태」와 「그냥 한도에 걸린 회차」가 구별되지 않는다.
 
     Given: 정의된 종료 코드들
     When: 값을 견준다

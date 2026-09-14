@@ -2,9 +2,9 @@
 
 **한 번 검색하고 멈추면 처음 걸린 것에 갇힌다.** 한국어와 영어는 결과 집합이 거의 겹치지 않고,
 첫 검색이 알려준 «진짜 용어»로 다시 던져야 제대로 된 것이 나온다.
-검색어를 하나만 던진 밤은 **조사한 것처럼 보이지만 조사가 아니다.**
+검색어를 하나만 던진 회차는 **조사한 것처럼 보이지만 조사가 아니다.**
 
-[중요] 이 검사가 없으면 그런 밤도 「완주」로 끝난다 — 루트 `CLAUDE.md` 가
+[중요] 이 검사가 없으면 그런 회차도 「완주」로 끝난다 — 루트 `CLAUDE.md` 가
 「프롬프트로 지시한 규율은 형식적으로만 지켜진다」고 못박은 자리다.
 """
 
@@ -15,7 +15,7 @@ import pytest
 
 from research_lab.agent.invoke import AgentResult
 from research_lab.gate import queries as query_gate
-from research_lab.runner import collect, decision_log, failures, ledger, night, steps
+from research_lab.runner import collect, cycle, decision_log, failures, ledger, steps
 
 
 def _answer(payload: object, *, cost: float | None = 0.5, tokens: int | None = 100) -> AgentResult:
@@ -26,7 +26,7 @@ def _answer(payload: object, *, cost: float | None = 0.5, tokens: int | None = 1
 
 def test_enough_queries_pass() -> None:
     """
-    목적: 규율을 지킨 밤이 막히지 않는 계약을 고정한다.
+    목적: 규율을 지킨 회차가 막히지 않는 계약을 고정한다.
 
     Given: 서로 다른 검색어 셋
     When: 검사한다
@@ -64,7 +64,7 @@ def test_reason_says_what_to_do() -> None:
     """
     목적: 막을 때 «무엇이 왜 모자랐는지»를 함께 돌려주는 계약을 고정한다.
 
-    「거부됨」만 돌려주면 다음 밤이 같은 시도를 반복한다.
+    「거부됨」만 돌려주면 다음 회차가 같은 시도를 반복한다.
 
     Given: 검색어 하나
     When: 검사한다
@@ -79,23 +79,23 @@ def test_reason_says_what_to_do() -> None:
 
 def test_gate_failure_is_not_retried(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """
-    목적: 게이트가 막은 것을 «그 밤에 다시 부르지 않는» 계약을 고정한다.
+    목적: 게이트가 막은 것을 «그 회차에 다시 부르지 않는» 계약을 고정한다.
 
     검색어 부족은 네트워크 끊김처럼 기다리면 풀리는 고장이 아니다. 「그 외」로 두면
     상한(3번)만큼 **full 예산으로 에이전트를 세 번 더 부르고도** 같은 자리에 설 공산이 크다.
 
     Given: 매번 게이트에 걸리는 단계
-    When: 밤을 돈다
+    When: 회차를 돈다
     Then: 한 번만 부르고, 「질」 갈래로 끝난다
     """
-    monkeypatch.setattr(night, "sleep", lambda _: None)
+    monkeypatch.setattr(cycle, "sleep", lambda _: None)
     attempts: list[str] = []
 
     def blocked(step: str, _: Path) -> None:
         attempts.append(step)
         raise steps.StepQualityFailed("검색어 부족")
 
-    result = night.run_night(run_dir=tmp_path / "run", ledger_path=tmp_path / "원장.md", execute=blocked)
+    result = cycle.run_cycle(run_dir=tmp_path / "run", ledger_path=tmp_path / "원장.md", execute=blocked)
 
     assert len(attempts) == 1
     assert result.failure is not None
@@ -126,9 +126,9 @@ def test_blocked_candidate_stays_undug(tmp_path: Path) -> None:
 
 def test_cost_is_recorded_even_when_blocked(tmp_path: Path) -> None:
     """
-    목적: 막혀서 끝난 밤도 «얼마를 썼는지»는 남기는 계약을 고정한다.
+    목적: 막혀서 끝난 회차도 «얼마를 썼는지»는 남기는 계약을 고정한다.
 
-    게이트에 걸렸어도 그 호출은 이미 토큰을 썼다. 기록이 없으면 밤 예산을 정할 때
+    게이트에 걸렸어도 그 호출은 이미 토큰을 썼다. 기록이 없으면 회차 예산을 정할 때
     그만큼이 통째로 빠진 값으로 계산된다.
 
     Given: 검색어를 하나만 던지는 수집

@@ -1,7 +1,7 @@
 """원장이 append-only 이고 같은 후보를 다시 담지 않는 계약을 고정한다.
 
-원장은 「지금까지 본 후보」의 목록이고 **중복 방지의 전부**다. 없으면 같은 후보를 매일 다시
-판다. 이 저장소가 만드는 누적 상태 중 하나인 이유는 「하루를 걸러도 그날 밤이 없었을 뿐
+원장은 「지금까지 본 후보」의 목록이고 **중복 방지의 전부**다. 없으면 같은 후보를 회차마다 다시
+판다. 이 저장소가 만드는 누적 상태 중 하나인 이유는 「하루를 걸러도 그 회차가 없었을 뿐
 영구 손상이 아니기」 때문이다 — 완주율·점수 같은 집계와 갈리는 지점이 여기다.
 
 [중요] 사람도 손으로 고치는 파일이다. 그래서 프로그램이 통째로 다시 쓰지 않는다 —
@@ -17,7 +17,7 @@ from research_lab.runner import ledger, naming
 
 def test_missing_ledger_reads_as_empty(tmp_path: Path) -> None:
     """
-    목적: 원장이 아직 없는 첫 밤을 「빈 목록」으로 다루는 계약을 고정한다.
+    목적: 원장이 아직 없는 첫 회차를 「빈 목록」으로 다루는 계약을 고정한다.
 
     Given: 없는 원장 경로
     When: 읽는다
@@ -45,7 +45,7 @@ def test_append_keeps_existing_entries(tmp_path: Path) -> None:
     """
     목적: 담기가 «덧붙이기»이지 다시 쓰기가 아닌 계약을 고정한다.
 
-    탐색 밤은 한 번에 여러 줄을 담는다. 통째로 다시 쓰면 직전 밤이 담은 것이 사라지고,
+    탐색 회차는 한 번에 여러 줄을 담는다. 통째로 다시 쓰면 직전 회차가 담은 것이 사라지고,
     **예외가 나지 않으므로 아무도 모른다.**
 
     Given: 후보가 하나 든 원장
@@ -159,7 +159,7 @@ def test_next_unexplored_returns_none_when_exhausted(tmp_path: Path) -> None:
     """
     목적: 재고가 떨어진 상태를 「없음」으로 알리는 계약을 고정한다.
 
-    이 신호를 받으면 밤은 수집 대신 **탐색으로 전환**한다. 예외로 올리면 그 전환이
+    이 신호를 받으면 회차는 수집 대신 **탐색으로 전환**한다. 예외로 올리면 그 전환이
     「실패 처리」와 섞인다.
 
     Given: 모든 후보를 판 원장
@@ -177,7 +177,7 @@ def test_marking_unknown_candidate_is_rejected(tmp_path: Path) -> None:
     """
     목적: 원장에 없는 후보를 표시하려는 시도가 «조용히» 넘어가지 않는 계약을 고정한다.
 
-    표시가 조용히 무시되면 그 후보는 영원히 「안 판 것」으로 남아 매일 밤 다시 팔린다.
+    표시가 조용히 무시되면 그 후보는 영원히 「안 판 것」으로 남아 회차마다 다시 팔린다.
 
     Given: 그 후보가 없는 원장
     When: 판 것으로 표시한다
@@ -238,7 +238,7 @@ def test_entry_without_an_identifier_is_still_read(tmp_path: Path) -> None:
     """
     목적: 식별자가 «없는» 예전 줄을 계속 읽는 계약을 고정한다.
 
-    원장은 **중복 방지의 전부**라, 못 읽는 줄이 생기면 그 후보를 매일 다시 판다.
+    원장은 **중복 방지의 전부**라, 못 읽는 줄이 생기면 그 후보를 회차마다 다시 판다.
     사람이 손으로 넣을 때 식별자를 빼먹는 것도 정상 입력이다.
 
     Given: 식별자 없이 적힌 예전 형식의 줄
@@ -320,7 +320,7 @@ def test_assigning_an_identifier_keeps_the_claim_unchanged(tmp_path: Path) -> No
 # --------------------------------------------------------------------------
 # 기각
 #
-# 파라미터로 해명되지 않은 후보는 «실패»가 아니라 판정의 결과다. 그 밤은 멈추지 않고
+# 파라미터로 해명되지 않은 후보는 «실패»가 아니라 판정의 결과다. 그 회차는 멈추지 않고
 # 다음 후보로 간다. 사유를 남기는 것은 **다음에 같은 후보를 또 파지 않게** 하려는 것이다.
 # --------------------------------------------------------------------------
 
@@ -367,7 +367,7 @@ def test_rejection_reason_line_is_not_read_as_a_candidate(tmp_path: Path) -> Non
     """
     목적: 사유 줄이 «후보로» 읽히지 않는 계약을 고정한다.
 
-    사유가 후보로 읽히면 그 문장을 다음 밤이 파러 간다. 형식으로 구별돼야 한다.
+    사유가 후보로 읽히면 그 문장을 다음 회차가 파러 간다. 형식으로 구별돼야 한다.
 
     Given: 사유와 함께 기각한 후보
     When: 원장을 읽는다
@@ -385,7 +385,7 @@ def test_rejected_entry_keeps_blocking_duplicates(tmp_path: Path) -> None:
     """
     목적: 기각된 후보가 «중복 방지»로 계속 작동하는 계약을 고정한다.
 
-    기각 줄이 중복 판정에서 빠지면 다음 탐색이 같은 후보를 새로 담고, 그 밤이
+    기각 줄이 중복 판정에서 빠지면 다음 탐색이 같은 후보를 새로 담고, 그 회차가
     다시 기각하며 호출을 태운다. **기각은 「본 적 없다」가 아니다.**
 
     Given: 기각된 후보
@@ -403,7 +403,7 @@ def test_rejecting_an_unknown_candidate_is_rejected(tmp_path: Path) -> None:
     """
     목적: 원장에 없는 후보를 기각하려는 시도가 «조용히» 넘어가지 않는 계약을 고정한다.
 
-    조용히 넘어가면 그 후보는 「안 판 것」으로 남아 매일 밤 다시 팔리고, 매번 기각된다.
+    조용히 넘어가면 그 후보는 「안 판 것」으로 남아 회차마다 다시 팔리고, 매번 기각된다.
 
     Given: 그 후보가 없는 원장
     When: 기각한다
@@ -421,7 +421,7 @@ def test_claim_that_looks_like_an_identifier_prefix_is_not_misread(tmp_path: Pat
     목적: 한 줄 주장이 «식별자 자리처럼 생겼어도» 잘리지 않는 계약을 고정한다.
 
     [중요] 주장이 `` `abc` — `` 로 시작하면 그 줄을 다시 읽을 때 앞부분이 식별자로 읽히고
-    주장은 잘린 채 돌아온다. 그러면 **중복 판정이 통째로 깨져** 같은 후보가 매일 새로
+    주장은 잘린 채 돌아온다. 그러면 **중복 판정이 통째로 깨져** 같은 후보가 회차마다 새로
     담기고, 표시를 바꾸려는 호출은 「원장에 없는 후보」로 예외를 낸다. 그 예외는 「그 외」로
     분류돼 세 번 재시도되며, **재시도마다 중복 줄이 하나씩 더 쌓인다.**
     에러 메시지가 아니라 **조용한 중복**으로 나타나는 고장이다.
@@ -446,7 +446,7 @@ def test_claim_that_looks_like_an_identifier_prefix_is_not_misread(tmp_path: Pat
 # 막힘
 #
 # 기각과 «성질이 다르다». 기각은 「잴 수 없다」는 **판정의 결과**이고, 막힘은 그 후보를
-# 두고 같은 단계가 밤마다 실패해 **더 해봐야 소용없다**고 접는 것이다.
+# 두고 같은 단계가 회차마다 실패해 **더 해봐야 소용없다**고 접는 것이다.
 # 원장 머리말이 `- [-]` 를 「잴 수 없다고 판정한 것」이라 명시하므로 거기 합치면
 # 그 설명이 거짓이 된다. 상태로 갈라 두면 나중에 「막힌 것만 다시 풀자」를 골라낼 수 있다.
 # --------------------------------------------------------------------------
@@ -456,8 +456,8 @@ def test_blocked_candidate_is_not_dug_again(tmp_path: Path) -> None:
     """
     목적: 막힌 후보를 다시 꺼내지 않는 계약을 고정한다.
 
-    이것이 §10.1 E 의 본체다. 다시 꺼내면 다음 밤이 같은 자리에서 또 막히고,
-    **탐색도 수집도 영영 다시 돌지 않은 채 매일 호출만 탄다.**
+    이것이 §10.1 E 의 본체다. 다시 꺼내면 다음 회차가 같은 자리에서 또 막히고,
+    **탐색도 수집도 영영 다시 돌지 않은 채 회차마다 호출만 탄다.**
 
     Given: 후보 둘 중 첫째가 막힌 원장
     When: 다음에 팔 후보를 묻는다
@@ -467,7 +467,7 @@ def test_blocked_candidate_is_not_dug_again(tmp_path: Path) -> None:
     ledger.append(path, "첫 후보")
     ledger.append(path, "둘째 후보")
 
-    ledger.mark_blocked(path, "첫 후보", "반증 단계가 세 밤 연속 막혔다")
+    ledger.mark_blocked(path, "첫 후보", "반증 단계가 세 회차 연속 막혔다")
 
     candidate = ledger.next_unexplored(path)
     assert candidate is not None
@@ -490,7 +490,7 @@ def test_blocked_is_a_different_state_from_rejected(tmp_path: Path) -> None:
     ledger.append(path, "막힐 후보")
 
     ledger.mark_rejected(path, "기각될 후보", "축을 못 냈다")
-    ledger.mark_blocked(path, "막힐 후보", "세 밤 연속 막혔다")
+    ledger.mark_blocked(path, "막힐 후보", "세 회차 연속 막혔다")
 
     status_of = {entry.claim: entry.status for entry in ledger.load(path)}
     assert status_of["기각될 후보"] is ledger.Status.REJECTED
@@ -510,9 +510,9 @@ def test_block_reason_is_written_next_to_the_entry(tmp_path: Path) -> None:
     path = tmp_path / "원장.md"
     ledger.append(path, "첫 후보")
 
-    ledger.mark_blocked(path, "첫 후보", "계보 단계가 세 밤 연속 막혔다")
+    ledger.mark_blocked(path, "첫 후보", "계보 단계가 세 회차 연속 막혔다")
 
-    assert "계보 단계가 세 밤 연속 막혔다" in path.read_text(encoding="utf-8")
+    assert "계보 단계가 세 회차 연속 막혔다" in path.read_text(encoding="utf-8")
     assert len(ledger.load(path)) == 1
 
 
@@ -520,7 +520,7 @@ def test_blocked_entry_keeps_blocking_duplicates(tmp_path: Path) -> None:
     """
     목적: 막힌 후보가 «중복 방지»로 계속 작동하는 계약을 고정한다.
 
-    빠지면 다음 탐색이 같은 후보를 새 후보로 담고, 그 밤이 또 같은 자리에서 막힌다 —
+    빠지면 다음 탐색이 같은 후보를 새 후보로 담고, 그 회차가 또 같은 자리에서 막힌다 —
     막은 의미가 통째로 사라진다.
 
     Given: 막힌 후보
@@ -529,7 +529,7 @@ def test_blocked_entry_keeps_blocking_duplicates(tmp_path: Path) -> None:
     """
     path = tmp_path / "원장.md"
     ledger.append(path, "첫 후보")
-    ledger.mark_blocked(path, "첫 후보", "세 밤 연속 막혔다")
+    ledger.mark_blocked(path, "첫 후보", "세 회차 연속 막혔다")
 
     assert ledger.append(path, "첫 후보") is False
 
@@ -555,7 +555,7 @@ def test_existing_marks_still_read_after_adding_blocked(tmp_path: Path) -> None:
 
     [중요] 줄을 읽는 정규식의 문자 클래스를 넓히는 변경이다. 잘못 넓히면 `-` 가 범위로
     읽혀 기존 원장이 통째로 안 읽히고, 원장은 **중복 방지의 전부**라 그 순간
-    모든 후보가 매일 다시 팔린다.
+    모든 후보가 회차마다 다시 팔린다.
 
     Given: 네 표시가 모두 든 원장
     When: 읽는다
@@ -563,7 +563,12 @@ def test_existing_marks_still_read_after_adding_blocked(tmp_path: Path) -> None:
     """
     path = tmp_path / "원장.md"
     path.write_text(
-        "- [ ] 안 판 후보\n" "- [x] 판 후보\n" "- [-] 기각된 후보\n" "      기각: 축을 못 냈다\n" "- [!] 막힌 후보\n" "      막힘: 세 밤 연속 막혔다\n",
+        "- [ ] 안 판 후보\n"
+        "- [x] 판 후보\n"
+        "- [-] 기각된 후보\n"
+        "      기각: 축을 못 냈다\n"
+        "- [!] 막힌 후보\n"
+        "      막힘: 세 회차 연속 막혔다\n",
         encoding="utf-8",
     )
 
@@ -606,7 +611,7 @@ def test_a_new_reason_replaces_the_old_one(tmp_path: Path) -> None:
 
     표시를 바꿀 때 예전 사유를 안 지우면 `- [!]` 아래에 「기각: ...」이 남는다.
     머리말이 「사유가 바로 아래 줄에 있습니다」라고 약속하는데 그 약속이 거짓이 되고,
-    **아침에 원장을 읽는 사람이 지금 사유와 옛 사유를 구별할 방법이 없다.**
+    **나중에 원장을 읽는 사람이 지금 사유와 옛 사유를 구별할 방법이 없다.**
 
     Given: 기각했다가 다시 막은 후보
     When: 원장을 읽는다
@@ -616,10 +621,10 @@ def test_a_new_reason_replaces_the_old_one(tmp_path: Path) -> None:
     ledger.append(path, "첫 후보")
     ledger.mark_rejected(path, "첫 후보", "축을 못 냈다")
 
-    ledger.mark_blocked(path, "첫 후보", "세 밤 연속 막혔다")
+    ledger.mark_blocked(path, "첫 후보", "세 회차 연속 막혔다")
 
     written = path.read_text(encoding="utf-8")
-    assert "세 밤 연속 막혔다" in written
+    assert "세 회차 연속 막혔다" in written
     assert "축을 못 냈다" not in written
 
 
@@ -633,7 +638,7 @@ def test_reviving_a_candidate_clears_its_reason(tmp_path: Path) -> None:
     """
     path = tmp_path / "원장.md"
     ledger.append(path, "첫 후보")
-    ledger.mark_blocked(path, "첫 후보", "세 밤 연속 막혔다")
+    ledger.mark_blocked(path, "첫 후보", "세 회차 연속 막혔다")
 
     ledger.mark_explored(path, "첫 후보")
 
@@ -664,7 +669,7 @@ def test_status_of_finds_a_candidate(tmp_path: Path) -> None:
     """
     목적: 후보 하나의 «현재 표시»를 물어볼 수 있는 계약을 고정한다.
 
-    이것이 필요한 곳은 밤의 마지막 단계다 — 그 밤의 후보가 **이미 판 것이면**
+    이것이 필요한 곳은 회차의 마지막 단계다 — 그 회차의 후보가 **이미 판 것이면**
     실현가능성을 물을 자리가 아니다. 그 판정을 부르는 쪽에서 하면
     「담긴 순서 그대로의 목록」을 직접 훑게 되고, 그때 **정규화를 빠뜨리면 조용히 안 맞는다.**
 
@@ -704,7 +709,7 @@ def test_status_of_an_unknown_candidate_is_none(tmp_path: Path) -> None:
     목적: 원장에 없는 후보를 물으면 «없음»이 돌아오는 계약을 고정한다.
 
     사람이 손으로 줄을 지울 수 있는 파일이라 「없다」는 정상 상태다.
-    여기서 예외를 올리면 부르는 쪽마다 감싸야 하고, 빠뜨린 곳에서 밤이 선다.
+    여기서 예외를 올리면 부르는 쪽마다 감싸야 하고, 빠뜨린 곳에서 회차가 선다.
 
     Given: 빈 원장
     When: 아무 후보를 묻는다

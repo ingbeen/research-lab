@@ -6,7 +6,7 @@
 「이제 반증을 찾아라」라고 하면 자기가 방금 지지한 것을 스스로 무너뜨리라는 요구가 되고,
 **사람도 잘 못 한다.** 반증은 한 줄 주장만 받는 별도 세션의 일이다.
 
-[중요] **이 단계가 그 밤의 후보를 정한다.** 뒤따르는 반증·계보가 같은 후보를 봐야 하므로
+[중요] **이 단계가 그 회차의 후보를 정한다.** 뒤따르는 반증·계보가 같은 후보를 봐야 하므로
 고른 후보를 상태 파일에 박는다. 다만 **「판 것」으로 표시하지는 않는다** — 표시는
 마지막 단계의 일이고, 여기서 표시하면 그 뒤 반증이 실패해 그 실행 폴더가 버려질 때
 **후보가 반증 없이 「판 것」으로 남아 영영 다시 안 파진다.**
@@ -29,13 +29,13 @@ from research_lab.runner.steps import StepQualityFailed
 
 AgentCaller = Callable[[str], AgentResult]
 
-# 한 밤에 기각할 수 있는 후보의 수.
+# 한 회차에 기각할 수 있는 후보의 수.
 #
-# [중요] 상한이 없으면 원장이 전부 기각될 때까지 호출을 태운다. 아침에 보면 예산은 줄었고
-# 산출물은 0장인데, 그런 밤은 「실패」가 아니라 「아무 일 없음」처럼 보여 며칠 지나서야
+# [중요] 상한이 없으면 원장이 전부 기각될 때까지 호출을 태운다. 나중에 보면 예산은 줄었고
+# 산출물은 0장인데, 그런 회차는 「실패」가 아니라 「아무 일 없음」처럼 보여 며칠 지나서야
 # 알아챈다 — 「그 외」 실패에 상한을 두는 것과 같은 이유다.
 #
-# 상한에 닿으면 그 밤의 수집을 끝낸다. 기각은 원장에 남으므로 다음 밤이 그 뒤부터 이어간다
+# 상한에 닿으면 그 회차의 수집을 끝낸다. 기각은 원장에 남으므로 다음 회차가 그 뒤부터 이어간다
 MAX_REJECTIONS: Final = 3
 
 
@@ -43,7 +43,7 @@ class NoCandidateError(RuntimeError):
     """원장에 팔 후보가 없을 때."""
 
 
-PROMPT: Final = """이 저장소의 `.claude/skills/night-research/SKILL.md` 를 먼저 읽고 그 규율을 그대로 따르세요.
+PROMPT: Final = """이 저장소의 `.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 그 규율을 그대로 따르세요.
 
 ## 할 일 — 수집
 
@@ -109,13 +109,13 @@ def build_prompt(claim: str) -> str:
 
 
 def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
-    """후보를 하나 골라 찬성 근거를 파일로 남기고, 그 밤의 후보로 박는다.
+    """후보를 하나 골라 찬성 근거를 파일로 남기고, 그 회차의 후보로 박는다.
 
     잴 수 없다고 판정된 후보는 사유와 함께 기각하고 **다음 후보로 넘어간다.**
-    기각은 실패가 아니라 판정의 결과이므로 그 밤이 멈추지 않는다.
+    기각은 실패가 아니라 판정의 결과이므로 그 회차가 멈추지 않는다.
 
     Args:
-        run_dir: 그 밤의 실행 폴더
+        run_dir: 그 회차의 실행 폴더
         ledger_path: 원장 경로
         ask: 프롬프트를 받아 에이전트를 부르는 쪽
 
@@ -128,15 +128,15 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
     # 호출 경로가 늘 때마다 같은 실수를 되풀이한다
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    # [중요] 기각 수를 «그 밤 전체»에서 센다. 지역 변수로만 세면 이 함수가 다시 불릴 때
-    # 0 으로 돌아간다 — JSON 이 깨져 「그 외」로 재시도되는 밤은 이 함수가 최대 세 번
+    # [중요] 기각 수를 «그 회차 전체»에서 센다. 지역 변수로만 세면 이 함수가 다시 불릴 때
+    # 0 으로 돌아간다 — JSON 이 깨져 「그 외」로 재시도되는 회차는 이 함수가 최대 세 번
     # 불리므로 상한이 세 배가 되고, 그만큼 후보와 예산이 함께 탄다.
-    # 그 밤의 결정 로그가 이미 기각을 기록하므로 새 상태를 만들지 않고 그것을 센다
+    # 그 회차의 결정 로그가 이미 기각을 기록하므로 새 상태를 만들지 않고 그것을 센다
     rejections = _rejections_so_far(run_dir)
     while True:
         if rejections >= MAX_REJECTIONS:
-            # 상한에 닿았다. 그 밤의 수집은 여기서 끝나고 기각은 원장에 남으므로
-            # 다음 밤이 그 뒤부터 이어간다. **부르기 «전»에 본다** — 뒤에서 보면
+            # 상한에 닿았다. 그 회차의 수집은 여기서 끝나고 기각은 원장에 남으므로
+            # 다음 회차가 그 뒤부터 이어간다. **부르기 «전»에 본다** — 뒤에서 보면
             # 이 단계가 다시 불릴 때마다 한 번씩 더 부르게 된다
             return
 
@@ -144,8 +144,8 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
         if candidate is None:
             if rejections == 0:
                 raise NoCandidateError("원장에 아직 안 판 후보가 없습니다. 탐색이 먼저 돌아야 합니다.")
-            # 꺼낼 수 있던 후보를 모두 기각했다. 그 밤의 수집은 여기서 끝나고
-            # 뒤따르는 단계는 「그 밤의 후보 없음」으로 건너뛰어진다 — 정상 결과다
+            # 꺼낼 수 있던 후보를 모두 기각했다. 그 회차의 수집은 여기서 끝나고
+            # 뒤따르는 단계는 「그 회차의 후보 없음」으로 건너뛰어진다 — 정상 결과다
             return
 
         payload = _ask_about(run_dir, candidate.claim, ask)
@@ -170,7 +170,7 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
 
 
 def _rejections_so_far(run_dir: Path) -> int:
-    """그 밤이 지금까지 기각한 후보 수를 결정 로그에서 센다."""
+    """그 회차가 지금까지 기각한 후보 수를 결정 로그에서 센다."""
     return sum(
         1
         for entry in decision_log.read(run_dir)
@@ -181,8 +181,8 @@ def _rejections_so_far(run_dir: Path) -> int:
 def _ask_about(run_dir: Path, claim: str, ask: AgentCaller) -> dict[str, Any]:
     """후보 하나를 두고 에이전트를 부르고, 무엇을 읽고 얼마를 썼는지 남긴다.
 
-    기록을 «게이트 앞»에서 남긴다. 막혀서 끝나도 그 밤이 무엇을 했고 얼마를 태웠는지는
-    남아야 한다 — 없으면 밤 예산을 정할 때 그만큼이 통째로 빠진 값으로 계산된다.
+    기록을 «게이트 앞»에서 남긴다. 막혀서 끝나도 그 회차가 무엇을 했고 얼마를 태웠는지는
+    남아야 한다 — 없으면 회차 예산을 정할 때 그만큼이 통째로 빠진 값으로 계산된다.
 
     Raises:
         StepQualityFailed: 검색어가 모자랄 때
@@ -204,7 +204,7 @@ def _ask_about(run_dir: Path, claim: str, ask: AgentCaller) -> dict[str, Any]:
 
 
 def _store(run_dir: Path, ledger_path: Path, candidate: ledger.Entry, payload: dict[str, Any]) -> None:
-    """찬성 근거를 파일로 남기고 그 후보를 그 밤의 후보로 박는다."""
+    """찬성 근거를 파일로 남기고 그 후보를 그 회차의 후보로 박는다."""
     identifier = candidate.identifier
     if identifier is None:
         # 예전에 담긴 후보에는 식별자가 없다. 그 후보를 두고 에이전트를 어차피 불렀으므로
@@ -220,7 +220,7 @@ def _store(run_dir: Path, ledger_path: Path, candidate: ledger.Entry, payload: d
     queries = payload_helpers.as_strings(payload.get("queries"))
 
     # [중요] 산출물은 «후보별 폴더»에 넣는다. 실행 폴더 바로 아래에 고정 이름으로 쓰면
-    # 한 밤이 후보 둘을 파는 순간 뒤엣것이 앞엣것을 덮어쓴다.
+    # 한 회차가 후보 둘을 파는 순간 뒤엣것이 앞엣것을 덮어쓴다.
     # 경로를 만드는 곳은 `naming` 하나여야 한다는 계층 계약이 여기서 지켜진다
     output_dir = run_dir / naming.folder_name(candidate.claim, identifier)
 

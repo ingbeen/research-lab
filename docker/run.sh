@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 밤을 컨테이너에서 돌린다.
+# 회차를 컨테이너에서 돌린다.
 #
 # 사용법과 옵션은 docs/COMMANDS.md 가 SoT다.
 set -euo pipefail

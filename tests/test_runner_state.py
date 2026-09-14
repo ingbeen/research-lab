@@ -26,7 +26,7 @@ from research_lab.runner import state
 
 def test_load_returns_none_when_absent(tmp_path: Path) -> None:
     """
-    목적: 상태가 없는 첫 밤을 「빈 상태」로 다루는 계약을 고정한다.
+    목적: 상태가 없는 첫 회차를 「빈 상태」로 다루는 계약을 고정한다.
 
     Given: 아무것도 없는 실행 폴더
     When: 상태를 읽는다
@@ -55,7 +55,7 @@ def test_save_writes_to_the_agreed_filename(tmp_path: Path) -> None:
     목적: 상태 파일 이름이 공통 상수에서만 정해지는 계약을 고정한다.
 
     이름이 두 곳에서 정해지면 한쪽만 바뀌어도 예외가 나지 않는다 —
-    「상태 없음」으로 읽혀 **밤이 처음부터 다시 돈다.**
+    「상태 없음」으로 읽혀 **회차가 처음부터 다시 돈다.**
 
     Given: 저장된 상태
     When: 실행 폴더를 본다
@@ -95,7 +95,7 @@ def test_failed_save_leaves_no_stray_temp_file(tmp_path: Path, monkeypatch: pyte
     """
     목적: 실패한 저장이 쓰레기를 남기지 않는 계약을 고정한다.
 
-    임시 파일이 쌓이면 밤마다 늘어나고, 다음 사람이 그중 무엇이 진짜인지 판별해야 한다.
+    임시 파일이 쌓이면 회차마다 늘어나고, 다음 사람이 그중 무엇이 진짜인지 판별해야 한다.
 
     Given: 쓰는 도중 실패하는 상황
     When: 저장이 실패한다
@@ -133,7 +133,7 @@ def test_second_lock_is_refused(tmp_path: Path) -> None:
 
 def test_lock_is_released_after_use(tmp_path: Path) -> None:
     """
-    목적: 정상 종료한 밤이 다음 밤을 막지 않는 계약을 고정한다.
+    목적: 정상 종료한 회차가 다음 회차를 막지 않는 계약을 고정한다.
 
     Given: 한 번 잠갔다 푼 실행 폴더
     When: 다시 잠근다
@@ -146,9 +146,9 @@ def test_lock_is_released_after_use(tmp_path: Path) -> None:
         pass
 
 
-def test_lock_is_released_even_when_the_night_crashes(tmp_path: Path) -> None:
+def test_lock_is_released_even_when_the_cycle_crashes(tmp_path: Path) -> None:
     """
-    목적: 예외로 끝난 밤이 다음 밤을 영구히 막지 않는 계약을 고정한다.
+    목적: 예외로 끝난 회차가 다음 회차를 영구히 막지 않는 계약을 고정한다.
 
     이게 없으면 한 번의 실패가 **사람이 손으로 잠금 파일을 지울 때까지** 파이프라인을 세운다.
     무인 실행에서는 그 사실을 며칠 뒤에나 알게 된다.
@@ -159,7 +159,7 @@ def test_lock_is_released_even_when_the_night_crashes(tmp_path: Path) -> None:
     """
     with pytest.raises(RuntimeError):
         with state.lock(tmp_path):
-            raise RuntimeError("밤이 깨졌다")
+            raise RuntimeError("회차가 깨졌다")
 
     with state.lock(tmp_path):
         pass
@@ -202,7 +202,7 @@ def _lock_held_in_a_child(run_dir: Path, script: str = LOCK_HOLDER) -> Generator
 
 def test_lock_of_a_killed_holder_is_reclaimed(tmp_path: Path) -> None:
     """
-    목적: [중요] **강제 종료된 밤의 잠금이 다음 밤에 «잡히는»** 계약을 고정한다.
+    목적: [중요] **강제 종료된 회차의 잠금이 다음 회차에 «잡히는»** 계약을 고정한다.
 
     [실측 2026-09-14] 예전 구현(`O_EXCL` 파일)은 `SIGKILL`·`SIGTERM` 둘 다에서
     **파일이 남았다.** 파이썬은 `SIGTERM` 핸들러를 기본으로 달지 않아 `finally` 가 안 돌고,
@@ -210,7 +210,7 @@ def test_lock_of_a_killed_holder_is_reclaimed(tmp_path: Path) -> None:
     **「얌전히 멈추는」 경로가 없다.**
 
     그래서 무슨 일이 났나: 진입점이 잠긴 폴더를 건너뛰므로 그 폴더는 **영구히 이어받히지
-    않고**, 원장 잠금까지 남아 **이후 모든 밤이 원장에서 즉시 멈췄다.** 설계가 「컨테이너가
+    않고**, 원장 잠금까지 남아 **이후 모든 회차가 원장에서 즉시 멈췄다.** 설계가 「컨테이너가
     죽어도 같은 방식으로 복구된다」고 적어 둔 바로 그 자리다.
 
     `flock` 은 커널이 프로세스 종료 시 놓아주므로 **상한값도 사람의 손질도 필요 없다.**
@@ -269,7 +269,7 @@ def test_unlocked_folder_without_a_file_is_not_locked(tmp_path: Path) -> None:
     """
     목적: 잠금 파일이 아예 없는 폴더를 「잠김」으로 읽지 않는 계약을 고정한다.
 
-    첫 밤의 폴더가 그 모양이다.
+    첫 회차의 폴더가 그 모양이다.
 
     Given: 잠금 파일이 없는 폴더
     When: 잠김 여부를 묻는다
@@ -280,9 +280,9 @@ def test_unlocked_folder_without_a_file_is_not_locked(tmp_path: Path) -> None:
 
 def test_held_lock_is_visible_to_another_process(tmp_path: Path) -> None:
     """
-    목적: «지금 도는» 밤의 잠금이 다른 프로세스에 보이는 계약을 고정한다.
+    목적: «지금 도는» 회차의 잠금이 다른 프로세스에 보이는 계약을 고정한다.
 
-    위 「남은 파일은 잠금이 아니다」가 지나치게 넓으면 **정말 도는 밤의 폴더를 훔친다.**
+    위 「남은 파일은 잠금이 아니다」가 지나치게 넓으면 **정말 도는 회차의 폴더를 훔친다.**
     둘이 같은 상태 파일을 번갈아 쓰면 한쪽 갱신이 조용히 사라진다.
 
     Given: 다른 프로세스가 잡고 있는 폴더
@@ -313,11 +313,11 @@ def test_another_probe_does_not_look_like_a_lock(tmp_path: Path) -> None:
     """
     목적: [중요] 판정기 둘이 «서로» 잠김으로 읽히지 않는 계약을 고정한다.
 
-    `is_locked` 가 배타 잠금으로 찌르면 **두 판정기가 서로 부딪힌다** — 아무도 밤을
+    `is_locked` 가 배타 잠금으로 찌르면 **두 판정기가 서로 부딪힌다** — 아무도 회차를
     돌리지 않는데 한쪽이 「잠김」이라 답하고, 그러면 이어받을 수 있던 폴더가
-    한 밤을 그냥 기다린다. 실제로 겹칠 수 있는 자리다(예약된 밤과 사람이 띄운 밤).
+    한 회차를 그냥 기다린다. 실제로 겹칠 수 있는 자리다(예약된 회차와 사람이 띄운 회차).
 
-    밤은 언제나 **배타** 잠금을 잡으므로, 공유 잠금을 든 것은 판정기뿐이다.
+    회차는 언제나 **배타** 잠금을 잡으므로, 공유 잠금을 든 것은 판정기뿐이다.
 
     Given: 공유 잠금을 든 다른 프로세스
     When: 잠김 여부를 묻는다
@@ -337,7 +337,7 @@ def test_unwritable_lock_file_is_not_read_as_locked(tmp_path: Path) -> None:
     정지 버그가 권한을 타고 그대로 돌아오는 자리다.
 
     잠그는 쪽도 같다. 쓰기로 열면 `AlreadyRunningError` 가 아닌 예외가 올라
-    진입점이 못 잡고, 파일이 지워지지 않으므로 **이후 모든 밤이 같게 죽는다.**
+    진입점이 못 잡고, 파일이 지워지지 않으므로 **이후 모든 회차가 같게 죽는다.**
 
     Given: 읽기 전용으로 바뀐 잠금 파일
     When: 잠김 여부를 묻고 잠가 본다
@@ -353,7 +353,7 @@ def test_unwritable_lock_file_is_not_read_as_locked(tmp_path: Path) -> None:
 
 
 # --------------------------------------------------------------------------
-# 그 밤의 후보
+# 그 회차의 후보
 #
 # 수집·반증·계보가 **같은 후보**를 봐야 한다. 원장에서 매번 「다음에 팔 후보」를 새로
 # 물으면, 수집이 표시를 마친 뒤에는 다른 후보가 돌아오거나 아무것도 안 돌아온다.
@@ -363,7 +363,7 @@ def test_unwritable_lock_file_is_not_read_as_locked(tmp_path: Path) -> None:
 
 def test_pinned_candidate_round_trips(tmp_path: Path) -> None:
     """
-    목적: 그 밤의 후보가 상태 파일에 박히고 다시 읽히는 계약을 고정한다.
+    목적: 그 회차의 후보가 상태 파일에 박히고 다시 읽히는 계약을 고정한다.
 
     Given: 후보를 박은 실행 폴더
     When: 읽는다
@@ -380,7 +380,7 @@ def test_pinned_candidate_round_trips(tmp_path: Path) -> None:
 
 def test_no_candidate_reads_as_none(tmp_path: Path) -> None:
     """
-    목적: 아직 후보를 안 잡은 밤을 「없음」으로 알리는 계약을 고정한다.
+    목적: 아직 후보를 안 잡은 회차를 「없음」으로 알리는 계약을 고정한다.
 
     예외로 올리면 「아직 수집 전」이라는 정상 상태가 실패 처리와 섞인다.
 
@@ -436,7 +436,7 @@ def test_broken_candidate_reads_as_none(tmp_path: Path) -> None:
 
     사람이 상태 파일을 손으로 고칠 수도 있고, 예전 형식이 남아 있을 수도 있다.
     여기서 터뜨리면 그 실행 폴더 하나 때문에 파이프라인이 선다 —
-    「없음」으로 읽으면 그 밤은 새로 시작하면 된다.
+    「없음」으로 읽으면 그 회차는 새로 시작하면 된다.
 
     Given: 후보 자리에 문자열이 든 상태
     When: 후보를 묻는다

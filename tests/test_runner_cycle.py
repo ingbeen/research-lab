@@ -1,4 +1,4 @@
-"""밤의 진입 순서와 실패 처리 계약을 고정한다.
+"""회차의 진입 순서와 실패 처리 계약을 고정한다.
 
 진입 순서가 반대면 미완성을 두고 새 후보를 꺼내게 되어 **아무도 모르는 채 미완성만 쌓인다.**
 ①이 먼저라서 미완성이 구조적으로 최대 1개가 되는 것이 이 설계의 핵심이다.
@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from research_lab.runner import decision_log, failures, ledger, night, state, steps
+from research_lab.runner import cycle, decision_log, failures, ledger, state, steps
 
 
 @pytest.fixture(autouse=True)
@@ -18,14 +18,14 @@ def _no_retry_delay(monkeypatch: pytest.MonkeyPatch) -> None:
     실제 값은 30초다 — 일시적인 고장이 풀릴 틈을 주려는 것이라 테스트에서는 의미가 없고,
     그대로 두면 재시도 테스트 하나가 1분을 잡아먹는다.
     """
-    monkeypatch.setattr(night, "sleep", lambda _: None)
+    monkeypatch.setattr(cycle, "sleep", lambda _: None)
 
 
 def _executor(calls: list[str], ledger_path: Path | None = None):
     """무엇이 실행됐는지 기록하고, 진짜 단계가 남기는 «상태»만 흉내 내는 실행기.
 
-    탐색은 원장을 채우고 수집은 그 밤의 후보를 상태에 박는다. 둘 다 안 하면 뒤따르는
-    단계가 「팔 후보 없음」·「그 밤의 후보 없음」으로 건너뛰어진다 — 그게 정상 동작이라,
+    탐색은 원장을 채우고 수집은 그 회차의 후보를 상태에 박는다. 둘 다 안 하면 뒤따르는
+    단계가 「팔 후보 없음」·「그 회차의 후보 없음」으로 건너뛰어진다 — 그게 정상 동작이라,
     흉내 내지 않으면 **건너뛰기 갈래만 검사하게 되고 진행 갈래는 검사되지 않는다.**
 
     [중요] 수집은 **원장에서 꺼낸 후보**를 박는다. 진짜 수집이 그렇게 하기 때문이다
@@ -50,16 +50,16 @@ def test_empty_ledger_runs_explore_first(tmp_path: Path) -> None:
     """
     목적: 재고가 없으면 탐색부터 도는 계약을 고정한다.
 
-    이것이 「사람이 후보를 적어 넣지 않아도 첫 밤이 돈다」의 실체다.
+    이것이 「사람이 후보를 적어 넣지 않아도 첫 회차가 돈다」의 실체다.
 
     Given: 빈 원장
-    When: 밤을 돈다
+    When: 회차를 돈다
     Then: 탐색이 먼저 실행되고 수집이 뒤따른다
     """
     calls: list[str] = []
     ledger_path = tmp_path / "원장.md"
 
-    night.run_night(
+    cycle.run_cycle(
         run_dir=tmp_path / "run",
         ledger_path=ledger_path,
         execute=_executor(calls, ledger_path),
@@ -72,17 +72,17 @@ def test_explore_is_skipped_when_stock_exists(tmp_path: Path) -> None:
     """
     목적: 원장에 재고가 있으면 탐색을 건너뛰는 계약을 고정한다.
 
-    재고가 있는데도 매일 탐색을 돌리면 팔 후보를 쌓아 두고 예산만 쓴다.
+    재고가 있는데도 회차마다 탐색을 돌리면 팔 후보를 쌓아 두고 예산만 쓴다.
 
     Given: 아직 안 판 후보가 든 원장
-    When: 밤을 돈다
+    When: 회차를 돈다
     Then: 탐색만 건너뛰고 나머지 단계가 돈다
     """
     ledger_path = tmp_path / "원장.md"
     ledger.append(ledger_path, "첫 후보")
     calls: list[str] = []
 
-    result = night.run_night(run_dir=tmp_path / "run", ledger_path=ledger_path, execute=_executor(calls, ledger_path))
+    result = cycle.run_cycle(run_dir=tmp_path / "run", ledger_path=ledger_path, execute=_executor(calls, ledger_path))
 
     assert calls == list(steps.STEPS[1:])
     assert result.skipped == ("explore",)
@@ -90,31 +90,31 @@ def test_explore_is_skipped_when_stock_exists(tmp_path: Path) -> None:
 
 def test_skipped_step_still_counts_as_settled(tmp_path: Path) -> None:
     """
-    목적: 건너뛴 단계를 다음 밤이 다시 잡지 않는 계약을 고정한다.
+    목적: 건너뛴 단계를 다음 회차가 다시 잡지 않는 계약을 고정한다.
 
     이어받기는 「남은 일」을 묻는다. 건너뛴 단계를 「안 한 것」으로 두면
-    매일 밤 같은 판정을 다시 하게 된다.
+    회차마다 같은 판정을 다시 하게 된다.
 
-    Given: 재고가 있어 탐색을 건너뛴 밤
+    Given: 재고가 있어 탐색을 건너뛴 회차
     When: 결과를 본다
-    Then: 건너뛴 단계도 마친 것으로 집계돼 밤이 끝난 것으로 판정된다
+    Then: 건너뛴 단계도 마친 것으로 집계돼 회차가 끝난 것으로 판정된다
     """
     ledger_path = tmp_path / "원장.md"
     ledger.append(ledger_path, "첫 후보")
 
-    result = night.run_night(run_dir=tmp_path / "run", ledger_path=ledger_path, execute=_executor([], ledger_path))
+    result = cycle.run_cycle(run_dir=tmp_path / "run", ledger_path=ledger_path, execute=_executor([], ledger_path))
 
     assert set(result.settled) == set(steps.STEPS)
     assert result.finished is True
 
 
-def test_interrupted_night_resumes_at_the_failed_step(tmp_path: Path) -> None:
+def test_interrupted_cycle_resumes_at_the_failed_step(tmp_path: Path) -> None:
     """
-    목적: 끊긴 밤이 «멈춘 자리»부터 이어지는 계약을 고정한다.
+    목적: 끊긴 회차가 «멈춘 자리»부터 이어지는 계약을 고정한다.
 
     이 프로젝트의 목표 2 다. 끝난 단계를 다시 도는 것은 안전한 재시도가 아니라 예산 낭비다.
 
-    Given: 수집에서 실패해 멈춘 밤
+    Given: 수집에서 실패해 멈춘 회차
     When: 같은 실행 폴더로 다시 돈다
     Then: 탐색은 다시 돌지 않고 수집부터 이어진다
     """
@@ -127,10 +127,10 @@ def test_interrupted_night_resumes_at_the_failed_step(tmp_path: Path) -> None:
             return
         raise steps.StepFailed("수집이 깨졌다")
 
-    night.run_night(run_dir=run_dir, ledger_path=ledger_path, execute=failing)
+    cycle.run_cycle(run_dir=run_dir, ledger_path=ledger_path, execute=failing)
 
     calls: list[str] = []
-    night.run_night(run_dir=run_dir, ledger_path=ledger_path, execute=_executor(calls, ledger_path))
+    cycle.run_cycle(run_dir=run_dir, ledger_path=ledger_path, execute=_executor(calls, ledger_path))
 
     assert calls == list(steps.STEPS[1:])
 
@@ -142,7 +142,7 @@ def test_limit_failure_stops_without_retrying(tmp_path: Path) -> None:
     해봐야 또 막히고, 그 사이 남은 예산을 태운다.
 
     Given: 한도 소진 문구를 내는 단계
-    When: 밤을 돈다
+    When: 회차를 돈다
     Then: 한 번만 시도하고 멈춘다
     """
     limit_phrase = failures.patterns_for(failures.FailureKind.LIMIT)[0]
@@ -152,7 +152,7 @@ def test_limit_failure_stops_without_retrying(tmp_path: Path) -> None:
         attempts.append(step)
         raise steps.StepFailed(f"앞말 {limit_phrase} 뒷말")
 
-    result = night.run_night(run_dir=tmp_path / "run", ledger_path=tmp_path / "원장.md", execute=hitting_limit)
+    result = cycle.run_cycle(run_dir=tmp_path / "run", ledger_path=tmp_path / "원장.md", execute=hitting_limit)
 
     assert len(attempts) == 1
     assert result.failure is not None
@@ -163,11 +163,11 @@ def test_other_failure_is_retried_up_to_the_cap(tmp_path: Path) -> None:
     """
     목적: 「그 외」 실패에 «상한»이 걸리는 계약을 고정한다.
 
-    상한이 없으면 밤새 같은 실패를 반복하며 토큰을 태운다. 아침에 보면 예산은 다 썼고
-    산출물은 0장인데, 그런 밤은 「아무 일 없음」처럼 보여 며칠 지나서야 알아챈다.
+    상한이 없으면 한 회차 내내 같은 실패를 반복하며 토큰을 태운다. 나중에 보면 예산은 다 썼고
+    산출물은 0장인데, 그런 회차는 「아무 일 없음」처럼 보여 며칠 지나서야 알아챈다.
 
     Given: 매번 알 수 없는 실패를 내는 단계
-    When: 밤을 돈다
+    When: 회차를 돈다
     Then: 정확히 상한만큼 시도하고 멈춘다
     """
     attempts: list[str] = []
@@ -176,26 +176,26 @@ def test_other_failure_is_retried_up_to_the_cap(tmp_path: Path) -> None:
         attempts.append(step)
         raise steps.StepFailed("도무지 알 수 없는 실패")
 
-    night.run_night(run_dir=tmp_path / "run", ledger_path=tmp_path / "원장.md", execute=always_failing)
+    cycle.run_cycle(run_dir=tmp_path / "run", ledger_path=tmp_path / "원장.md", execute=always_failing)
 
     assert len(attempts) == failures.MAX_RETRIES
 
 
 def test_unexpected_exception_is_absorbed_as_other(tmp_path: Path) -> None:
     """
-    목적: 예상 못 한 예외가 밤을 «통째로» 끝내지 않는 계약을 고정한다.
+    목적: 예상 못 한 예외가 회차를 «통째로» 끝내지 않는 계약을 고정한다.
 
     여기서 터뜨리면 원문도 안 남아, 다음에 같은 모양을 만나도 가르칠 재료가 없다.
 
     Given: StepFailed 가 아닌 예외를 내는 단계
-    When: 밤을 돈다
+    When: 회차를 돈다
     Then: 예외가 밖으로 새지 않고 「그 외」로 분류된다
     """
 
     def exploding(step: str, _: Path) -> None:
         raise ZeroDivisionError("생각도 못 한 것")
 
-    result = night.run_night(run_dir=tmp_path / "run", ledger_path=tmp_path / "원장.md", execute=exploding)
+    result = cycle.run_cycle(run_dir=tmp_path / "run", ledger_path=tmp_path / "원장.md", execute=exploding)
 
     assert result.failure is not None
     assert result.failure.kind is failures.FailureKind.OTHER
@@ -207,7 +207,7 @@ def test_failure_result_carries_the_raw_text(tmp_path: Path) -> None:
 
     「재시도를 다 썼다」로 바꿔 넘기면 원문이 사라져 무엇 때문에 막혔는지 알 수 없다.
 
-    Given: 알 수 없는 실패로 상한까지 간 밤
+    Given: 알 수 없는 실패로 상한까지 간 회차
     When: 결과의 실패를 본다
     Then: 마지막 실패 원문이 그대로 들어 있다
     """
@@ -216,43 +216,43 @@ def test_failure_result_carries_the_raw_text(tmp_path: Path) -> None:
     def always_failing(step: str, _: Path) -> None:
         raise steps.StepFailed(raw)
 
-    result = night.run_night(run_dir=tmp_path / "run", ledger_path=tmp_path / "원장.md", execute=always_failing)
+    result = cycle.run_cycle(run_dir=tmp_path / "run", ledger_path=tmp_path / "원장.md", execute=always_failing)
 
     assert result.failure is not None
     assert result.failure.raw == raw
 
 
-def test_second_night_cannot_start_while_one_is_running(tmp_path: Path) -> None:
+def test_second_cycle_cannot_start_while_one_is_running(tmp_path: Path) -> None:
     """
-    목적: 같은 실행 폴더를 두 밤이 동시에 잡지 못하는 계약을 고정한다.
+    목적: 같은 실행 폴더를 두 회차가 동시에 잡지 못하는 계약을 고정한다.
 
     Given: 이미 잠긴 실행 폴더
-    When: 밤을 돌리려 한다
+    When: 회차를 돌리려 한다
     Then: 예외가 오른다
     """
     run_dir = tmp_path / "run"
 
     with state.lock(run_dir):
         with pytest.raises(state.AlreadyRunningError):
-            night.run_night(run_dir=run_dir, ledger_path=tmp_path / "원장.md", execute=_executor([]))
+            cycle.run_cycle(run_dir=run_dir, ledger_path=tmp_path / "원장.md", execute=_executor([]))
 
 
 def test_collect_is_skipped_when_explore_finds_nothing(tmp_path: Path) -> None:
     """
     목적: 탐색이 새 후보를 못 찾았을 때 «끝나지 않는 실패»가 되지 않는 계약을 고정한다.
 
-    탐색이 빈손인 것은 정상 결과다(원장이 포화됐거나 그날 검색이 허탕이거나).
+    탐색이 빈손인 것은 정상 결과다(원장이 포화됐거나 그 회차의 검색이 허탕이거나).
     그 상태로 수집에 들어가면 후보가 없어 예외가 나고, 상한까지 재시도한 뒤
-    「다음 밤이 이어받습니다」로 보고된다. 다음 밤도 같은 자리에서 같은 일을 반복하며,
-    **아침에는 아무 일도 없었던 것처럼 보인다.**
+    「다음 회차가 이어받습니다」로 보고된다. 다음 회차도 같은 자리에서 같은 일을 반복하며,
+    **나중에는 아무 일도 없었던 것처럼 보인다.**
 
     Given: 원장을 채우지 않는 탐색
-    When: 밤을 돈다
+    When: 회차를 돈다
     Then: 수집이 실행되지 않고, 실패 없이 끝난다
     """
     calls: list[str] = []
 
-    result = night.run_night(
+    result = cycle.run_cycle(
         run_dir=tmp_path / "run",
         ledger_path=tmp_path / "원장.md",
         execute=_executor(calls),
@@ -264,20 +264,20 @@ def test_collect_is_skipped_when_explore_finds_nothing(tmp_path: Path) -> None:
 
 def test_candidate_steps_are_skipped_without_a_candidate(tmp_path: Path) -> None:
     """
-    목적: 그 밤이 후보를 못 잡았을 때 «끝나지 않는 실패»가 되지 않는 계약을 고정한다.
+    목적: 그 회차가 후보를 못 잡았을 때 «끝나지 않는 실패»가 되지 않는 계약을 고정한다.
 
     [중요] 수집에 이미 같은 갈래가 있고, 후보를 보는 단계에 그것이 빠지면 같은 고장이 난다 —
-    후보 없이 반증이 돌아 예외가 나고, 상한까지 재시도한 뒤 「다음 밤이 이어받습니다」로
-    보고된다. 다음 밤도 같은 자리에서 같은 일을 반복하며, **아침에는 아무 일도 없었던
+    후보 없이 반증이 돌아 예외가 나고, 상한까지 재시도한 뒤 「다음 회차가 이어받습니다」로
+    보고된다. 다음 회차도 같은 자리에서 같은 일을 반복하며, **나중에는 아무 일도 없었던
     것처럼 보인다.**
 
-    Given: 원장을 채우지 않아 수집이 건너뛰어진 밤
-    When: 밤을 돈다
+    Given: 원장을 채우지 않아 수집이 건너뛰어진 회차
+    When: 회차를 돈다
     Then: 반증·계보도 건너뛰고 실패 없이 끝난다
     """
     calls: list[str] = []
 
-    result = night.run_night(
+    result = cycle.run_cycle(
         run_dir=tmp_path / "run",
         ledger_path=tmp_path / "원장.md",
         execute=_executor(calls),
@@ -292,16 +292,16 @@ def test_skip_reasons_are_recorded(tmp_path: Path) -> None:
     """
     목적: 건너뛴 «사유»가 결정 로그에 남는 계약을 고정한다.
 
-    「건너뛰었다」만 남으면 나중에 왜 그랬는지 되짚을 수 없다. 후보를 하나도 못 판 밤은
+    「건너뛰었다」만 남으면 나중에 왜 그랬는지 되짚을 수 없다. 후보를 하나도 못 판 회차는
     종료 코드로는 「완주」와 구별되지 않으므로, **그 구별이 오직 이 기록에 있다.**
 
-    Given: 후보를 못 잡아 세 단계를 건너뛴 밤
+    Given: 후보를 못 잡아 세 단계를 건너뛴 회차
     When: 결정 로그를 읽는다
     Then: 건너뛴 단계마다 사유가 적혀 있다
     """
     run_dir = tmp_path / "run"
 
-    night.run_night(run_dir=run_dir, ledger_path=tmp_path / "원장.md", execute=_executor([]))
+    cycle.run_cycle(run_dir=run_dir, ledger_path=tmp_path / "원장.md", execute=_executor([]))
 
     skipped = [e for e in decision_log.read(run_dir) if e["event"] == decision_log.EVENT_SKIPPED]
     assert {entry["step"] for entry in skipped} == set(steps.STEPS[1:])
@@ -310,18 +310,18 @@ def test_skip_reasons_are_recorded(tmp_path: Path) -> None:
 
 def test_last_step_is_skipped_when_the_candidate_is_already_explored(tmp_path: Path) -> None:
     """
-    목적: [중요] 그 밤의 후보가 «이미 판 것»이면 마지막 단계를 건너뛰는 계약을 고정한다.
+    목적: [중요] 그 회차의 후보가 «이미 판 것»이면 마지막 단계를 건너뛰는 계약을 고정한다.
 
     단계를 하나 늘리면 **그 전에 완주한 실행 폴더가 「미완성」으로 보인다** — 끝난 단계는
     전부 `settled` 에 있는데 새 단계만 남아 있기 때문이다. 그 폴더에는 후보가 박혀 있어
     「후보 없음」 갈래로도 걸러지지 않으므로, 그대로 이어받으면 **이미 닫힌 후보를 두고
-    새 단계만 도는 밤**이 되고 그 후보를 두 번 「판 것」으로 표시한다.
+    새 단계만 도는 회차**가 되고 그 후보를 두 번 「판 것」으로 표시한다.
 
     가르는 사실은 하나다 — **원장에서 이미 「판 것」이면 더 물을 자리가 아니다.**
     사람이 손으로 `- [x]` 로 바꾼 경우도 같은 갈래로 덮인다.
 
     Given: 마지막 단계만 남았고, 박힌 후보가 원장에서 이미 판 것인 실행 폴더
-    When: 밤을 돈다
+    When: 회차를 돈다
     Then: 그 단계를 실행하지 않고 사유를 남긴 채 완주한다
     """
     run_dir = tmp_path / "run"
@@ -334,7 +334,7 @@ def test_last_step_is_skipped_when_the_candidate_is_already_explored(tmp_path: P
     state.save(run_dir, {**(state.load(run_dir) or {}), "settled": list(steps.STEPS[:-1]), "skipped": []})
 
     calls: list[str] = []
-    result = night.run_night(run_dir=run_dir, ledger_path=ledger_path, execute=_executor(calls))
+    result = cycle.run_cycle(run_dir=run_dir, ledger_path=ledger_path, execute=_executor(calls))
 
     assert steps.STEPS[-1] not in calls
     assert steps.STEPS[-1] in result.skipped
@@ -359,7 +359,7 @@ def test_last_step_is_skipped_when_the_candidate_is_rejected(tmp_path: Path) -> 
     남는다고 약속하는데 그것이 깨지고, **에러도 나지 않는다.**
 
     Given: 박힌 후보가 원장에서 기각된 실행 폴더
-    When: 밤을 돈다
+    When: 회차를 돈다
     Then: 마지막 단계를 돌지 않고 기각 표시와 사유가 그대로 남는다
     """
     run_dir = tmp_path / "run"
@@ -371,7 +371,7 @@ def test_last_step_is_skipped_when_the_candidate_is_rejected(tmp_path: Path) -> 
     _resume_at_last_step(run_dir, ledger_path, claim)
 
     calls: list[str] = []
-    night.run_night(run_dir=run_dir, ledger_path=ledger_path, execute=_executor(calls))
+    cycle.run_cycle(run_dir=run_dir, ledger_path=ledger_path, execute=_executor(calls))
 
     assert steps.STEPS[-1] not in calls
     assert ledger.status_of(ledger_path, claim) is ledger.Status.REJECTED
@@ -386,7 +386,7 @@ def test_last_step_is_skipped_when_the_candidate_is_blocked(tmp_path: Path) -> N
     가치가 있고, 그 원인이 사유 줄에만 적혀 있다. 덮이면 고칠 단서가 사라진다.
 
     Given: 박힌 후보가 원장에서 막힌 실행 폴더
-    When: 밤을 돈다
+    When: 회차를 돈다
     Then: 마지막 단계를 돌지 않고 막힘 표시와 사유가 그대로 남는다
     """
     run_dir = tmp_path / "run"
@@ -394,15 +394,15 @@ def test_last_step_is_skipped_when_the_candidate_is_blocked(tmp_path: Path) -> N
     claim = "막힌 후보"
 
     ledger.append(ledger_path, claim)
-    ledger.mark_blocked(ledger_path, claim, "세 밤 연속 막혔다")
+    ledger.mark_blocked(ledger_path, claim, "세 회차 연속 막혔다")
     _resume_at_last_step(run_dir, ledger_path, claim)
 
     calls: list[str] = []
-    night.run_night(run_dir=run_dir, ledger_path=ledger_path, execute=_executor(calls))
+    cycle.run_cycle(run_dir=run_dir, ledger_path=ledger_path, execute=_executor(calls))
 
     assert steps.STEPS[-1] not in calls
     assert ledger.status_of(ledger_path, claim) is ledger.Status.BLOCKED
-    assert "세 밤 연속 막혔다" in ledger_path.read_text(encoding="utf-8")
+    assert "세 회차 연속 막혔다" in ledger_path.read_text(encoding="utf-8")
 
 
 def test_last_step_is_skipped_when_the_candidate_line_is_gone(tmp_path: Path) -> None:
@@ -414,7 +414,7 @@ def test_last_step_is_skipped_when_the_candidate_line_is_gone(tmp_path: Path) ->
     **상한까지 재시도한다** — 재시도가 고칠 수 없는 조건에 단계 비용을 세 번 낸다.
 
     Given: 박힌 후보가 원장에 없는 실행 폴더
-    When: 밤을 돈다
+    When: 회차를 돈다
     Then: 마지막 단계를 돌지 않고 실패 없이 끝난다
     """
     run_dir = tmp_path / "run"
@@ -422,7 +422,7 @@ def test_last_step_is_skipped_when_the_candidate_line_is_gone(tmp_path: Path) ->
     _resume_at_last_step(run_dir, ledger_path, "원장에 없는 후보")
 
     calls: list[str] = []
-    result = night.run_night(run_dir=run_dir, ledger_path=ledger_path, execute=_executor(calls))
+    result = cycle.run_cycle(run_dir=run_dir, ledger_path=ledger_path, execute=_executor(calls))
 
     assert steps.STEPS[-1] not in calls
     assert result.failure is None
@@ -434,32 +434,32 @@ def test_retry_waits_between_attempts(tmp_path: Path, monkeypatch: pytest.Monkey
 
     「그 외」가 노리는 것은 네트워크 끊김·웹 500 같은 일시적인 고장이다.
     쉬지 않고 세 번 부르면 몇 밀리초 안에 상한을 다 써 버려, 잠깐 기다렸으면
-    복구됐을 것까지 그 밤에 포기하게 된다.
+    복구됐을 것까지 그 회차에 포기하게 된다.
 
     Given: 매번 실패하는 단계
-    When: 밤을 돈다
+    When: 회차를 돈다
     Then: 시도 사이마다 정해진 시간을 쉰다
     """
     waited: list[float] = []
-    monkeypatch.setattr(night, "sleep", waited.append)
+    monkeypatch.setattr(cycle, "sleep", waited.append)
 
     def always_failing(step: str, _: Path) -> None:
         raise steps.StepFailed("일시적인 고장")
 
-    night.run_night(run_dir=tmp_path / "run", ledger_path=tmp_path / "원장.md", execute=always_failing)
+    cycle.run_cycle(run_dir=tmp_path / "run", ledger_path=tmp_path / "원장.md", execute=always_failing)
 
-    assert waited == [night.RETRY_DELAY_SECONDS] * (failures.MAX_RETRIES - 1)
+    assert waited == [cycle.RETRY_DELAY_SECONDS] * (failures.MAX_RETRIES - 1)
 
 
 def test_invariant_violation_is_not_swallowed(tmp_path: Path) -> None:
     """
     목적: 「실행부가 없는 단계」가 «그 외 실패»로 묻히지 않는 계약을 고정한다.
 
-    묻히면 상한까지 헛돈 뒤 「다음 밤이 이어받습니다」라는 종료 코드로 보고되어,
+    묻히면 상한까지 헛돈 뒤 「다음 회차가 이어받습니다」라는 종료 코드로 보고되어,
     **아무 일도 안 하는 상태를 정상으로 알린다.** 그 단계는 영영 실행되지 않는다.
 
     Given: 실행부가 없다고 알리는 단계
-    When: 밤을 돈다
+    When: 회차를 돈다
     Then: 예외가 그대로 밖으로 나온다
     """
 
@@ -467,4 +467,4 @@ def test_invariant_violation_is_not_swallowed(tmp_path: Path) -> None:
         raise steps.StepNotImplementedError("내부 불변조건 위반: 실행부가 없는 단계입니다")
 
     with pytest.raises(steps.StepNotImplementedError):
-        night.run_night(run_dir=tmp_path / "run", ledger_path=tmp_path / "원장.md", execute=not_implemented)
+        cycle.run_cycle(run_dir=tmp_path / "run", ledger_path=tmp_path / "원장.md", execute=not_implemented)

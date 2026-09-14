@@ -1,11 +1,11 @@
 """자격증명 스캔의 탐지와 «범위» 계약을 고정한다.
 
-이 저장소는 PUBLIC 이고, 에이전트가 아무도 안 볼 때 매일 밤 파일을 쓴다.
+이 저장소는 PUBLIC 이고, 에이전트가 아무도 안 볼 때 회차마다 파일을 쓴다.
 자매 저장소에는 없던 위험이라 규칙이 아니라 기계가 막는다.
 
 [중요] 이 파일 자체에 탐지 패턴이 «리터럴»로 들어 있다. 그래서 범위 계약이 탐지 계약만큼
 중요하다 — 스캔 범위를 저장소 전체로 잡으면 검사기가 **자기 테스트와 자기 계획서에 걸려**
-매일 밤을 실패로 만든다. 그 고장은 진짜 유출과 구별되지 않는다.
+회차마다 실패로 만든다. 그 고장은 진짜 유출과 구별되지 않는다.
 """
 
 from pathlib import Path
@@ -79,7 +79,7 @@ def test_finding_names_the_file(tmp_path: Path) -> None:
     """
     목적: 발견이 «어느 파일»인지 알려주는 계약을 고정한다.
 
-    무인 실행에서 아침에 보는 것은 이 기록뿐이다. 경로가 없으면 무엇을 지워야 하는지 모른다.
+    무인 실행에서 나중에 보는 것은 이 기록뿐이다. 경로가 없으면 무엇을 지워야 하는지 모른다.
 
     Given: 자격증명이 든 파일
     When: 스캔한다
@@ -130,7 +130,7 @@ def test_missing_root_is_not_an_error(tmp_path: Path) -> None:
     """
     목적: 아직 안 생긴 폴더를 「발견 없음」으로 다루는 계약을 고정한다.
 
-    `dossier/` 는 첫 dossier 가 나오기 전까지 없다. 이걸 실패로 보면 첫 밤이 무조건 실패한다.
+    `dossier/` 는 첫 dossier 가 나오기 전까지 없다. 이걸 실패로 보면 첫 회차가 무조건 실패한다.
 
     Given: 존재하지 않는 경로
     When: 스캔한다
@@ -143,10 +143,10 @@ def test_scan_scope_excludes_the_repository_root() -> None:
     """
     목적: 스캔 범위가 «러너가 쓴 것»으로 한정되는 계약을 고정한다.
 
-    저장소 전체를 훑으면 이 테스트 파일과 계획서의 리터럴에 걸려 **매일 밤이 실패한다.**
+    저장소 전체를 훑으면 이 테스트 파일과 계획서의 리터럴에 걸려 **회차마다 실패한다.**
     그 고장은 진짜 유출과 구별되지 않으므로, 사람이 결과를 믿지 않게 된다.
 
-    Given: 그 밤의 검사 범위
+    Given: 그 회차의 검사 범위
     When: 목록을 본다
     Then: 저장소 루트·문서·테스트가 들어 있지 않다
     """
@@ -165,7 +165,7 @@ def test_scan_scope_covers_everything_the_runner_writes() -> None:
     좁히기의 반대 실패다. 러너가 쓰는 곳이 범위 밖이면 검사기는 통과를 알리면서
     아무것도 안 본다 — 이쪽도 에러가 나지 않는다.
 
-    Given: 그 밤의 검사 범위와, 러너가 쓰는 곳의 목록
+    Given: 그 회차의 검사 범위와, 러너가 쓰는 곳의 목록
     When: 둘을 견준다
     Then: 실행 폴더·근거 문서·원장이 모두 들어 있다
     """
@@ -179,17 +179,17 @@ def test_scan_scope_covers_everything_the_runner_writes() -> None:
     assert len(common_constants.WRITABLE_ROOTS) == len(roots)
 
 
-def test_scan_scope_does_not_include_past_nights() -> None:
+def test_scan_scope_does_not_include_past_cycles() -> None:
     """
-    목적: 지난 밤들의 실행 폴더가 범위에 «안» 들어가는 계약을 고정한다.
+    목적: 지난 회차들의 실행 폴더가 범위에 «안» 들어가는 계약을 고정한다.
 
-    `runs/` 를 통째로 넘기면 과거 어느 밤에 한 번 걸린 파일이 **이후 모든 밤을 영구히
+    `runs/` 를 통째로 넘기면 과거 어느 회차에 한 번 걸린 파일이 **이후 모든 회차를 영구히
     실패시킨다.** 아무도 그 파일을 치우지 않고, `runs/` 는 git 에서 빠져 있어 눈에 띄지도
-    않으며, 매일 밤 검사 대상이 누적돼 시간까지 늘어난다.
+    않으며, 회차마다 검사 대상이 누적돼 시간까지 늘어난다.
 
-    Given: 그 밤의 검사 범위
+    Given: 그 회차의 검사 범위
     When: 목록을 본다
-    Then: `runs/` 전체가 아니라 그 밤의 폴더 하나만 들어 있다
+    Then: `runs/` 전체가 아니라 그 회차의 폴더 하나만 들어 있다
     """
     roots = set(secrets.scan_roots(common_constants.RUNS_DIR / "20260102_0100"))
 

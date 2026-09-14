@@ -1,4 +1,4 @@
-"""반증 단계 — 그 밤의 후보를 «깨려고» 든다.
+"""반증 단계 — 그 회차의 후보를 «깨려고» 든다.
 
 **한 줄 주장만 받는다.** 수집이 무엇을 찾았는지 모르고, 알 필요도 없다.
 같은 세션에서 찬성 근거를 잔뜩 모은 다음 「이제 반증을 찾아라」라고 하면 자기가 방금
@@ -6,7 +6,7 @@
 이 세션의 유일한 임무는 「이 주장을 깨라」이고 **많이 찾을수록 잘한 것이다.**
 
 [주의] 세션이 갈리는 것은 구조가 보장하지만 **파일을 일부러 찾아 읽는 것까지는 못 막는다.**
-스킬을 읽히려면 `Read` 도구가 필요해 도구를 뺄 수 없고, 실행 디렉터리가 저장소라 그 밤의
+스킬을 읽히려면 `Read` 도구가 필요해 도구를 뺄 수 없고, 실행 디렉터리가 저장소라 그 회차의
 폴더가 보인다. 그래서 판정 대신 **계측을 심는다** — 찬성 근거와 URL 이 얼마나 겹쳤나를
 로그에 적되 **그것으로 막지 않는다.** 겹치는 것 자체는 정상일 수도 있다(같은 논문을
 찬성·반증이 함께 인용한다).
@@ -33,7 +33,7 @@ from research_lab.runner.steps import StepQualityFailed
 
 AgentCaller = Callable[[str], AgentResult]
 
-PROMPT: Final = """이 저장소의 `.claude/skills/night-research/SKILL.md` 를 먼저 읽고 그 규율을 그대로 따르세요.
+PROMPT: Final = """이 저장소의 `.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 그 규율을 그대로 따르세요.
 
 ## 할 일 — 반증
 
@@ -84,14 +84,14 @@ def build_prompt(claim: str) -> str:
 
 
 def run(run_dir: Path, ask: AgentCaller) -> None:
-    """그 밤의 후보를 두고 반증을 모아 파일로 남긴다.
+    """그 회차의 후보를 두고 반증을 모아 파일로 남긴다.
 
     Args:
-        run_dir: 그 밤의 실행 폴더
+        run_dir: 그 회차의 실행 폴더
         ask: 프롬프트를 받아 에이전트를 부르는 쪽
 
     Raises:
-        RuntimeError: 그 밤의 후보가 상태에 없을 때 — 러너가 건너뛰었어야 하는 자리다
+        RuntimeError: 그 회차의 후보가 상태에 없을 때 — 러너가 건너뛰었어야 하는 자리다
         StepFailed: 응답이 약속한 모양이 아닐 때
         StepQualityFailed: 검색어나 반증 규율을 못 지켰을 때
     """
@@ -99,7 +99,7 @@ def run(run_dir: Path, ask: AgentCaller) -> None:
 
     candidate = state.pinned_candidate(run_dir)
     if candidate is None:
-        raise RuntimeError(f"내부 불변조건 위반: 그 밤의 후보가 상태에 없습니다 — {run_dir}")
+        raise RuntimeError(f"내부 불변조건 위반: 그 회차의 후보가 상태에 없습니다 — {run_dir}")
 
     result = ask(build_prompt(candidate.claim))
     payload = invoke.parse_json_answer(result, what="반증")
@@ -107,7 +107,7 @@ def run(run_dir: Path, ask: AgentCaller) -> None:
     queries = payload_helpers.as_strings(payload.get("queries"))
 
     # 무엇을 읽었고 얼마를 썼는지는 «게이트 앞»에서 남긴다.
-    # 막혀서 끝나도 그 밤이 무엇을 했고 얼마를 태웠는지는 기록에 남아야 한다
+    # 막혀서 끝나도 그 회차가 무엇을 했고 얼마를 태웠는지는 기록에 남아야 한다
     decision_log.record(run_dir, "rebut", decision_log.EVENT_READ, queries=queries, query_count=len(queries))
     decision_log.record_cost(run_dir, "rebut", result)
 
@@ -138,7 +138,7 @@ def run(run_dir: Path, ask: AgentCaller) -> None:
             ensure_ascii=False,
             indent=2,
         )
-    # 검색어도 «파일»로 남긴다. 결정 로그에만 두면 그 밤의 원자료 폴더에는 남지만
+    # 검색어도 «파일»로 남긴다. 결정 로그에만 두면 그 회차의 원자료 폴더에는 남지만
     # **후보 폴더에는 안 남아**, 나중에 그 후보의 산출물만 모아 볼 때
     # 「반대편으로 갈아 끼웠나」를 확인할 길이 사라진다
     with atomic_write(output_dir / REBUTTAL_QUERIES_FILENAME) as file:
@@ -162,7 +162,7 @@ def run(run_dir: Path, ask: AgentCaller) -> None:
 def _overlap_with_pro_evidence(output_dir: Path, rebuttals: list[Any]) -> int:
     """반증 URL 중 찬성 근거에도 있던 것의 수를 센다.
 
-    [중요] 읽기에 실패하면 0 을 돌린다. 이 값은 «계측»이라, 못 재는 것 때문에 그 밤이
+    [중요] 읽기에 실패하면 0 을 돌린다. 이 값은 «계측»이라, 못 재는 것 때문에 그 회차가
     멈추면 안 된다 — 판정을 못 하는 것과 실패로 판정하는 것은 다르다.
     """
     path = output_dir / PRO_EVIDENCE_FILENAME

@@ -1,6 +1,6 @@
 """실현가능성 단계 — dossier 의 4번 칸(데이터)과 5번 칸(집행)을 채운다.
 
-**밤의 마지막 단계다.** 채우는 순서가 `계보 → 찬성 → 반증 → 소멸 → 데이터 → 집행` 이라
+**회차의 마지막 단계다.** 채우는 순서가 `계보 → 찬성 → 반증 → 소멸 → 데이터 → 집행` 이라
 4·5번 칸이 출처 쪽 칸들 뒤에 오고, 그래서 「판 것」 표시가 이 자리로 왔다.
 계보가 끝나며 표시하면 그 뒤 이 단계가 실패할 때 **후보가 4·5번 칸 없이 「판 것」으로 남아
 영영 다시 안 파진다** — 수집이 표시하던 때와 똑같은 고장이다.
@@ -10,7 +10,7 @@
 프롬프트 지시가 형식적으로만 지켜진 것을 세 번 확인했다.
 
 [중요] **이 단계는 후보를 «기각하지 않는다».** 4·5번 칸은 묻는 자리이고 기각은 판정(2번 칸)이다.
-설계 §7 이 「기각 신호」를 적어 둔 것은 **사람이 아침에 읽을 단서**이지 여기서 내릴 판정이
+설계 §7 이 「기각 신호」를 적어 둔 것은 **사람이 나중에 읽을 단서**이지 여기서 내릴 판정이
 아니다 — 내리려 들면 이 단계가 또 하나의 판단자가 된다.
 
 [중요] **검색어 게이트를 걸지 않는다.** 카탈로그가 답을 주는 후보는 검색이 필요 없고,
@@ -43,7 +43,7 @@ STEP_NAME: Final = "feasibility"
 # 규칙이 갈리면 「카탈로그에는 있는데 못 찾는」 상태가 조용히 생긴다
 CATALOG_ID_PATTERN: Final = re.compile(r"^#{2,}\s+`([a-z0-9][a-z0-9-]*)`", re.MULTILINE)
 
-PROMPT: Final = """이 저장소의 `.claude/skills/night-research/SKILL.md` 를 먼저 읽고 그 규율을 그대로 따르세요.
+PROMPT: Final = """이 저장소의 `.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 그 규율을 그대로 따르세요.
 
 ## 할 일 — 실현가능성
 
@@ -118,7 +118,7 @@ def build_prompt(claim: str, catalog: str) -> str:
     """실현가능성 지시문을 만든다.
 
     Args:
-        claim: 그 밤의 한 줄 주장
+        claim: 그 회차의 한 줄 주장
         catalog: 데이터 카탈로그 본문. 못 읽었으면 빈 문자열
 
     Returns:
@@ -131,7 +131,7 @@ def load_catalog(path: Path = DATA_CATALOG_PATH) -> str:
     """데이터 카탈로그 본문을 읽는다.
 
     [중요] 읽기에 실패하면 빈 문자열을 돌린다. 카탈로그는 검사기가 아니라 «입력»이고,
-    입력이 없다고 밤을 세우면 **문서 한 장이 파이프라인을 멈추는** 구조가 된다 —
+    입력이 없다고 회차를 세우면 **문서 한 장이 파이프라인을 멈추는** 구조가 된다 —
     무인 실행에는 고칠 사람이 없다. 못 읽은 사실은 결정 로그에 남는다.
 
     Args:
@@ -144,9 +144,9 @@ def load_catalog(path: Path = DATA_CATALOG_PATH) -> str:
         return path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
         # [중요] 인코딩 오류도 함께 잡는다. `UnicodeDecodeError` 는 `OSError` 가 아니라
-        # `ValueError` 라서, 안 잡으면 「카탈로그가 없어도 밤은 돈다」는 계약이 깨진다 —
+        # `ValueError` 라서, 안 잡으면 「카탈로그가 없어도 회차는 돈다」는 계약이 깨진다 —
         # WSL 과 mac 을 오가는 한글 문서라 편집기 한 번이 이 갈래를 만들 수 있고,
-        # 그러면 그 단계가 매 밤 실패하며 상한까지 재시도한다
+        # 그러면 그 단계가 매 회차 실패하며 상한까지 재시도한다
         return ""
 
 
@@ -175,13 +175,13 @@ def run(
     """4·5번 칸을 파일로 남기고, 그 후보를 「판 것」으로 표시한다.
 
     Args:
-        run_dir: 그 밤의 실행 폴더
+        run_dir: 그 회차의 실행 폴더
         ledger_path: 원장 경로
         ask: 프롬프트를 받아 에이전트를 부르는 쪽
         catalog_path: 데이터 카탈로그 경로. 없으면 카탈로그 없이 진행한다
 
     Raises:
-        RuntimeError: 그 밤의 후보가 상태에 없을 때 — 러너가 건너뛰었어야 하는 자리다
+        RuntimeError: 그 회차의 후보가 상태에 없을 때 — 러너가 건너뛰었어야 하는 자리다
         StepFailed: 응답이 약속한 모양이 아닐 때
         StepQualityFailed: 4·5번 칸의 자리가 비었거나 출처가 실재하지 않을 때
     """
@@ -189,7 +189,7 @@ def run(
 
     candidate = state.pinned_candidate(run_dir)
     if candidate is None:
-        raise RuntimeError(f"내부 불변조건 위반: 그 밤의 후보가 상태에 없습니다 — {run_dir}")
+        raise RuntimeError(f"내부 불변조건 위반: 그 회차의 후보가 상태에 없습니다 — {run_dir}")
 
     catalog = load_catalog(catalog_path)
     result = ask(build_prompt(candidate.claim, catalog))
@@ -203,7 +203,7 @@ def run(
     hit = [name for name in claimed if name in known]
 
     # 무엇을 놓고 판단했고 얼마를 썼는지는 «게이트 앞»에서 남긴다.
-    # 막혀서 끝나도 그 밤이 무엇을 했고 얼마를 태웠는지는 기록에 남아야 한다
+    # 막혀서 끝나도 그 회차가 무엇을 했고 얼마를 태웠는지는 기록에 남아야 한다
     decision_log.record(
         run_dir,
         STEP_NAME,
@@ -213,7 +213,7 @@ def run(
         # [중요] 「썼다고 한 이름」과 「실재하는 이름」을 갈라 적는다. 지어낸 이름이 섞이면
         # 이 계측이 「카탈로그를 썼다」로 **거짓 긍정**을 내고 그 고장은 에러를 내지 않는다.
         # **막지는 않는다** — 판정이 아니라 계측의 진실성이고, 게이트를 세우면
-        # 항목명을 못 옮겨 적은 밤이 통째로 죽는다
+        # 항목명을 못 옮겨 적은 회차가 통째로 죽는다
         catalog_hit=hit,
         catalog_hit_unknown=[name for name in claimed if name not in known],
         # [중요] 이 값도 «계측이지 판정이 아니다». 5번 칸에 비용이 섞이는 것을 막으면
@@ -237,7 +237,7 @@ def run(
     _store(run_dir, candidate, payload, hit=hit)
 
     # [중요] 파일을 쓴 «뒤에» 표시한다. 순서가 반대면 산출물 없이 후보만 「판 것」으로 남아
-    # 4·5번 칸이 영영 비어 있게 되고, 아침에는 완주한 밤처럼 보인다
+    # 4·5번 칸이 영영 비어 있게 되고, 나중에는 완주한 회차처럼 보인다
     ledger.mark_explored(ledger_path, candidate.claim)
 
 
