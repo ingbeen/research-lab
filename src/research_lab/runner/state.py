@@ -137,27 +137,20 @@ def pinned_candidate(run_dir: Path) -> Candidate | None:
     Returns:
         박아 둔 후보. 아직 안 잡았거나 모양이 어긋나면 None
     """
-    try:
-        saved = load(run_dir)
-    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
-        # 반쯤 쓰이다 끊긴 파일이나 사람이 손으로 고치다 깨진 파일이다.
-        # 「없음」으로 읽으면 그 회차는 새로 시작하면 되지만, 여기서 터뜨리면
-        # 그 실행 폴더 하나 때문에 파이프라인이 선다.
-        #
-        # [중요] **인코딩 오류를 빠뜨리지 않는다.** `UnicodeDecodeError` 는 `OSError` 가
-        # 아니라 `ValueError` 라 앞의 둘만 잡으면 그대로 빠져나간다. 이 파일에는 한글
-        # 주장이 들어가므로 **끊긴 파일은 거의 언제나 그 모양**이고, WSL 과 mac 을 오가는
-        # 저장소라 편집기 한 번이 같은 갈래를 만든다
-        return None
-
-    if not isinstance(saved, dict):
-        return None
+    # 못 읽는 파일은 「없음」으로 읽는다 — 그 회차는 새로 시작하면 되지만, 여기서
+    # 터뜨리면 그 실행 폴더 하나 때문에 파이프라인이 선다.
+    # 가드를 여기 다시 적지 않는 것은 계층 계약 §12 다 — 한 곳만 빠지면 그 경로에서만 샌다
+    saved = load_or_empty(run_dir)
 
     raw: Any = saved.get(KEY_CANDIDATE)
     if not isinstance(raw, dict):
         return None
 
-    claim = str(raw.get(KEY_CLAIM, "")).strip()
+    # [주의] `str(...)` 로 감싸지 않는다. 아래 `closed_reason` 이 같은 이유로 같게 한다 —
+    # `null` 은 `"None"` 이 되고 목록은 `"['소형주', '1월']"` 이 되어, **둘 다 「비었나」를
+    # 보는 아래 가드를 통과한 채** 실행 폴더 이름과 근거 문서 제목이 된다
+    stored_claim: Any = raw.get(KEY_CLAIM)
+    claim = stored_claim.strip() if isinstance(stored_claim, str) else ""
     if not claim:
         return None
 
@@ -194,15 +187,8 @@ def closed_reason(run_dir: Path) -> str | None:
     Returns:
         접힌 사유. 안 접혔거나 판정할 수 없으면 None
     """
-    try:
-        saved = load(run_dir)
-    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
-        # 갈래는 위 `pinned_candidate` 와 같다 — 인코딩 오류가 빠지면 접힌 폴더를 묻는
-        # 것만으로 파이프라인이 선다
-        return None
-
-    if not isinstance(saved, dict):
-        return None
+    # 갈래는 위 `pinned_candidate` 와 같다. 가드는 `load_or_empty` 한 곳에 있다 (§12)
+    saved = load_or_empty(run_dir)
 
     raw: Any = saved.get(KEY_CLOSED)
     if not isinstance(raw, dict):

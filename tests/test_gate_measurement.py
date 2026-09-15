@@ -179,3 +179,82 @@ def test_a_grid_with_no_usable_values_never_passes() -> None:
 
     assert reason is not None
     assert "entry_grid" in reason
+
+
+def test_a_null_in_the_grid_is_not_a_value() -> None:
+    """
+    목적: 격자의 `null` 을 «값 하나»로 세지 않는 계약을 고정한다.
+
+    JSON 의 `null` 이 `str()` 을 타면 `"None"` 이라는 **내용 있는 문자열**이 되어
+    값이 하나뿐인 격자가 두 개짜리로 통과한다. 이 게이트는 「한 값만 재면 그것이
+    «가장 좋은 값이라서 고른 것인지» 구별되지 않는다」를 막으려고 있는 것이라,
+    뚫리면 존재 이유가 사라진다.
+
+    Given: 쓸 수 있는 값이 하나뿐이고 나머지가 `null` 인 격자
+    When: 센다
+    Then: 1 이다
+    """
+    assert measurement.distinct_size(["+1거래일 종가", None]) == 1
+
+
+def test_a_grid_of_only_nulls_has_nothing_usable() -> None:
+    """
+    목적: `null` 만 든 격자가 «값 없음»으로 세어지는 계약을 고정한다.
+
+    이 값이 0 이어야 「쓸 수 있는 값이 하나도 없다」 갈래가 실제로 돈다.
+    1 로 세면 그 갈래는 **한 번도 돌지 않고**, 사유만 적으면 빈 격자가 통과한다.
+
+    Given: `null` 만 든 격자
+    When: 센다
+    Then: 0 이다
+    """
+    assert measurement.distinct_size([None, None]) == 0
+
+
+def test_nulls_cannot_pad_a_grid_to_the_minimum() -> None:
+    """
+    목적: `null` 로 격자 수를 채워 하한을 넘기지 못하는 계약을 고정한다.
+
+    Given: 쓸 수 있는 값이 하나뿐이고 `null` 이 하나 더 든 진입 격자
+    When: 검사한다
+    Then: 그 자리를 가리키는 사유가 돌아온다
+    """
+    reason = measurement.shortfall_reason(_filled(entry_grid=["+1거래일 종가", None]))
+
+    assert reason is not None
+    assert "entry_grid" in reason
+
+
+def test_a_grid_of_only_nulls_is_not_excused_by_a_reason() -> None:
+    """
+    목적: 사유가 있어도 «값이 없는» 격자는 통과하지 않는 계약을 고정한다.
+
+    사유는 「값이 «하나»뿐이다」를 해명하는 것이지 「값이 없다」를 해명하는 것이 아니다.
+
+    Given: `null` 만 든 격자와 한 값 사유
+    When: 검사한다
+    Then: 「하나도 없습니다」로 막힌다
+    """
+    reason = measurement.shortfall_reason(_filled(entry_grid=[None, None], single_value_reason="달력 규칙이라 진입일이 하나뿐이다"))
+
+    assert reason is not None
+    assert "하나도 없습니다" in reason
+
+
+def test_a_container_with_nothing_inside_is_empty() -> None:
+    """
+    목적: [중요] 게이트의 «빈 값» 판정이 조립부와 «같은» 계약을 고정한다.
+
+    `str([""])` 는 `"['']"` 라 비어 있지 않다. 안 파고들면 **게이트는 「값이 있다」로 읽고
+    조립부는 「적히지 않았습니다」로 렌더한다** — 그 어긋남은 에러를 내지 않고,
+    빈 칸이 든 문서가 완성본으로 나간다.
+
+    Given: 빈 문자열만 담은 컨테이너가 든 자리
+    When: 검사한다
+    Then: 그 자리를 가리키는 사유가 돌아온다
+    """
+    for value in ([""], [[]], {"k": ""}, {"k": None}):
+        reason = measurement.shortfall_reason(_filled(instrument=value))
+
+        assert reason is not None, value
+        assert "instrument" in reason

@@ -495,3 +495,46 @@ def test_writing_over_an_unreadable_state_does_not_raise(tmp_path: Path) -> None
     pinned = state.pinned_candidate(tmp_path)
     assert pinned is not None and pinned.claim == "새 후보"
     assert state.closed_reason(tmp_path) == "세 회차 연속 막혔다"
+
+
+def test_a_null_claim_is_read_as_no_candidate(tmp_path: Path) -> None:
+    """
+    목적: 후보의 한 줄 주장이 `null` 이면 «후보 없음»으로 읽는 계약을 고정한다.
+
+    JSON 의 `null` 을 `str()` 로 감싸면 `"None"` 이라는 **내용 있는 문자열**이 되어
+    「비었나」를 보는 가드를 전부 통과한다. 그대로 두면 실행 폴더 이름이 `None` 이 되고
+    근거 문서 제목이 `# None` 으로 저장소 밖에 나간다.
+
+    Given: 주장이 `null` 로 적힌 상태 파일
+    When: 박아 둔 후보를 읽는다
+    Then: None 이다 — `"None"` 이라는 후보가 아니다
+    """
+    run_dir = tmp_path / "runs" / "20240115_0900"
+    run_dir.mkdir(parents=True)
+    (run_dir / "state.json").write_text(
+        json.dumps({"candidate": {"claim": None, "identifier": None}}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    assert state.pinned_candidate(run_dir) is None
+
+
+def test_a_non_string_claim_is_read_as_no_candidate(tmp_path: Path) -> None:
+    """
+    목적: 주장 자리에 문자열이 아닌 값이 와도 «후보 없음»으로 읽는 계약을 고정한다.
+
+    사람이 상태 파일을 손으로 고칠 수 있고, 그때 숫자나 목록이 들어갈 수 있다.
+    `str()` 로 감싸면 `[1, 2]` 같은 파이썬 표기가 그대로 폴더 이름과 문서 제목이 된다.
+
+    Given: 주장이 목록으로 적힌 상태 파일
+    When: 박아 둔 후보를 읽는다
+    Then: None 이다
+    """
+    run_dir = tmp_path / "runs" / "20240115_0900"
+    run_dir.mkdir(parents=True)
+    (run_dir / "state.json").write_text(
+        json.dumps({"candidate": {"claim": ["소형주", "1월"], "identifier": "jan"}}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    assert state.pinned_candidate(run_dir) is None

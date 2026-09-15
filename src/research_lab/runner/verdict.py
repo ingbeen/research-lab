@@ -27,7 +27,7 @@ from research_lab.agent.invoke import AgentResult
 from research_lab.common_constants import DOSSIER_DIR, VERDICT_FILENAME
 from research_lab.gate import urls as url_gate
 from research_lab.gate import verdict as verdict_gate
-from research_lab.runner import decision_log, dossier, ledger, naming, state, url_check
+from research_lab.runner import decision_log, dossier, ledger, naming, prose_check, state, url_check
 from research_lab.runner import payload as payload_helpers
 from research_lab.runner.atomic import atomic_write
 from research_lab.runner.steps import StepQualityFailed
@@ -183,6 +183,7 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller, *, dossier_dir: Path
         decision_log.record(run_dir, STEP_NAME, decision_log.EVENT_FAILED, gate=STEP_NAME, reason=shortfall)
         raise StepQualityFailed(f"판정 칸 미달 — {shortfall}")
 
+    prose_check.assert_self_contained(run_dir, STEP_NAME, payload, what="판정 산출물")
     _store(run_dir, output_dir, candidate, payload, dossier_dir=dossier_dir)
 
     # [중요] 파일을 쓴 «뒤에» 표시한다. 순서가 반대면 문서 없이 후보만 「판 것」으로 남아

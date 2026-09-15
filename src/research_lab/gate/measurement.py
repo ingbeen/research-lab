@@ -111,14 +111,30 @@ def _distinct(grid: list[Any]) -> int:
 
     비교는 **문자열로** 한다 — 에이전트가 `20` 과 `"20"` 을 섞어 내는 일이 흔한데,
     그 둘은 같은 값이고 타입으로 가르면 복붙이 통과한다.
+
+    [중요] 그래도 `None` 은 «문자열로 만들기 전에» 뺀다. `str(None)` 은 `"None"` 이라는
+    내용 있는 문자열이라, 안 빼면 **`null` 을 채워 격자 수를 부풀릴 수 있다** — 이 함수가
+    막으려던 복붙과 같은 일이 열쇠만 바꿔 일어난다. 그리고 `[null, null]` 이 1 로 세어지면
+    「쓸 수 있는 값이 하나도 없다」 갈래가 **한 번도 돌지 않는다.**
+    비었다는 판정은 `_is_filled` 한 곳이 한다 — `None` 뿐 아니라 `[]`·`{}` 도 걸러야 하는데
+    ( `str([])` 는 `"[]"` 라 비어 있지 않다), 판정이 두 벌이면 **게이트가 「값이 있다」로 읽은
+    것을 조립부는 「적히지 않았습니다」로 렌더한다.**
     """
-    return len({str(item).strip() for item in grid if str(item).strip()})
+    return len({str(item).strip() for item in grid if _is_filled(item)})
 
 
 def _is_filled(value: Any) -> bool:
-    """그 자리가 «채워졌나». 답의 내용은 보지 않는다."""
+    """그 자리가 «채워졌나». 답의 내용은 보지 않는다.
+
+    [중요] 담긴 것이 «빈» 컨테이너도 빈 것으로 본다. `str([""])` 는 `"['']"` 라
+    비어 있지 않으므로, 안 파고들면 **게이트는 「값이 있다」로 읽고 조립부는
+    「적히지 않았습니다」로 렌더한다** — 그 어긋남은 에러를 내지 않고,
+    빈 칸이 든 문서가 완성본으로 나간다.
+    """
     if value is None:
         return False
-    if isinstance(value, list | tuple | set | dict) and not value:
-        return False
+    if isinstance(value, dict):
+        return any(_is_filled(item) for item in value.values())
+    if isinstance(value, list | tuple | set):
+        return any(_is_filled(item) for item in value)
     return bool(str(value).strip())

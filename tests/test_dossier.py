@@ -632,3 +632,78 @@ def test_unjudged_urls_do_not_replace_the_steps_own_unverified(prepared: Any) ->
     assert BLOCKED_URL in written
     assert "국내 절세 매도 유인의 크기" in written
     assert "판정 단계에서 새로 드러난 것" in written
+
+
+def test_the_same_gap_written_with_different_spacing_is_folded(prepared: Any) -> None:
+    """
+    목적: 표기만 다른 같은 미검증을 «한 줄로» 접는 계약을 고정한다.
+
+    [실측 2026-09-15] 11번 칸이 완전일치로만 접혀 같은 공백이 여러 번 실렸다.
+    그 칸은 **가장 꼼꼼히 읽히는 자리**인데, 중복이 섞이면 «열린 공백이 몇 개인가»가
+    읽히지 않는다.
+
+    Given: 앞뒤 공백 · 내부 연속 공백 · 끝 마침표만 다른 같은 문장을 낸 두 단계
+    When: 조립한다
+    Then: 그 줄이 한 번만 나온다
+    """
+    ready = prepared()
+    _rewrite(ready, PRO_EVIDENCE_FILENAME, unverified=["원논문 본문의 수치는 확인하지 못했다"])
+    _rewrite(ready, REBUTTAL_FILENAME, unverified=["  원논문 본문의   수치는 확인하지 못했다.  "])
+
+    written = _assembled(ready)
+
+    # 본문을 그대로 세면 «접혔는지»가 아니라 「표기가 달라 서로 안 겹쳤는지」를 세게 된다.
+    # 이 두 줄에만 있는 낱말로 센다
+    assert written.count("수치는") == 1
+
+
+def test_a_paraphrase_is_not_folded(prepared: Any) -> None:
+    """
+    목적: [중요] 뜻이 비슷할 뿐인 두 문장을 «접지 않는» 계약을 고정한다.
+
+    접기를 의미 비교로 키우면 게이트가 아니라 판단자가 된다. 그리고 **서로 다른 공백
+    둘을 하나로 접는 쪽이 중복을 남기는 쪽보다 나쁘다** — 사라진 쪽은 아무 흔적도
+    남기지 않는다. 그래서 접기는 «표기 수준»에서 멈춘다.
+
+    Given: 같은 논문을 두고 서로 다르게 쓴 두 미검증
+    When: 조립한다
+    Then: 둘 다 남는다
+    """
+    ready = prepared()
+    _rewrite(ready, PRO_EVIDENCE_FILENAME, unverified=["Cusatis(1993) 수치는 PDF 추출 실패로 확인하지 못했다"])
+    _rewrite(ready, REBUTTAL_FILENAME, unverified=["Cusatis, Miles, Woolridge(1993) 본문의 초과수익률은 미확인이다"])
+
+    written = _assembled(ready)
+
+    assert "PDF 추출 실패로 확인하지 못했다" in written
+    assert "본문의 초과수익률은 미확인이다" in written
+
+
+def _rewrite(ready: Any, filename: str, **fields: Any) -> None:
+    """앞 단계가 남긴 산출물의 일부를 갈아 끼운다."""
+    path = ready.output_dir / filename
+    payload: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    payload.update(fields)
+    path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+
+def test_an_object_shaped_unverified_entry_is_rendered_not_dropped(prepared: Any) -> None:
+    """
+    목적: [중요] 문자열이 아닌 미검증 항목을 «버리지 않고» 사람이 읽는 줄로 펴는 계약을 고정한다.
+
+    앞 단계 넷은 응답 모양이 스키마로 강제되지 않아 미검증이 사전 모양으로 올 수 있다.
+    그것을 버리면 **이 칸이 조용히 비고**, 「비어 있습니다 — 이 칸이 빈 것 자체를
+    의심해 보세요」가 찍힌다. 그 문장은 그때 **거짓말**이 된다.
+
+    Given: 사전 모양으로 적힌 미검증 항목
+    When: 조립한다
+    Then: 그 내용이 읽히는 한 줄로 실린다
+    """
+    ready = prepared()
+    _rewrite(ready, PRO_EVIDENCE_FILENAME, unverified=[{"항목": "원논문 수치", "왜": "PDF 추출 실패"}])
+
+    written = _assembled(ready)
+
+    assert "원논문 수치" in written
+    assert "PDF 추출 실패" in written
+    assert "{" not in written.split("## 11.")[1], "파이썬·JSON 표기가 그대로 실리면 안 된다"

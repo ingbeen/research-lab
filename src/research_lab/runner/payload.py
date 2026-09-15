@@ -58,8 +58,13 @@ def as_strings(value: Any) -> list[str]:
 
     Returns:
         비어 있지 않은 문자열들. 목록이 아니면 빈 목록
+
+    [중요] **문자열이 아닌 항목은 버린다.** `str(item)` 으로 감싸면 JSON 의 `null` 이
+    `"None"` 으로, 중첩 목록이 `"['a', 'b']"` 라는 파이썬 표기로 살아남는다 —
+    이 함수의 결과는 **근거 문서의 줄이 되어 저장소 밖으로 나가므로**, 그 두 문자열은
+    사람이 읽는 자리에 그대로 실린다. 「비었나」를 보는 검사는 둘 다 통과시킨다.
     """
-    return [str(item) for item in as_list(value) if str(item).strip()]
+    return [item.strip() for item in as_list(value) if isinstance(item, str) and item.strip()]
 
 
 def urls_in(sources: Any) -> set[str]:

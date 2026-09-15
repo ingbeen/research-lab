@@ -65,6 +65,12 @@ class CycleResult:
     settled: tuple[str, ...]
     skipped: tuple[str, ...]
     failure: Failure | None
+    # [중요] 이 회차가 «실제로 돌린» 단계. `settled` 와 다르다 — `settled` 에는
+    # **지난 회차가 마친 단계와 건너뛴 단계가 함께** 들어 있다.
+    #
+    # 기본값이 비어 있는 것은 «안전한 쪽»이라서다. 부르는 쪽이 안 채우면 「한 장 냈다」가
+    # 아니라 「안 냈다」로 떨어지므로, 빠뜨렸을 때 장수를 부풀리지 않는다
+    executed: tuple[str, ...] = ()
     # 상한에 닿아 원장에서 걷어낸 후보. 걷어낼 후보가 없었으면 None 이다.
     # 종료 코드를 늘리지 않는 대신 이 값으로 사람에게 알린다 —
     # 「기각은 실패가 아니다」와 같은 축이다
@@ -91,9 +97,13 @@ class CycleResult:
 
         마지막 단계가 문서를 만들고 후보를 「판 것」으로 표시하므로(계층 계약 §4),
         **그 단계를 «실행»했는지**가 곧 이 물음의 답이다.
+
+        [중요] 그래서 `settled` 가 아니라 `executed` 를 본다. `settled` 는 **지난 회차가
+        마친 것까지** 담으므로, 이미 끝난 실행 폴더를 다시 잡으면 아무것도 안 하고도
+        「냈다」가 된다 — 사람이 로그를 보려고 그 폴더를 지정하는 일은 정상이고,
+        그 정상적인 호출이 완주율 집계를 오염시켜서는 안 된다
         """
-        last = steps.STEPS[-1]
-        return self.failure is None and last in self.settled and last not in self.skipped
+        return self.failure is None and steps.STEPS[-1] in self.executed
 
 
 def run_cycle(
@@ -126,10 +136,16 @@ def run_cycle(
         settled: list[str] = list(saved.get("settled", []))
         skipped: list[str] = list(saved.get("skipped", []))
 
+        # [중요] «이 회차가 돌린» 단계만 담는다. `settled` 를 쓰면 지난 회차가 마친 것까지
+        # 세어, 남은 단계가 하나도 없는 폴더를 다시 잡았을 때 **에이전트를 한 번도 안 부르고
+        # 「한 장 냈다」가 된다** — 그 줄이 회차 로그에 `produced 1 · spent_usd 0.0` 으로 남고,
+        # 완주율을 그 파일에서 훑어 계산하므로 집계가 조용히 오염된다
+        executed: list[str] = []
+
         while True:
             step = steps.next_step(settled)
             if step is None:
-                return CycleResult(tuple(settled), tuple(skipped), None)
+                return CycleResult(tuple(settled), tuple(skipped), None, tuple(executed))
 
             skip_reason = _skip_reason(step, ledger_path, run_dir)
             if skip_reason is not None:
@@ -144,8 +160,16 @@ def run_cycle(
                 # 실패한 단계는 `settled` 에 넣지 않는다. 다음 회차가 ①에서 바로 이 단계를 잡는다.
                 # 다만 그 「다음 회차」가 영영 반복되지 않도록 여기서 회차와 회차 사이의 상한을 본다
                 blocked, closed = _close_if_stuck(run_dir, ledger_path, step)
-                return CycleResult(tuple(settled), tuple(skipped), failure, blocked, closed)
+                return CycleResult(
+                    tuple(settled),
+                    tuple(skipped),
+                    failure,
+                    tuple(executed),
+                    blocked_claim=blocked,
+                    closed_reason=closed,
+                )
 
+            executed.append(step)
             settled.append(step)
             _persist(run_dir, settled, skipped)
 

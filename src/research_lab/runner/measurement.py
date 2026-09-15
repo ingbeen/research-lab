@@ -32,7 +32,7 @@ from research_lab.common_constants import (
     PRO_EVIDENCE_FILENAME,
 )
 from research_lab.gate import measurement as measurement_gate
-from research_lab.runner import decision_log, naming, outputs, state
+from research_lab.runner import decision_log, naming, outputs, prose_check, state
 from research_lab.runner import payload as payload_helpers
 from research_lab.runner.atomic import atomic_write
 from research_lab.runner.steps import StepQualityFailed
@@ -203,6 +203,7 @@ def run(run_dir: Path, ask: AgentCaller) -> None:
         decision_log.record(run_dir, STEP_NAME, decision_log.EVENT_FAILED, gate=STEP_NAME, reason=shortfall)
         raise StepQualityFailed(f"측정 설계 미달 — {shortfall}")
 
+    prose_check.assert_self_contained(run_dir, STEP_NAME, payload, what="측정 설계 산출물")
     _store(run_dir, output_dir, candidate, payload, entry_size=entry_size, holding_size=holding_size)
 
 

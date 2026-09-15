@@ -26,7 +26,7 @@ from research_lab.common_constants import (
 )
 from research_lab.gate import queries as query_gate
 from research_lab.gate import rebuttal as rebuttal_gate
-from research_lab.runner import decision_log, naming, state, url_check
+from research_lab.runner import decision_log, naming, prose_check, state, url_check
 from research_lab.runner import payload as payload_helpers
 from research_lab.runner.atomic import atomic_write
 from research_lab.runner.steps import StepQualityFailed
@@ -121,6 +121,7 @@ def run(run_dir: Path, ask: AgentCaller) -> None:
 
     # [중요] 값싼 게이트가 «전부 통과한 뒤»에 부른다. 이 검사만 네트워크를 쓰므로,
     # 어차피 막힐 단계에서 URL 을 찌르는 것은 순 낭비다
+    prose_check.assert_self_contained(run_dir, "rebut", payload, what="반증 산출물")
     url_check.assert_sources_exist(run_dir, "rebut", payload.get("rebuttals"), what="반증 출처")
 
     output_dir = run_dir / naming.folder_name(candidate.claim, candidate.identifier)

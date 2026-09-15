@@ -398,14 +398,21 @@ def test_only_the_new_steps_carry_a_schema(entrypoint: Any) -> None:
 
 
 def _finished() -> Any:
-    """근거 문서를 실제로 낸 회차의 결과."""
+    """근거 문서를 실제로 낸 회차의 결과.
+
+    [중요] `executed` 를 «채워야» 한다. 그 자리를 비우면 「마쳐져 있다」와 「이번에 돌렸다」가
+    같아 보이는 스텁이 되고, 그러면 **이미 끝난 폴더를 다시 잡은 회차**를 흉내 낼 수 없다.
+    """
     from research_lab.runner import cycle, steps
 
-    return cycle.CycleResult(tuple(steps.STEPS), (), None)
+    return cycle.CycleResult(tuple(steps.STEPS), (), None, tuple(steps.STEPS))
 
 
 def _nothing_produced() -> Any:
-    """단계가 전부 «건너뛰어져» 끝난 회차 — 원장 포화·닫기만 하는 회차의 모양이다."""
+    """단계가 전부 «건너뛰어져» 끝난 회차 — 원장 포화·닫기만 하는 회차의 모양이다.
+
+    건너뛴 단계는 돌린 것이 아니므로 `executed` 가 비어 있다.
+    """
     from research_lab.runner import cycle, steps
 
     return cycle.CycleResult(tuple(steps.STEPS), tuple(steps.STEPS), None)
@@ -416,7 +423,7 @@ def _failed(kind: Any) -> Any:
     from research_lab.runner import cycle, steps
     from research_lab.runner.failures import Failure
 
-    return cycle.CycleResult(tuple(steps.STEPS[:2]), (), Failure(kind=kind, raw="원문"))
+    return cycle.CycleResult(tuple(steps.STEPS[:2]), (), Failure(kind=kind, raw="원문"), tuple(steps.STEPS[:2]))
 
 
 def _stub_cycle(
@@ -863,4 +870,80 @@ def test_the_end_line_carries_the_token_components(entrypoint: Any, monkeypatch:
     finished = [e for e in cycle_log.read(entrypoint.RUNS_DIR) if e["event"] == cycle_log.EVENT_FINISHED][0]
 
     assert finished["tokens_input"] == 100
-    assert finished["tokens_cache_read"] == 90_000, "한도는 캐시에서 읽은 토큰도 먹는다"
+    assert finished["tokens_cache_read"] == 90_000, "성분은 그대로 남긴다 — 가중치가 바뀌면 다시 계산할 재료가 이것뿐이다"
+
+
+def test_an_already_finished_run_dir_does_not_count_as_a_dossier(
+    entrypoint: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    목적: [중요] 이미 끝난 폴더를 `--run-dir` 로 가리켜도 «한 장 냈다»가 되지 않는 계약을 고정한다.
+
+    인자 없이 부르는 경로는 끝난 폴더를 이어받지 않는다. 그런데 명시 경로는 **무조건
+    그대로 쓰이므로**, 사람이 로그를 보려고 끝난 폴더를 지정하면 남은 단계가 하나도
+    없는 채로 회차가 끝난다. 그때 그것을 완주로 세면 **에이전트를 한 번도 안 부르고
+    `produced 1 · spent_usd 0.0 · exit 0` 이 회차 로그에 남고**, 완주율을 그 파일에서
+    훑어 계산하므로 **집계가 조용히 오염된다.**
+
+    [주의] 실패로 만들지 않는다. 사람이 그 경로를 주는 일 자체는 정상이고,
+    「판정을 못 하는 것」과 「실패로 판정하는 것」은 다르다.
+
+    Given: 단계가 전부 끝나 있는 실행 폴더
+    When: 그 폴더를 `--run-dir` 로 주고 한 장을 요청한다
+    Then: 낸 장수가 0 이고, 멈춘 사유가 「요청한 장수를 냈다」가 아니다
+    """
+    from research_lab.runner import steps
+
+    finished = _make_run(entrypoint, "20260101_0100", list(steps.STEPS))
+    monkeypatch.setattr(entrypoint.secrets, "scan", lambda _roots: [])
+
+    outcome = entrypoint._run_cycles(entrypoint._parse_args(["--run-dir", str(finished), "--cycle-dossiers", "1"]))
+
+    assert outcome.produced == 0
+    assert "요청한" not in outcome.stop_reason
+
+
+def test_every_prose_step_is_wired_to_the_self_containment_gate() -> None:
+    """
+    목적: [중요] 산문을 내는 단계가 «하나도 빠짐없이» 자립성 검사에 연결된 계약을 고정한다.
+
+    이 저장소는 「검사한다고 적어 두고 부르는 쪽이 안 부르는」 고장을 실제로 겪었다 —
+    계보 단계가 URL 실재 검사 모듈을 **import 조차 하지 않고** 있었고, 그동안 근거 문서의
+    머리말은 「URL 을 실제로 호출해 확인했다」고 보증했다. 게이트 단위 테스트는 그때도
+    전부 초록이었다. **배선은 배선으로 고정해야 한다.**
+
+    [주의] `explore` 는 «일부러» 빠져 있다. 그 단계는 후보 여럿을 한 번에 내므로 한 후보의
+    문구 때문에 막으면 **그 회차의 탐색이 통째로 죽고**, 원장이 비면 뒤 단계가 전부
+    건너뛰어진다. 그 자리의 산출물은 한 줄 주장뿐이라 산문이라 할 것도 없다.
+
+    Given: 산문을 내는 일곱 단계의 소스
+    When: 자립성 검사를 부르는지 본다
+    Then: 전부 부른다
+    """
+    import inspect
+
+    from research_lab.runner import collect, feasibility, lineage, measurement, mechanism, rebut, verdict
+
+    for module in (collect, rebut, lineage, feasibility, mechanism, measurement, verdict):
+        source = inspect.getsource(module)
+
+        assert "prose_check.assert_self_contained" in source, module.__name__
+
+
+def test_explore_is_deliberately_not_wired_to_the_self_containment_gate() -> None:
+    """
+    목적: `explore` 가 «일부러» 빠져 있음을 계약으로 고정한다.
+
+    위 테스트가 목록을 들고 있으므로, 여기에 `explore` 를 더하려는 사람은 이 테스트를
+    먼저 지워야 한다 — 그때 **왜 빠졌는지**를 읽게 된다. 빠진 것과 잊은 것은 다르고,
+    그 구별이 없으면 다음 사람이 「배선 누락」으로 읽고 채워 넣는다.
+
+    Given: 탐색 단계의 소스
+    When: 자립성 검사를 부르는지 본다
+    Then: 안 부른다
+    """
+    import inspect
+
+    from research_lab.runner import explore
+
+    assert "prose_check" not in inspect.getsource(explore)

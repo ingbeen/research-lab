@@ -364,3 +364,94 @@ def test_cost_counter_does_not_crash(wrong: Any) -> None:
     Then: 예외 없이 튜플이 돌아온다
     """
     assert isinstance(feasibility.cost_terms_in(wrong), tuple)
+
+
+def test_the_wording_that_actually_shipped_is_counted() -> None:
+    """
+    목적: 실제로 나온 비용 표현이 계측에 «걸리는» 계약을 고정한다.
+
+    [실측 2026-09-15] 근거 문서의 5번 칸이 「시가로 살 때와 종가로 살 때의 **체결가**
+    차이」로 슬리피지를 논했는데 사전에 그 말이 없어 `cost_terms: []` 로 기록됐다.
+    그 0 을 「비용을 안 적었다」로 읽으면, 설계가 「분포를 쌓아 나중에 판단한다」고
+    미뤄 둔 결정이 **데이터 없이** 내려진다. 「잴 수 없었다」와 「0이었다」는 다르다.
+
+    Given: 실제로 나갔던 5번 칸 문장
+    When: 비용어를 센다
+    Then: 걸린다
+    """
+    section = {
+        "instrument": "미국 상장 스핀오프 자회사",
+        "signal_frequency": "연 수십 건",
+        "slippage_note": "시가로 살 때와 종가로 살 때의 체결가 차이가 다른 후보보다 클 수 있다",
+    }
+
+    assert "체결가" in feasibility.cost_terms_in(section)
+
+
+def test_the_signal_frequency_field_is_not_a_cost_term() -> None:
+    """
+    목적: [중요] 「신호가」를 비용어로 세지 «않는» 계약을 고정한다.
+
+    [탈락 2026-09-15] 사전에 「호가」를 넣었다가 뺐다. **「신**호가**」(신호+가)를 문다** —
+    하필 5번 칸의 자리 이름이 「신호가 얼마나 자주 오나」라 재발이 확실했고, 실측으로
+    한 회차가 그 이유만으로 걸렸다. 세는 목록이라 후보가 죽지는 않지만,
+    **이 목록의 쓸모는 분포이고 계통 오탐은 그 분포를 통째로 망친다.**
+
+    Given: 신호 빈도를 서술한 5번 칸
+    When: 비용어를 센다
+    Then: 아무것도 안 걸린다
+    """
+    section = {"signal_frequency": "신호가 52주 신고가 대비 근접도라 매일 나온다"}
+
+    assert feasibility.cost_terms_in(section) == ()
+
+
+def test_quote_spread_is_still_caught_by_the_spread_term() -> None:
+    """
+    목적: 「호가」를 빼도 호가 스프레드 논의가 «여전히» 세어지는 계약을 고정한다.
+
+    위 탈락이 덮는 범위를 줄이지 않았다는 근거다 — 줄었다면 그 탈락은 다시 봐야 한다.
+
+    Given: 호가 스프레드를 언급한 5번 칸
+    When: 비용어를 센다
+    Then: 「스프레드」로 걸린다
+    """
+    assert "스프레드" in feasibility.cost_terms_in({"note": "상장 초기라 호가 스프레드가 넓다"})
+
+
+def test_the_seed_list_stays_in_its_defined_order() -> None:
+    """
+    목적: 걸린 표현이 «정의된 순서»로 돌아오는 계약을 고정한다.
+
+    회차마다 순서가 달라지면 로그를 대조할 수 없다. 사전을 늘릴 때 순서 계약이
+    깨지지 않는지를 이 테스트가 잡는다.
+
+    Given: 사전의 표현 여럿이 정의 순서와 무관하게 적힌 절
+    When: 비용어를 센다
+    Then: 사전에 적힌 순서 그대로 돌아온다
+    """
+    text = {"note": "호가 스프레드와 체결가, 그리고 수수료와 세금"}
+
+    found = feasibility.cost_terms_in(text)
+
+    assert list(found) == [term for term in feasibility.COST_TERMS if term in found]
+
+
+def test_a_container_with_nothing_inside_is_empty() -> None:
+    """
+    목적: [중요] 게이트의 «빈 값» 판정이 조립부와 «같은» 계약을 고정한다.
+
+    측정 설계 게이트가 같은 계약을 따로 고정한다 — 게이트는 계층상 러너의 helper 를
+    쓸 수 없어 가드가 자리마다 있고, **그래서 자리마다 테스트가 그것을 잡는다.**
+
+    Given: 빈 문자열만 담은 목록이 든 4번 칸
+    When: 검사한다
+    Then: 그 자리를 가리키는 사유가 돌아온다
+    """
+    payload = _filled()
+    payload["data"]["how_to_get"] = [""]
+
+    reason = feasibility.shortfall_reason(payload)
+
+    assert reason is not None
+    assert "how_to_get" in reason

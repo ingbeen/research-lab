@@ -470,3 +470,146 @@ def test_lineage_is_blocked_when_a_source_is_dropped(tmp_path: Path) -> None:
         )
 
     assert not (output_dir / LINEAGE_FILENAME).exists()
+
+
+def test_lineage_is_blocked_when_a_url_does_not_exist(tmp_path: Path, probing: Any) -> None:
+    """
+    목적: [중요] 계보가 낸 URL 도 «실제로 찔러 보는» 계약을 고정한다.
+
+    근거 문서의 머리말은 「아래에 적힌 URL 은 실제로 호출해 살아 있는지 확인했습니다」라고
+    **보증**한다. 그런데 계보 단계만 그 검사를 안 지나면 6번 칸의 주소는 그 보증이 거짓이다.
+
+    [중요] **계보는 앞 단계가 안 낸 주소를 새로 들 수 있다** — 「이건 저 글을 베낀 것」이라며
+    복제를 하나 더 적는 자리가 그것이고, 거기가 **없는 출처를 지어낼 수 있는 입구**다.
+    없는 출처를 지어내는 것은 이 범위에서 유일하게 남은 위조 경로이고,
+    **읽어서는 구별되지 않아** 기계로 막기로 한 것이다.
+
+    Given: 모았던 출처를 다 덮으면서 «새 복제 하나»를 지어낸 계보 응답
+    When: 계보를 돈다
+    Then: 막히고 계보 파일이 안 쓰인다
+    """
+    run_dir = tmp_path / "run"
+    output_dir = _pin(run_dir, tmp_path / "원장.md")
+    _write_pro_evidence(output_dir, ["https://example.com/원본"])
+    fabricated = "https://example.com/지어낸-복제"
+    probing(dead={fabricated})
+
+    with pytest.raises(StepQualityFailed):
+        lineage.run(
+            run_dir,
+            lambda _: _answer(
+                {
+                    "groups": [
+                        {
+                            "origin": {"url": "https://example.com/원본"},
+                            "copies": [{"url": fabricated}],
+                            "why": "같은 숫자가 반복된다",
+                        }
+                    ],
+                    "independent_source_count": 1,
+                }
+            ),
+        )
+
+    assert not (output_dir / LINEAGE_FILENAME).exists()
+
+
+def test_lineage_probes_both_the_origin_and_its_copies(tmp_path: Path, probing: Any) -> None:
+    """
+    목적: 원본과 복제를 «둘 다» 찌르는 계약을 고정한다.
+
+    복제 쪽을 빼면 「저 글을 베꼈다」는 주장 자체의 근거가 안 찔러진다 —
+    그 자리가 비면 계보표는 검증되지 않은 주장을 담은 표가 된다.
+
+    Given: 원본 하나와 복제 하나를 묶은 계보 응답
+    When: 계보를 돈다
+    Then: 두 주소를 다 찔렀다
+    """
+    run_dir = tmp_path / "run"
+    output_dir = _pin(run_dir, tmp_path / "원장.md")
+    _write_pro_evidence(output_dir, ["https://example.com/원본", "https://example.com/복제"])
+    probed = probing()
+
+    lineage.run(
+        run_dir,
+        lambda _: _answer(
+            {
+                "groups": [
+                    {
+                        "origin": {"url": "https://example.com/원본"},
+                        "copies": [{"url": "https://example.com/복제"}],
+                        "why": "같은 숫자가 반복된다",
+                    }
+                ],
+                "independent_source_count": 1,
+            }
+        ),
+    )
+
+    assert sorted(probed) == sorted(["https://example.com/원본", "https://example.com/복제"])
+
+
+def test_lineage_does_not_probe_when_a_cheaper_gate_already_blocked(tmp_path: Path, probing: Any) -> None:
+    """
+    목적: 값싼 게이트가 이미 막은 계보 단계에서 «URL 을 찌르지 않는» 계약을 고정한다.
+
+    URL 검사만 네트워크를 쓴다. 어차피 막힐 단계에서 찌르는 것은 순 낭비이고,
+    남의 서버를 두드리는 일이기도 하다 — 수집·반증이 같은 순서를 지킨다.
+
+    Given: 독립 소스 수가 빠진 계보 응답
+    When: 계보를 돈다
+    Then: 막히고, 아무 URL 도 찌르지 않았다
+    """
+    run_dir = tmp_path / "run"
+    output_dir = _pin(run_dir, tmp_path / "원장.md")
+    _write_pro_evidence(output_dir, ["https://example.com/원본"])
+    probed = probing()
+
+    with pytest.raises(StepQualityFailed):
+        lineage.run(
+            run_dir,
+            lambda _: _answer({"groups": [{"origin": {"url": "https://example.com/원본"}, "copies": []}]}),
+        )
+
+    assert probed == []
+
+
+def test_a_step_is_blocked_when_its_prose_points_outside(tmp_path: Path) -> None:
+    """
+    목적: [중요] 자립성 검사를 «단계»가 실제로 부르는 계약을 고정한다.
+
+    게이트를 만들어 두고 부르는 쪽이 안 부르면 **그 검사는 한 번도 돌지 않고, 그 사실이
+    드러나지 않는다** — 이 계획서가 고치고 있는 고장과 같은 모양이라 게이트 단위
+    테스트만으로는 모자라다.
+
+    [중요] 자리가 «단계»인 것이 핵심이다. 조립부(회차의 마지막 단계)에서 막으면
+    **이미 굳은 앞 단계 산출물**을 두고 실패하고, 다음 회차는 마지막 단계만 다시 도므로
+    **같은 자리에서 똑같이 실패한다** — 세 번이면 후보가 원장에서 걷힌다.
+    단계에서 막으면 다음 회차가 «그 단계»를 다시 돌아 고칠 수 있다.
+
+    Given: 함께 가지 않는 문서를 가리키는 말이 든 계보 응답
+    When: 계보를 돈다
+    Then: 막히고 계보 파일이 안 쓰인다
+    """
+    run_dir = tmp_path / "run"
+    output_dir = _pin(run_dir, tmp_path / "원장.md")
+    _write_pro_evidence(output_dir, ["https://example.com/원본"])
+
+    with pytest.raises(StepQualityFailed):
+        lineage.run(
+            run_dir,
+            lambda _: _answer(
+                {
+                    "groups": [
+                        {
+                            "origin": {"url": "https://example.com/원본"},
+                            "copies": [],
+                            "why": "이 스킬이 예로 든 것과 같은 모양이다",
+                        }
+                    ],
+                    "independent_source_count": 1,
+                }
+            ),
+        )
+
+    assert not (output_dir / LINEAGE_FILENAME).exists()

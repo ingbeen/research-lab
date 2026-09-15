@@ -71,6 +71,14 @@ def shortfall_reason(payload: Mapping[str, Any], *, source_urls: Iterable[str]) 
 
     Returns:
         모자랄 때의 사유, 충분하면 None
+
+    [탈락 2026-09-15] 여기에 **「계보가 복제라 적은 주소를 앞 단계가 1차 출처로 셌나」**를
+    더하려다 걷어냈다. 두 값이 **직교하는 축**이라 애초에 모순이 아니다 —
+    `kind` 는 「1차 연구인가 2차 서술인가」이고 원본/복제는 「최초 발행인가 재게시인가」라,
+    **원논문의 미러는 1차이면서 복제**다. 실측으로 계보 산출물 다섯 중 **셋이 막혔고**
+    (NBER 워킹페이퍼 · 학술지의 원논문 페이지 · 원논문 PDF 미러) 셋 다 정당한 경우였다.
+    품질 실패는 회차 안에서 재시도되지 않으므로 그 오탐은 회차를 통째로 태우고,
+    세 번이면 **후보가 원장에서 걷힌다.**
     """
     count: Any = payload.get(KEY_INDEPENDENT_SOURCE_COUNT)
     if not isinstance(count, int) or isinstance(count, bool):

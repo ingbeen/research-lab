@@ -13,8 +13,9 @@
 [중요] **조립은 러너가 한다.** 에이전트에게 「전부 모아 마크다운으로 내라」고 시키면
 앞 단계의 값을 옮겨 적다 틀리고, **그 고장은 에러를 내지 않는다.**
 
-[중요] 에이전트가 «쓴 문장» 안의 포인터는 여기서 못 막는다 — 그것은 내용 판정이고,
-판정하려 들면 또 하나의 판단자가 된다. 그 자리는 사람이 나중에 본다.
+[중요] 에이전트가 «쓴 문장» 안의 포인터는 **여기서 보지 않는다.** 판정은 `runner/prose_check`
+가 **단계마다** 한다 — 조립은 회차의 마지막 단계라, 여기서 막으면 이미 굳은 앞 단계
+산출물을 두고 실패하고 **다음 회차도 같은 자리에서 똑같이 실패한다**([실측 2026-09-15]).
 """
 
 from datetime import datetime
@@ -235,6 +236,11 @@ def _render(
         _measurement_section(plan),
         _unverified_section(decision, loaded, unverified_urls),
     ]
+
+    # [중요] 자립성은 여기서 «보지 않는다». 조립은 회차의 마지막 단계라, 여기서 막으면
+    # **이미 굳은 앞 단계 산출물**을 두고 실패한다 — 다음 회차는 마지막 단계만 다시 돌고
+    # 그 산출물은 그대로이므로 같은 자리에서 똑같이 실패하고, 세 번이면 후보가 걷힌다.
+    # 판정은 `runner/prose_check` 가 **단계마다** 한다 ([실측 2026-09-15])
     return "\n\n".join(sections).rstrip() + "\n"
 
 
@@ -441,10 +447,14 @@ def _unverified_section(
     그 둘을 가를 수 없다. 그리고 **덮어쓰지 않는다** — 하나가 다른 하나를 밀어내면
     사라진 쪽은 아무 흔적도 남기지 않는다.
     """
+    # [중요] `as_strings` 를 쓰지 않는다. 그것은 문자열이 아닌 항목을 «버리는데**,
+    # 이 칸은 「비는 게 오히려 의심스러운」 자리라 조용히 사라지면 문서가 거짓말을 한다 —
+    # 사전 모양으로 낸 미검증이 통째로 빠지면 「(비어 있습니다)」가 찍힌다.
+    # 문서에 값을 싣는 자리는 전부 `_flatten` 을 지난다
     gathered: list[str] = []
     for found in loaded.values():
-        gathered.extend(payload_helpers.as_strings(found.get("unverified")))
-    gathered.extend(payload_helpers.as_strings(decision.get("unverified_extra")))
+        gathered.extend(_readable(found.get("unverified")))
+    gathered.extend(_readable(decision.get("unverified_extra")))
     gathered.extend(UNJUDGED_URL_NOTE.format(url=url) for url in payload_helpers.as_strings(unverified_urls))
 
     lines = [
@@ -455,7 +465,13 @@ def _unverified_section(
     ]
 
     seen: set[str] = set()
-    unique = [item for item in gathered if not (item in seen or seen.add(item))]
+    unique: list[str] = []
+    for item in gathered:
+        key = _fold_key(item)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(item)
 
     if not unique:
         # [주의] 이 칸이 비는 것은 **오히려 의심스럽다.** 한 회차 조사에서 모르는 게
@@ -465,6 +481,28 @@ def _unverified_section(
 
     lines.extend(f"- {item}" for item in unique)
     return "\n".join(lines)
+
+
+def _readable(value: Any) -> list[str]:
+    """미검증 목록을 «사람이 읽는 줄»들로 편다. 빈 항목은 뺀다."""
+    return [line for item in payload_helpers.as_list(value) if (line := _flatten(item))]
+
+
+def _fold_key(item: str) -> str:
+    """중복 판정에 쓸 열쇠 — «표기 수준»에서 멈춘다.
+
+    완전일치로만 접으면 앞뒤 공백 하나, 끝 마침표 하나 때문에 같은 공백이 여러 줄로
+    실린다. 11번 칸은 **가장 꼼꼼히 읽히는 자리**인데 중복이 섞이면
+    「열린 공백이 몇 개인가」가 읽히지 않는다.
+
+    [중요] **뜻으로 접지 않는다.** 뜻을 비교하기 시작하면 이 조립부가 또 하나의 판단자가
+    되고, 무엇보다 **서로 다른 공백 둘을 하나로 접는 쪽이 중복을 남기는 쪽보다 나쁘다** —
+    사라진 쪽은 아무 흔적도 남기지 않는다. 그래서 같은 말을 다르게 쓴 두 줄은 둘 다 남는다.
+    """
+    # [중요] 대소문자를 «내리지 않는다». 이 칸에는 판정 못 한 URL 이 함께 실리는데
+    # 경로는 대소문자를 가리는 서버가 있어, 내리면 `/Paper.pdf` 와 `/paper.pdf` 가
+    # 한 줄로 접히고 **사라진 쪽은 아무 흔적도 남기지 않는다**
+    return " ".join(item.split()).rstrip(" .·。")
 
 
 def _flatten(value: Any) -> str:

@@ -29,7 +29,7 @@ from research_lab.common_constants import (
     REBUTTAL_FILENAME,
 )
 from research_lab.gate import lineage as lineage_gate
-from research_lab.runner import decision_log, naming, state
+from research_lab.runner import decision_log, naming, prose_check, state, url_check
 from research_lab.runner import payload as payload_helpers
 from research_lab.runner.atomic import atomic_write
 from research_lab.runner.steps import StepQualityFailed
@@ -119,6 +119,19 @@ def run(run_dir: Path, ask: AgentCaller) -> None:
     groups = payload_helpers.as_list(payload.get("groups"))
     independent = payload.get("independent_source_count")
 
+    # [중요] 계보가 낸 주소도 «찔러 본다». 근거 문서의 머리말이 「아래에 적힌 URL 은 실제로
+    # 호출해 살아 있는지 확인했습니다」라고 보증하는데, 이 단계만 그 검사를 안 지나면
+    # 6번 칸의 주소에 한해 그 보증이 거짓이 된다.
+    #
+    # [중요] **계보는 앞 단계가 안 낸 주소를 새로 들 수 있다** — 「이건 저 글을 베낀 것」이라며
+    # 복제를 하나 더 적는 자리가 그것이고, 거기가 없는 출처를 지어낼 수 있는 입구다.
+    # 앞 단계에서 이미 찔렀다는 이유로 생략하면 **새로 들어온 주소만 검사를 비켜 간다.**
+    #
+    # 자리가 «게이트 뒤 · 저장 앞»인 것은 수집과 같다 — 앞에 두면 어차피 막힐 단계에서
+    # 남의 서버를 두드리고, 뒤에 두면 죽은 URL 이 든 파일이 이미 쓰인 뒤다
+    prose_check.assert_self_contained(run_dir, "lineage", payload, what="계보 산출물")
+    url_check.assert_sources_exist(run_dir, "lineage", _cited_sources(groups), what="계보 출처")
+
     with atomic_write(output_dir / LINEAGE_FILENAME) as file:
         json.dump(
             {
@@ -140,6 +153,21 @@ def run(run_dir: Path, ask: AgentCaller) -> None:
         collected_sources=len(sources),
         independent_source_count=independent,
     )
+
+
+def _cited_sources(groups: list[Any]) -> list[Any]:
+    """계보표가 든 출처를 «원본과 복제 가리지 않고» 한 목록으로 편다.
+
+    [중요] 복제 쪽을 빼지 않는다. 「저 글을 베꼈다」는 주장의 근거가 그 복제 주소이고,
+    그것을 안 찌르면 계보표는 **검증되지 않은 주장을 담은 표**가 된다.
+    """
+    cited: list[Any] = []
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        cited.append(group.get("origin"))
+        cited.extend(payload_helpers.as_list(group.get("copies")))
+    return cited
 
 
 def _collected_sources(output_dir: Path) -> list[Any]:

@@ -22,7 +22,7 @@ from research_lab.agent.invoke import AgentResult
 from research_lab.common_constants import PRO_EVIDENCE_FILENAME, SEARCH_QUERIES_FILENAME
 from research_lab.gate import quantified
 from research_lab.gate import queries as query_gate
-from research_lab.runner import decision_log, ledger, naming, state, url_check
+from research_lab.runner import decision_log, ledger, naming, prose_check, state, url_check
 from research_lab.runner import payload as payload_helpers
 from research_lab.runner.atomic import atomic_write
 from research_lab.runner.steps import StepQualityFailed
@@ -154,6 +154,7 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
         if shortfall is None:
             # [중요] 자리가 «정성 표현 게이트 뒤 · 저장 앞»이다. 앞에 두면 곧 기각될 후보의
             # URL 까지 찌르고, 뒤에 두면 **죽은 URL 이 든 파일이 이미 쓰인 뒤**다
+            prose_check.assert_self_contained(run_dir, "collect", payload, what="수집 산출물")
             url_check.assert_sources_exist(run_dir, "collect", payload.get("evidence"), what="수집 출처")
             _store(run_dir, ledger_path, candidate, payload)
             return
