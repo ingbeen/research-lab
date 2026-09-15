@@ -1,0 +1,101 @@
+{
+  "claim": "모기업에서 분할 상장(spin-off)된 자회사를 상장 직후 매수해 12개월 보유한다",
+  "groups": [
+    {
+      "origin": {
+        "title": "Restructuring through spinoffs: The stock market evidence — Penn State 연구 저장소 페이지 (Cusatis, Miles, Woolridge, 1993)",
+        "url": "https://pure.psu.edu/en/publications/restructuring-through-spinoffs-the-stock-market-evidence/",
+        "published": "1993-06"
+      },
+      "copies": [
+        {
+          "title": "Restructuring through spinoffs: The stock market evidence (PDF 미러)",
+          "url": "https://longrunplan.com/wp-content/uploads/2018/09/restructuring-through-spinoffs.pdf"
+        }
+      ],
+      "why": "저자(Cusatis, Miles, Woolridge)·제목·발행월(1993-06)이 완전히 같은 같은 논문이다. longrunplan.com 은 이 논문의 PDF 를 재호스팅한 것일 뿐 독자적 표본이나 추가 분석이 없고, PSU 페이지는 소속 대학이 정리한 같은 논문의 저장소 레코드다. 실제로 읽어봐도 저자·연도·연구기간(1965-1988)·결론('유의미하게 긍정적인 초과수익')이 동일해 소스 수는 1이다."
+    },
+    {
+      "origin": {
+        "title": "The 40% Rule: How to Time Your Entry Into a Spin-Off",
+        "url": "https://stockspinoffinvesting.com/the-40-rule-how-to-time-your-entry-into-a-spin-off/",
+        "published": "2026-03-26"
+      },
+      "copies": [],
+      "why": "본문을 열어보니 S&P Research(1989-2015)·Credit Suisse(1995-2012)·HEC Paris(1992-2008)·Citigroup(2000-2016) 등 목록에 없는 별도 데이터 제공자들의 수치(첫 5거래일 -1.37%, S&P500 대비 -3.7%, 9거래일 만에 40% 거래량 소진 후 바닥 등)를 인용한다. Cusatis(1993)·McConnell(2015) 과 겹치는 숫자·예시가 없어 이 블로그 자체는 독립된 편집물이다."
+    },
+    {
+      "origin": {
+        "title": "The Stock Price Performance of Spin-Off Subsidiaries, Their Parents, and the Spin-Off Ratio (McConnell et al., 2015, Journal of Portfolio Management)",
+        "url": "https://business.purdue.edu/faculty/mcconnell/publications/The%20Stock%20Price...2013%20jpm.2015.42.1.143.pdf",
+        "published": "2015"
+      },
+      "copies": [],
+      "why": "Cusatis(1993)와 저자가 겹치지 않고, '분할비율(spin-off ratio)과 주가 성과의 관계'라는 별도 표본·별도 연구질문을 다룬다. Purdue 교수 본인의 공식 교원 페이지에 걸린 원본이라 독립 출처로 센다."
+    },
+    {
+      "origin": {
+        "title": "기업분할과 주가의 관계에 대한 연구 (최한나·신정순, 2016, Journal of The Korean Data Analysis Society)",
+        "url": "https://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART002161029",
+        "published": "2016"
+      },
+      "copies": [],
+      "why": "국내 학술지(KCI)에 게재된 별도 저자·별도 표본(배당성향과 분할 후 초과수익의 상관관계)의 논문이며, 목록의 다른 어느 출처와도 숫자·예시가 겹치지 않는다."
+    },
+    {
+      "origin": {
+        "title": "인적분할 10곳 중 8곳이 주가 하락 (2016년 이후 45건 분석, 76% 하락)",
+        "url": "https://v.daum.net/v/20230625165400995",
+        "published": "2023-06-25"
+      },
+      "copies": [],
+      "why": "2016년 이후 45건 중 76%(34건) 하락이라는 한국거래소·자본시장연구원 인용 통계는 목록 안 다른 기사와 숫자가 겹치지 않는 이 기사만의 것이다."
+    },
+    {
+      "origin": {
+        "title": "주주가치 훼손 적다던 인적분할 후 재상장.... 역시 개미만 '또' 피봤다",
+        "url": "https://www.ajunews.com/view/20230724152602874",
+        "published": "2023-07-24"
+      },
+      "copies": [],
+      "why": "발행일이 위 다음 기사와 한 달 가까이 떨어져 있고(며칠 내 쏠림이 아님), '2016년 이후 45건·76% 하락'이 아니라 '2023년 재상장 7개사·평균 24일 수익률 6.48%·개별 종목별 수익률'이라는 전혀 다른 표본·수치를 쓴다. 둘 다 한국거래소를 인용하지만 같은 집계를 반복한 것이 아니라 별도 시점에 별도 데이터를 보도한 것이라 복제로 보지 않는다."
+    },
+    {
+      "origin": {
+        "title": "Vivendi spinoffs led by Canal+ lose value in first trading week post-breakup",
+        "url": "https://investing.com/news/stock-market-news/vivendi-spinoffs-led-by-canal-lose-value-in-first-trading-week-postbreakup-3784760",
+        "published": "2024-12-20"
+      },
+      "copies": [],
+      "why": "프랑스 Vivendi 분할이라는 목록에 유일한 사례이고 하락률(Canal+ -33%, Havas -19%, Louis Hachette +8%)도 다른 어느 출처와 겹치지 않는다."
+    },
+    {
+      "origin": {
+        "title": "McConnell, Ozbilgin & Wahal, \"Spin-offs, Ex Ante\", Journal of Business 74(2), 245-280",
+        "url": "https://swahal.github.io/publications/",
+        "published": "2001-04-01"
+      },
+      "copies": [],
+      "why": "같은 McConnell 이 저자로 참여하지만 2015년 JPM 논문과는 공저자·저널·표본기간(1989-95)이 다른 별개 논문이다. 내용상으로는 Cusatis(1993)의 매수전략을 사전적(ex ante)으로 재현해 반대 결론(초과수익 없음)을 낸 것으로 확인돼, Cusatis 논문을 베낀 것이 아니라 그것을 재검증한 독립 실증 연구다."
+    },
+    {
+      "origin": {
+        "title": "To Spin Off or Not To Spin Off? (Stockholm School of Economics, Bachelor Thesis)",
+        "url": "https://arc.hhs.se/download.aspx?MediumId=5371",
+        "published": "2022-05-01"
+      },
+      "copies": [],
+      "why": "2010-2017년 미국 표본을 자체적으로 재분석한 학부 논문으로, 목록의 다른 반증(McConnell 2001, Vivendi, 국내 기사 2건)과 표본기간·수치가 겹치지 않는다. 다만 본문 PDF 텍스트 추출이 실패해 인용문헌 목록까지는 확인하지 못했다(미검증)."
+    }
+  ],
+  "independent_source_count": 9,
+  "unverified": [
+    "Cusatis, Miles, Woolridge(1993) 논문 본문의 구체적 초과수익률 수치는 PDF 텍스트 추출 실패로 확인하지 못했고, PSU 페이지의 초록 요약('유의미하게 긍정적')에만 의존했다",
+    "McConnell et al.(2015, JPM) 논문 본문의 구체적 수치(초과수익률·표본 수)는 PDF 텍스트 추출 실패로 확인하지 못했다",
+    "최한나·신정순(2016) 논문의 구체적 통계 수치(p-value, 초과수익률 등)는 KCI 페이지 초록에 없고 원문 접근 제한으로 확인하지 못했다",
+    "McConnell, Ozbilgin & Wahal(2001) 논문의 완전한 초록·본문은 JSTOR 접근이 막혀 저자 본인 페이지의 요약으로만 확인했다",
+    "Stockholm School of Economics 학부 논문(2022)이 실제로 Cusatis(1993)·McConnell(2015) 등 목록 속 다른 찬성 논문을 인용문헌으로 삼는지는 PDF 텍스트 추출 실패로 확인하지 못했다",
+    "다음(2023-06-25) 기사의 '45건·76%' 통계를 실제로 집계한 기관(어느 증권사·연구소인지)은 기사 본문에서 특정되지 않아 원 데이터 출처까지는 내려가지 못했다",
+    "다음 기사와 아주경제 기사가 서로 같은 한국거래소 발표를 다른 각도로 보도한 것인지, 아니면 완전히 별개의 두 차례 발표를 보도한 것인지는 확인하지 못했다"
+  ]
+}

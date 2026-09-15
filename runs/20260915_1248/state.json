@@ -1,7 +1,13 @@
 {
   "settled": [
     "explore",
-    "collect"
+    "collect",
+    "rebut",
+    "lineage",
+    "feasibility",
+    "mechanism",
+    "measurement",
+    "verdict"
   ],
   "skipped": [
     "explore"

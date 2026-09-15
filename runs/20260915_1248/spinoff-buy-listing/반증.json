@@ -1,0 +1,49 @@
+{
+  "claim": "모기업에서 분할 상장(spin-off)된 자회사를 상장 직후 매수해 12개월 보유한다",
+  "rebuttals": [
+    {
+      "title": "인적분할 10곳 중 8곳이 주가 하락 (2016년 이후 45건 분석, 76% 하락)",
+      "url": "https://v.daum.net/v/20230625165400995",
+      "published": "2023-06-25",
+      "kind": "secondary",
+      "says": "2016년 이후 국내 인적분할 재상장 사례 45건 중 주가가 분할 전보다 오른 곳은 24%(11건)뿐이고 76%(34건)는 하락했다 — '상장 직후 사서 보유하면 이긴다'는 주장과 정반대 방향의 비율이다"
+    },
+    {
+      "title": "주주가치 훼손 적다던 인적분할 후 재상장.... 역시 개미만 '또' 피봤다",
+      "url": "https://www.ajunews.com/view/20230724152602874",
+      "published": "2023-07-24",
+      "kind": "secondary",
+      "says": "2023년 국내 재상장 7개 기업 중 동국씨엠 -50.71%, 동국제강 -42.05%, 한화갤러리아 -39.67%, 코오롱모빌리티 -24.31% 등 개별 종목이 큰 폭의 마이너스 수익률을 기록했다 — 소수의 대박(이수스페셜티케미컬 +187.3%)이 평균을 끌어올렸을 뿐 다수는 손실이었다"
+    },
+    {
+      "title": "Vivendi spinoffs led by Canal+ lose value in first trading week post-breakup",
+      "url": "https://investing.com/news/stock-market-news/vivendi-spinoffs-led-by-canal-lose-value-in-first-trading-week-postbreakup-3784760",
+      "published": "2024-12-20",
+      "kind": "secondary",
+      "says": "Vivendi에서 분할 상장된 Canal+ 는 상장 첫 주 33% 하락(290펜스→194펜스), Havas 는 약 19% 하락(1.80유로→1.46유로)했다 — 분할 직후 매수가 즉시 손실로 이어진 실제 사례다"
+    },
+    {
+      "title": "McConnell, Ozbilgin & Wahal, \"Spin-offs, Ex Ante\", Journal of Business 74(2), 245-280",
+      "url": "https://swahal.github.io/publications/",
+      "published": "2001-04-01",
+      "kind": "primary",
+      "says": "1989-95년 표본으로 Cusatis·Miles·Woolridge(1993)식 spin-off 매수전략을 사전적(ex ante)으로 재현했더니 Fama-French 3-factor 벤치마크 대비 초과수익을 내지 못했다 — 저자 자신이 '사후에는 좋아 보이는 전략이 사전에는 그렇지 않다'고 요약한다. (JSTOR 원문 https://www.jstor.org/stable/10.1086/209672 은 접근이 막혀 직접 열지 못했고, 이 URL은 저자 본인의 연구 목록 페이지다)"
+    },
+    {
+      "title": "To Spin Off or Not To Spin Off? (Stockholm School of Economics, Bachelor Thesis)",
+      "url": "https://arc.hhs.se/download.aspx?MediumId=5371",
+      "published": "2022-05-01",
+      "kind": "secondary",
+      "says": "2010-2017년 미국 spin-off 표본에서 위험조정 전에는 장기 초과수익이 없고, 위험조정 후에는 평균적인 분할 후 기업이 오히려 시장을 하회한다고 결론짓는다 (학부 졸업논문이라 동료심사 없음, PDF 본문 텍스트 추출은 실패해 이 요약은 검색엔진 스니펫에 의존)"
+    }
+  ],
+  "not_found_reason": "",
+  "unverified": [
+    "McConnell·Ozbilgin·Wahal(2001) 논문의 완전한 초록/본문은 JSTOR(로드 실패)와 ResearchGate(403)가 막혀 직접 읽지 못했다 — 검색엔진 스니펫과 저자 본인 페이지의 한 줄 요약으로만 확인했다",
+    "SSE 학부 졸업논문(arc.hhs.se/download.aspx?MediumId=5371)은 실제로 열었으나 PDF가 텍스트로 추출되지 않아 '위험조정 후 시장 하회'라는 결론은 검색엔진 스니펫에 의존한 것이며 본문 표·수치는 확인하지 못했다",
+    "Forbes 「Spinoffs Have Dramatically Underperformed」 기사(2020-01-17, jonathanboyar)는 403으로 막혀 열지 못했고 내용을 검증하지 못했다",
+    "CBS 석사논문 「Spin-off performance: An unrelenting anomaly」(2023-11-14 게시 확인)는 실제로 열었으나 본문 추출이 안 됐고, 제목상 '이상현상이 꺾이지 않는다'는 반대 방향 결론일 가능성이 있어 반증으로 쓰지 않았다 — 이 논문이 정말 반증을 반박하는지는 미검증이다",
+    "한국 76% 하락 통계(다음 기사)의 원출처(어느 증권사·연구소가 45건을 집계했는지)는 기사 안에서 확인하지 못했다",
+    "Invesco S&P Spin-Off ETF(CSD)는 최근 1년 기준 시장을 크게 상회했다는 결과만 나와 반증으로 쓰지 못했다 — 다만 이 ETF는 상장 후 4년 이내 종목을 담는 구조라 '상장 직후 매수·12개월 보유'와 정확히 같은 설계가 아니다"
+  ]
+}
