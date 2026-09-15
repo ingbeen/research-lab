@@ -48,7 +48,14 @@ def shortfall_reason(payload: Mapping[str, Any]) -> str | None:
     if rebuttals:
         return None
 
-    if not str(payload.get(KEY_NOT_FOUND_REASON, "")).strip():
+    # [중요] `str(payload.get(key, ""))` 을 쓰지 않는다. 열쇠가 «있고» 값이 `null` 이면
+    # 기본값이 안 쓰이고 `str(None)` = `"None"` 이 되어 **이 게이트가 그대로 통과한다** —
+    # 「찾아봤는데 없었다」와 「안 찾았다」를 가르라고 세운 자리가 정확히 무력해진다.
+    #
+    # [주의] 러너의 공유 helper 를 못 쓴다. 계층 계약상 **게이트는 러너를 import 하지
+    # 않는다.** 그래서 이 한 줄이 각 게이트에 흩어지고, **그 대가로 테스트가 자리마다 있다**
+    reason = payload.get(KEY_NOT_FOUND_REASON)
+    if reason is None or not str(reason).strip():
         return (
             f"반증이 0건인데 «왜 못 찾았는지»(`{KEY_NOT_FOUND_REASON}`)가 비어 있습니다. "
             f"0건 자체는 정상 결과이지만, 적어 두지 않으면 "

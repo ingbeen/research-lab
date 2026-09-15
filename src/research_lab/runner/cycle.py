@@ -122,7 +122,7 @@ def run_cycle(
     # 「읽고 · 고치고 · 통째로 바꾸는」 동안 다른 회차가 `append` 하면 그 줄이 조용히 사라진다.
     # 그래서 원장을 먼저 잡는다. 순서를 뒤집으면 두 회차가 서로를 기다릴 수 있다
     with state.lock(ledger_path.parent), state.lock(run_dir):
-        saved = state.load(run_dir) or {}
+        saved = state.load_or_empty(run_dir)
         settled: list[str] = list(saved.get("settled", []))
         skipped: list[str] = list(saved.get("skipped", []))
 
@@ -353,6 +353,6 @@ def _persist(run_dir: Path, settled: list[str], skipped: list[str]) -> None:
     [중요] 읽어서 «얹는다». 통째로 덮어쓰면 수집이 방금 박아 둔 그 회차의 후보가 지워지고,
     한 단계 뒤 반증이 「후보 없음」을 만난다 — **원인과 증상이 갈라져** 되짚기 어려워진다.
     """
-    saved = state.load(run_dir) or {}
+    saved = state.load_or_empty(run_dir)
     saved.update({"settled": settled, "skipped": skipped})
     state.save(run_dir, saved)

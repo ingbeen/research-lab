@@ -8,6 +8,7 @@
 """
 
 import argparse
+import contextlib
 import json
 import os
 import sys
@@ -419,7 +420,11 @@ def _dossier_of(run_dir: Path) -> Path | None:
     try:
         candidate = state.pinned_candidate(run_dir)
         return dossier.path_for(run_dir, candidate) if candidate is not None else None
-    except Exception:
+    except Exception as unresolved:
+        # [중요] 삼키되 «조용히» 삼키지 않는다. 안 남기면 「문서를 안 썼다」와
+        # 「문서는 썼는데 검사 범위에서 빠졌다」가 **글자 하나 다르지 않고**,
+        # 이 저장소는 PUBLIC 이라 뒤쪽은 사람이 즉시 알아야 하는 상태다
+        _note_unresolved_dossier(run_dir, unresolved)
         # [중요] **여기서 터뜨리면 「마지막 그물」이 통째로 안 쳐진다.** 완주한 회차가
         # 산출물을 다 만들어 놓고 자격증명 검사 «직전»에 죽으며, 종료 코드도 정해진
         # 다섯 중 어느 것도 아니게 되어 무인 실행에서는 무슨 일이 났는지 알 수 없다.
@@ -428,6 +433,35 @@ def _dossier_of(run_dir: Path) -> Path | None:
         # 앞으로 늘어날 수 있고 **그때 이 자리가 조용히 다시 깨지기** 때문이다.
         # 문서를 못 찾아도 실행 폴더와 원장은 그대로 검사받는다
         return None
+
+
+def _note_unresolved_dossier(run_dir: Path, unresolved: Exception) -> None:
+    """근거 문서 경로를 못 구했다는 사실을 남긴다 — **남기다 터지지 않는다.**
+
+    Args:
+        run_dir: 그 반복의 실행 폴더
+        unresolved: 경로를 못 구하게 만든 예외
+
+    [중요] 기록이 실패해도 삼킨다. 이 함수를 부르는 자리가 「마지막 그물」을 치기 직전이라,
+    기록 때문에 터지면 **고치려던 것보다 나쁜 상태**가 된다.
+
+    [중요] 결정 로그에는 **예외 원문을 싣지 않는다.** 그 문구에는 실행 폴더의 절대경로가
+    들어 있을 수 있고, 이 저장소는 PUBLIC 이다. 사람이 고칠 때 필요한 원문은
+    저장소 «밖»인 화면으로 보낸다 — 자격증명 발견을 알리는 자리와 같은 방식이다.
+    """
+    print(f"[주의] 근거 문서 경로를 못 구해 자격증명 검사에서 빠집니다 — {unresolved}", file=sys.stderr)
+    with contextlib.suppress(Exception):
+        # [중요] 열쇠 이름을 여기서 «지어내지» 않는다. 실패 줄의 모양은 `decision_log` 의
+        # 계약이고, 다른 실패 줄이 전부 `gate` 와 `reason` 을 쓴다. 비슷하지만 다른 이름을
+        # 쓰면 **「무엇이 왜 실패했나」를 `reason` 으로 훑는 쪽이 이 줄만 건너뛴다** —
+        # 하필 이 줄이 그 훑기로 드러나라고 만든 줄이다
+        decision_log.record(
+            run_dir,
+            "gate",
+            decision_log.EVENT_FAILED,
+            gate="dossier-path",
+            reason="근거 문서 경로를 구하지 못해 자격증명 검사 범위에서 빠졌습니다",
+        )
 
 
 def _report(
@@ -579,10 +613,19 @@ def _latest_unfinished_run_dir() -> Path | None:
 
         try:
             saved = state.load(run_dir)
-        except (OSError, json.JSONDecodeError):
+        except (OSError, json.JSONDecodeError, UnicodeDecodeError) as unreadable:
             # 깨진 상태 파일이다. 이어받을 수 없으므로 건너뛰고 새 회차를 시작한다 —
             # 여기서 터뜨리면 그 폴더 하나 때문에 **이후 모든 회차가 서고**,
-            # 무인 실행에서는 그 사실을 며칠 뒤에나 알게 된다
+            # 무인 실행에서는 그 사실을 며칠 뒤에나 알게 된다.
+            #
+            # [중요] 인코딩 오류를 빠뜨리지 않는다(`ValueError` 계열이라 앞의 둘에 안 걸린다).
+            # 이 판정은 회차 시작을 적은 «뒤»에 오므로, 여기서 죽으면 종료가 안 적혀
+            # **매일 밤 「중단」으로 읽힌다** — 정작 봐야 할 곳은 그 폴더 하나다.
+            #
+            # [중요] 건너뛰되 «조용히» 건너뛰지 않는다. 안 알리면 그 폴더는 매일 밤 말없이
+            # 버려지는데, 후보가 「판 것」으로 표시되지 않았으므로 **다음 회차가 원장에서
+            # 같은 후보를 다시 꺼내 수집을 다시 산다.** 아무 기록에도 그 폴더 이름이 없다
+            print(f"[주의] 상태 파일을 읽을 수 없어 건너뜁니다 — {run_dir}: {unreadable}", file=sys.stderr)
             continue
 
         if saved is None:

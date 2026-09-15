@@ -229,7 +229,7 @@ def _render(
         _evidence_section(
             "## 8. 반증",
             payload_helpers.as_list(rebuttal.get("rebuttals")),
-            _plain(rebuttal.get("not_found_reason")),
+            payload_helpers.as_text(rebuttal.get("not_found_reason")),
         ),
         _named_slots("## 9. 왜 사라졌을 수 있나", mechanism.get(mechanism_gate.KEY_DECAY), mechanism_gate.DECAY_FIELDS),
         _measurement_section(plan),
@@ -314,7 +314,7 @@ def _named_slots(heading: str, section: Any, fields: tuple[tuple[str, str], ...]
 def _feasibility_section(heading: str, section: Any, fields: tuple[tuple[str, str], ...], extra: Any) -> str:
     """4번 칸과 5번 칸 — 물은 자리를 하나씩 펼친다."""
     lines = [heading, ""]
-    market = _plain(extra.get("market")) if isinstance(extra, dict) else ""
+    market = payload_helpers.as_text(extra.get("market")) if isinstance(extra, dict) else ""
     if market:
         lines.extend([f"**대상 시장**: {market}", ""])
     for key, label in fields:
@@ -344,7 +344,10 @@ def _lineage_section(lineage: dict[str, Any]) -> str:
 
     for index, group in enumerate(groups, start=1):
         if not isinstance(group, dict):
-            lines.extend([f"### 덩어리 {index}", "", str(group), ""])
+            # [중요] 이 자리도 «펴서» 적는다. 모양이 어긋난 덩어리는 대개 목록으로 오는데,
+            # 계보 게이트는 URL 이 하나도 없으면 그런 덩어리를 그냥 지나치므로
+            # **여기까지 도달한다.** `str()` 로 찍으면 6번 칸에 파이썬 표기가 실린다
+            lines.extend([f"### 덩어리 {index}", "", _text(group), ""])
             continue
 
         # [주의] 한 번 꺼내 두고 판정한다. `group.get(...)` 를 그때그때 부르면
@@ -464,35 +467,39 @@ def _unverified_section(
     return "\n".join(lines)
 
 
-def _text(value: Any) -> str:
-    """값을 문서에 실을 문장으로 만든다. 비었으면 그 사실을 «보이게» 적는다.
+def _flatten(value: Any) -> str:
+    """값을 «사람이 읽는 한 줄»로 편다. 비었으면 빈 문자열이다.
 
     [중요] 목록을 `str()` 로 바로 찍지 않는다. 그러면 `['국내 ETF 일봉']` 처럼
     **파이썬 표기가 그대로 문서에 실린다** — 필요한 데이터도 격자도 목록으로 오므로
     이 문서에서 가장 자주 읽히는 자리들이 코드 조각처럼 보인다. 여기는 사람이 읽는
     산출물이고, 그 사람은 이 저장소를 열 수 없다.
+
+    [중요] **문서에 값을 싣는 자리는 전부 이 함수를 지난다.** 한 자리만 `str()` 을 쓰면
+    그 자리에서만 같은 고장이 나고, 나머지가 멀쩡하니 **테스트도 눈도 그 한 곳을 놓친다** —
+    실제로 표를 만드는 쪽이 그렇게 빠져 있었다.
+
+    **빈 값을 여기서 표기하지 않는** 이유는 부르는 쪽마다 그 표기가 다르기 때문이다 —
+    절은 「적히지 않았습니다」, 표 한 칸은 `-`. 여기서 정하면 둘 중 하나가 틀린다.
     """
+    # [중요] **한 겹만 펴면 안 된다.** 격자의 `items` 타입을 일부러 안 묶어 두었으므로
+    # 날짜 «구간»이 목록의 목록으로, 데이터 목록이 사전의 목록으로 오는 것이 정상이다.
+    # 한 겹만 펴면 그 안쪽이 `str()` 을 타서 **바로 이 함수가 막으려던 표기가 그대로 나온다**
     if isinstance(value, list | tuple):
-        joined = " · ".join(_plain(item) for item in value if _plain(item))
-        return joined or EMPTY_SLOT
+        return " · ".join(flattened for flattened in (_flatten(item) for item in value) if flattened)
 
     if isinstance(value, dict):
         # [중요] 절도 «비어 있지 않은 값»이라 게이트를 통과한다. 그대로 찍으면
         # `{'kr': '원화 기준'}` 이 되어 목록과 똑같은 고장이 난다
-        joined = " · ".join(f"{key}: {_plain(item)}" for key, item in value.items() if _plain(item))
-        return joined or EMPTY_SLOT
+        pairs = ((key, _flatten(item)) for key, item in value.items())
+        return " · ".join(f"{key}: {flattened}" for key, flattened in pairs if flattened)
 
-    return _plain(value) or EMPTY_SLOT
+    return payload_helpers.as_text(value)
 
 
-def _plain(value: Any) -> str:
-    """값을 «사람이 읽는» 문자열로 만든다. 없으면 빈 문자열이다.
-
-    [중요] `str()` 을 바로 쓰지 않는다. JSON 의 `null` 은 파이썬에서 `None` 이 되고
-    `str(None)` 은 **`"None"` 이라는 «내용이 있는» 문자열**이 된다 — 비었는지 보는 검사를
-    통과하고, 그대로 문서에 찍힌다. 「반증 0건」 옆에 사유랍시고 `None` 이 붙는 식이다.
-    """
-    return "" if value is None else str(value).strip()
+def _text(value: Any) -> str:
+    """절 한 자리에 실을 문장으로 만든다. 비었으면 그 사실을 «보이게» 적는다."""
+    return _flatten(value) or EMPTY_SLOT
 
 
 def _cell(value: Any) -> str:
@@ -500,6 +507,12 @@ def _cell(value: Any) -> str:
 
     [중요] 세로선을 이스케이프한다. 제목이나 인용문에 세로선이 섞이면 **표가 통째로
     깨지면서 에러는 나지 않는다** — 읽는 사람에게는 그냥 이상한 문서로 보인다.
+
+    [중요] 펴기는 `_flatten` 이 한다. 여기서 `str()` 을 따로 쓰면 목록이 든 칸에서만
+    파이썬 표기가 새고, **출처 표는 이 문서에서 가장 많이 읽히는 자리다.**
+
+    빈 칸이 「적히지 않았습니다」가 아니라 `-` 인 것은 **표의 폭** 때문이다 —
+    한 칸에 긴 문장이 들어가면 그 줄 전체가 읽기 어려워진다.
     """
-    written = str(value).strip() if value is not None else ""
-    return written.replace("|", "\\|").replace("\n", " ") or "-"
+    written = _flatten(value).replace("|", "\\|").replace("\n", " ")
+    return written or "-"

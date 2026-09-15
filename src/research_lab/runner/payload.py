@@ -17,6 +17,27 @@
 from typing import Any
 
 
+def as_text(value: Any) -> str:
+    """문자열이어야 하는 값을 «없음»과 구별해 꺼낸다.
+
+    [중요] `str(value)` 를 바로 쓰지 않는다. JSON 의 `null` 은 파이썬에서 `None` 이 되고
+    `str(None)` 은 **`"None"` 이라는 «내용이 있는» 문자열**이다 — 비었는지 보는 검사를
+    전부 통과하고 그대로 문서·파일명·판정에 실린다.
+
+    [중요] **`dict.get(key, "")` 의 기본값으로는 못 막는다.** 열쇠가 «있고» 값이 `null` 이면
+    기본값이 아예 안 쓰이기 때문이다. 이 고장이 실제로 세 자리에 있었다 — 반증 사유가
+    문서에 `None` 으로 실리고, 반증 게이트가 그 `None` 을 「사유가 적혔다」로 읽어
+    **통과시키고**, 후보 식별자가 `None` 이 되어 문서 파일명이 `..._None.md` 가 됐다.
+
+    Args:
+        value: 에이전트가 낸 값. 무엇이든 들어올 수 있다
+
+    Returns:
+        앞뒤 공백을 턴 문자열. 값이 없으면 빈 문자열
+    """
+    return "" if value is None else str(value).strip()
+
+
 def as_list(value: Any) -> list[Any]:
     """목록이어야 하는 값을 목록으로만 받는다.
 
@@ -54,5 +75,5 @@ def urls_in(sources: Any) -> set[str]:
     Returns:
         비어 있지 않은 URL 들
     """
-    found = {str(item.get("url", "")).strip() for item in as_list(sources) if isinstance(item, dict)}
+    found = {as_text(item.get("url")) for item in as_list(sources) if isinstance(item, dict)}
     return {url for url in found if url}

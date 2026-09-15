@@ -176,8 +176,8 @@ def run(run_dir: Path, ask: AgentCaller) -> None:
             # [중요] `str()` 을 바로 쓰지 않는다. 예전 판이나 손으로 고친 파일에 `null` 이
             # 들어 있으면 `str(None)` 이 **`"None"` 이라는 «내용이 있는» 문자열**이 되어
             # 「못 읽었다」 안내가 안 나가고, 에이전트가 그 말을 **시장 이름으로 읽는다**
-            market=_plain(feasible.get("market")),
-            instrument=_plain(execution.get("instrument")) if isinstance(execution, dict) else "",
+            market=payload_helpers.as_text(feasible.get("market")),
+            instrument=payload_helpers.as_text(execution.get("instrument")) if isinstance(execution, dict) else "",
             params=payload_helpers.as_list(collected.get("params")),
         )
     )
@@ -221,7 +221,12 @@ def _store(
         stored[key] = payload.get(key)
     for key, _ in measurement_gate.GRID_FIELDS:
         stored[key] = payload_helpers.as_list(payload.get(key))
-    stored[measurement_gate.KEY_SINGLE_VALUE_REASON] = str(payload.get(measurement_gate.KEY_SINGLE_VALUE_REASON, ""))
+    # [중요] `str()` 을 바로 쓰지 않는다. 열쇠가 «있는데 값이 null» 이면 기본값이 안 먹고
+    # `str(None)` = `"None"` 이 저장된다 — 10번 칸의 빈 자리 검사는 그것을 «찼다»로 읽어
+    # 건너뛰지 않으므로, **저장소 밖으로 나가는 문서에 `None` 이 실린다**
+    stored[measurement_gate.KEY_SINGLE_VALUE_REASON] = payload_helpers.as_text(
+        payload.get(measurement_gate.KEY_SINGLE_VALUE_REASON)
+    )
     stored["unverified"] = payload_helpers.as_list(payload.get("unverified"))
 
     with atomic_write(output_dir / MEASUREMENT_FILENAME) as file:
@@ -239,16 +244,11 @@ def _store(
     )
 
 
-def _plain(value: Any) -> str:
-    """값을 문자열로 만들되 «없음»은 빈 문자열로 둔다 — `None` 이 `"None"` 이 되지 않게."""
-    return "" if value is None else str(value).strip()
-
-
 def _describe(param: Any) -> str:
     """파라미터 축 하나를 프롬프트에 실을 한 줄로 만든다."""
     if not isinstance(param, dict):
         return str(param)
-    name = str(param.get("name", "")).strip() or "(이름 없음)"
-    unit = str(param.get("unit", "")).strip()
+    name = payload_helpers.as_text(param.get("name")) or "(이름 없음)"
+    unit = payload_helpers.as_text(param.get("unit"))
     candidates = param.get("candidates")
     return f"{name} · 단위 {unit or '없음'} · 후보값 {candidates}"

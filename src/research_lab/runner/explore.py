@@ -188,7 +188,7 @@ def _store(ledger_path: Path, candidates: list[Any]) -> tuple[int, list[str], li
 def _text_of(candidate: Any, key: str) -> str:
     """후보 항목에서 문자열 한 칸을 꺼낸다. 모양이 어긋난 항목은 빈 문자열로 돌린다."""
     if isinstance(candidate, dict):
-        return str(candidate.get(key, "")).strip()
+        return payload_helpers.as_text(candidate.get(key))
     if isinstance(candidate, str) and key == "claim":
         return candidate.strip()
     return ""

@@ -210,7 +210,7 @@ def _store(run_dir: Path, ledger_path: Path, candidate: ledger.Entry, payload: d
         # 예전에 담긴 후보에는 식별자가 없다. 그 후보를 두고 에이전트를 어차피 불렀으므로
         # 여기서 박으면 «별도 호출이 들지 않는다» — 이것이 이미 쌓인 후보도
         # 짧은 폴더명을 얻는 경로다
-        supplied = str(payload.get("identifier", "")).strip()
+        supplied = payload_helpers.as_text(payload.get("identifier"))
         if supplied:
             identifier = ledger.assign_identifier(ledger_path, candidate.claim, supplied) or None
 

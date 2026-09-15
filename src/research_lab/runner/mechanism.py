@@ -242,8 +242,8 @@ def _describe(source: Any) -> str:
     """출처 한 건을 프롬프트에 실을 한 줄로 만든다."""
     if not isinstance(source, dict):
         return f"- {source}"
-    title = str(source.get("title", "")).strip() or "(제목 없음)"
-    published = str(source.get("published", "")).strip() or "unknown"
-    says = str(source.get("says", "")).strip()
+    title = payload_helpers.as_text(source.get("title")) or "(제목 없음)"
+    published = payload_helpers.as_text(source.get("published")) or "unknown"
+    says = payload_helpers.as_text(source.get("says"))
     line = f"- [{source.get('side', '?')}] {title} · {published} · {source.get('url', '')}"
     return f"{line}\n  {says}" if says else line

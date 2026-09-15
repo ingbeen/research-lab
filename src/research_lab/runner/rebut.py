@@ -131,7 +131,7 @@ def run(run_dir: Path, ask: AgentCaller) -> None:
             {
                 "claim": candidate.claim,
                 "rebuttals": rebuttals,
-                "not_found_reason": str(payload.get("not_found_reason", "")),
+                "not_found_reason": payload_helpers.as_text(payload.get("not_found_reason")),
                 "unverified": payload_helpers.as_list(payload.get("unverified")),
             },
             file,
@@ -171,7 +171,11 @@ def _overlap_with_pro_evidence(output_dir: Path, rebuttals: list[Any]) -> int:
 
     try:
         loaded: Any = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        # [중요] 인코딩 오류도 함께 잡는다. `UnicodeDecodeError` 는 `OSError` 가 아니라
+        # `ValueError` 라, 빠뜨리면 위 「못 재면 0」이라는 계약이 깨진다. 터지는 자리가
+        # 나쁘다 — 계측은 **에이전트를 이미 부른 뒤**라 그 회차는 돈을 다 쓰고 산출물은
+        # 못 남기고, 파일이 그대로 남아 **다음 회차도 같은 자리에서 죽는다**
         return 0
 
     if not isinstance(loaded, dict):

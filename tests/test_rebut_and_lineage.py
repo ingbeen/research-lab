@@ -137,6 +137,94 @@ def test_rebut_records_overlap_with_pro_evidence(tmp_path: Path) -> None:
     assert judged[0]["overlap_with_pro_evidence"] == 1
 
 
+def test_rebut_survives_a_pro_evidence_file_with_broken_encoding(tmp_path: Path) -> None:
+    """
+    목적: [중요] 앞 단계 파일의 «인코딩»이 깨져도 이 단계가 죽지 않는 계약을 고정한다.
+
+    이 값은 계측이라 「못 재면 0」이 계약인데, `UnicodeDecodeError` 는 `OSError` 가 아니라
+    `ValueError` 라서 「파일 없음」과 「JSON 깨짐」만 잡으면 **그대로 빠져나간다.**
+
+    터지는 자리가 나쁘다 — 계측은 **에이전트를 이미 부른 뒤**라, 그 회차는 돈을 다 쓰고
+    산출물은 못 남긴다. 그리고 파일이 그대로 남으므로 **다음 회차도 같은 자리에서 죽는다.**
+
+    Given: 한글 중간에서 끊겨 UTF-8 로 못 읽는 찬성 근거 파일
+    When: 반증을 돈다
+    Then: 예외 없이 끝나고, 겹친 수가 0 으로 남는다
+    """
+    run_dir = tmp_path / "run"
+    output_dir = _pin(run_dir, tmp_path / "원장.md")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    broken = ('{"evidence": [{"says": "한 문장"'.encode())[:-2]
+    (output_dir / PRO_EVIDENCE_FILENAME).write_bytes(broken)
+
+    rebut.run(
+        run_dir,
+        lambda _: _answer({"queries": QUERIES, "rebuttals": [{"url": "https://example.com/반증만"}]}),
+    )
+
+    judged = [e for e in decision_log.read(run_dir) if e["event"] == decision_log.EVENT_JUDGED]
+    assert judged[0]["overlap_with_pro_evidence"] == 0
+
+
+def test_a_null_not_found_reason_is_not_stored_as_the_word_none(tmp_path: Path) -> None:
+    """
+    목적: [중요] 반증 사유가 «`null`» 이어도 `"None"` 으로 저장되지 않는 계약을 고정한다.
+
+    이 값은 문서의 반증 칸으로 그대로 나간다. `str(None)` = `"None"` 이 저장되면
+    「0건」 옆에 사유랍시고 `None` 이 붙고, **받는 사람은 그것이 무슨 뜻인지 알 길이 없다.**
+
+    Given: 반증이 있고 사유 열쇠가 `null` 인 응답
+    When: 반증을 돈다
+    Then: 저장된 사유가 빈 문자열이다
+    """
+    run_dir = tmp_path / "run"
+    output_dir = _pin(run_dir, tmp_path / "원장.md")
+
+    rebut.run(
+        run_dir,
+        lambda _: _answer(
+            {"queries": QUERIES, "rebuttals": [{"url": "https://example.com/반증"}], "not_found_reason": None}
+        ),
+    )
+
+    written = json.loads((output_dir / REBUTTAL_FILENAME).read_text(encoding="utf-8"))
+    assert written["not_found_reason"] == ""
+
+
+def test_lineage_survives_a_source_file_with_broken_encoding(tmp_path: Path) -> None:
+    """
+    목적: [중요] 앞 단계 파일의 «인코딩»이 깨져도 계보가 그 파일만 건너뛰는 계약을 고정한다.
+
+    위 반증과 같은 갈래다. 이쪽은 「앞 단계가 실체 없음으로 끝나 파일이 비거나 없을 수
+    있고 그것은 정상 결과」가 계약인데, 인코딩 갈래만 그 계약 밖으로 샌다.
+
+    Given: 찬성 근거 파일의 인코딩이 깨지고 반증 파일은 멀쩡한 회차
+    When: 계보를 돈다
+    Then: 예외 없이 끝나고, 모은 출처가 반증 쪽 하나뿐이다
+    """
+    run_dir = tmp_path / "run"
+    output_dir = _pin(run_dir, tmp_path / "원장.md")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    broken = ('{"evidence": [{"url": "https://example.com/한글"'.encode())[:-2]
+    (output_dir / PRO_EVIDENCE_FILENAME).write_bytes(broken)
+    (output_dir / REBUTTAL_FILENAME).write_text(
+        json.dumps({"rebuttals": [{"url": "https://example.com/반증"}]}, ensure_ascii=False), encoding="utf-8"
+    )
+
+    lineage.run(
+        run_dir,
+        lambda _: _answer(
+            {
+                "groups": [{"origin": {"url": "https://example.com/반증"}, "copies": [], "why": "하나뿐이다"}],
+                "independent_source_count": 1,
+            }
+        ),
+    )
+
+    judged = [e for e in decision_log.read(run_dir) if e["event"] == decision_log.EVENT_JUDGED]
+    assert judged[0]["collected_sources"] == 1
+
+
 def test_rebut_is_blocked_when_the_field_is_missing(tmp_path: Path) -> None:
     """
     목적: 반증 칸이 없는 응답이 그 회차를 «미완성»으로 만드는 계약을 고정한다.

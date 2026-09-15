@@ -70,6 +70,23 @@ def test_empty_rebuttals_without_a_reason_are_blocked() -> None:
     assert rebuttal.shortfall_reason({"rebuttals": [], "not_found_reason": "   "}) is not None
 
 
+def test_a_null_reason_is_blocked_like_an_empty_one() -> None:
+    """
+    목적: [중요] 사유가 «`null`» 이어도 막는 계약을 고정한다.
+
+    `str(payload.get(key, ""))` 은 **열쇠가 있고 값이 `null` 일 때 기본값이 안 쓰인다.**
+    `str(None)` 은 `"None"` 이라는 내용 있는 문자열이라, 바로 위 검사를 **통과해 버린다** —
+    이 게이트가 세워진 이유(「찾아봤는데 없었다」와 「안 찾았다」를 가른다)가 정확히 무력해진다.
+
+    그리고 그렇게 통과한 값은 그대로 저장돼 **문서의 반증 칸에 `None` 으로 실린다.**
+
+    Given: 반증 0건이고 사유가 `null` 인 산출물
+    When: 검사한다
+    Then: 빈 사유와 «같게» 막힌다
+    """
+    assert rebuttal.shortfall_reason({"rebuttals": [], "not_found_reason": None}) is not None
+
+
 def test_rebuttals_in_a_wrong_shape_are_blocked() -> None:
     """
     목적: 목록 자리에 다른 것이 와도 «통과되지 않는» 계약을 고정한다.

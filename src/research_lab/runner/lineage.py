@@ -169,7 +169,10 @@ def _read_sources(path: Path, key: str) -> list[dict[str, Any]]:
 
     try:
         loaded: Any = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        # [중요] 인코딩 오류도 함께 잡는다. `UnicodeDecodeError` 는 `OSError` 가 아니라
+        # `ValueError` 라, 빠뜨리면 위 「읽기에 실패하면 빈 목록」이라는 계약이 그 갈래에서만
+        # 깨진다 — 한쪽 파일이 깨졌을 뿐인데 **계보 단계가 통째로 죽는다**
         return []
 
     if not isinstance(loaded, dict):
@@ -178,19 +181,19 @@ def _read_sources(path: Path, key: str) -> list[dict[str, Any]]:
     return [
         item
         for item in payload_helpers.as_list(loaded.get(key))
-        if isinstance(item, dict) and str(item.get("url", "")).strip()
+        if isinstance(item, dict) and payload_helpers.as_text(item.get("url"))
     ]
 
 
 def _url_of(source: Any) -> str:
     """출처에서 URL 을 꺼낸다."""
-    return str(source.get("url", "")).strip() if isinstance(source, dict) else ""
+    return payload_helpers.as_text(source.get("url")) if isinstance(source, dict) else ""
 
 
 def _describe(source: Any) -> str:
     """출처 한 건을 프롬프트에 실을 한 줄로 만든다."""
     if not isinstance(source, dict):
         return f"- {source}"
-    title = str(source.get("title", "")).strip() or "(제목 없음)"
-    published = str(source.get("published", "")).strip() or "unknown"
+    title = payload_helpers.as_text(source.get("title")) or "(제목 없음)"
+    published = payload_helpers.as_text(source.get("published")) or "unknown"
     return f"- [{source.get('side', '?')}] {title} · {published} · {_url_of(source)}"

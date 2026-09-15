@@ -229,7 +229,7 @@ def _store(
     """판정을 파일로 남기고 근거 문서를 조립한다."""
     decision = {
         "claim": candidate.claim,
-        verdict_gate.KEY_VERDICT: str(payload.get(verdict_gate.KEY_VERDICT, "")).strip(),
+        verdict_gate.KEY_VERDICT: payload_helpers.as_text(payload.get(verdict_gate.KEY_VERDICT)),
         verdict_gate.KEY_REASON: payload.get(verdict_gate.KEY_REASON),
         verdict_gate.KEY_CRITERIA: payload.get(verdict_gate.KEY_CRITERIA),
         "unverified_extra": payload_helpers.as_list(payload.get("unverified_extra")),

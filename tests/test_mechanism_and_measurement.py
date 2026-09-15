@@ -281,6 +281,28 @@ def test_measurement_writes_its_own_file(prepared: Any) -> None:
     assert written["baseline"]
 
 
+def test_a_null_single_value_reason_is_not_stored_as_the_word_none(prepared: Any) -> None:
+    """
+    목적: [중요] JSON 의 `null` 이 «"None"» 이라는 글자로 저장되지 않는 계약을 고정한다.
+
+    `str(None)` 은 `"None"` 이라는 **내용이 있는 문자열**이다. 이 값은 10번 칸의
+    「격자가 한 값뿐인 이유」로 나가는데, 비었는지 보는 가드가 그것을 «찼다»로 읽어
+    건너뛰지 않는다 — **저장소 밖으로 나가는 문서에 `None` 이 실린다.**
+
+    이 모듈에는 그것을 막으려고 만든 함수가 이미 있는데 **이 한 줄만 안 썼다.**
+
+    Given: 그 열쇠가 «있고» 값이 `null` 인 응답
+    When: 단계를 돈다
+    Then: 저장된 값이 빈 문자열이다
+    """
+    ready = prepared(through=BEFORE_MEASUREMENT)
+
+    measurement.run(ready.run_dir, lambda _: _answer(_measurement_payload(single_value_reason=None)))
+
+    written = json.loads((ready.output_dir / MEASUREMENT_FILENAME).read_text(encoding="utf-8"))
+    assert written["single_value_reason"] == ""
+
+
 def test_measurement_does_not_mark_the_candidate_explored(prepared: Any) -> None:
     """
     목적: 이 단계도 「판 것」 표시를 «하지 않는» 계약을 고정한다.

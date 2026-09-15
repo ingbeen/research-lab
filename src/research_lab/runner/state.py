@@ -83,6 +83,33 @@ def save(run_dir: Path, payload: Mapping[str, Any]) -> None:
         json.dump(payload, file, ensure_ascii=False, indent=2)
 
 
+def load_or_empty(run_dir: Path) -> dict[str, Any]:
+    """상태를 읽되 **읽을 수 없으면 빈 상태로 다룬다.**
+
+    Args:
+        run_dir: 그 회차의 실행 폴더
+
+    Returns:
+        저장된 상태. 없거나 읽히지 않으면 빈 사전
+
+    [중요] 「읽어서 얹고 다시 쓰는」 자리가 넷이고 **네 곳 다 못 읽는 파일을 만날 수 있다.**
+    각자 `load(...) or {}` 를 쓰면 예외 갈래도 각자 적어야 하는데, 한 곳만 빠지면
+    **그 경로에서만 회차가 통째로 죽는다** — 실제로 그렇게 빠져 있었다.
+
+    [중요] 못 읽는 파일을 **빈 상태로 보고 덮어쓰는 것이 맞다.** 그 내용은 이미 읽을 수
+    없으므로 잃을 것이 없고, 그대로 두면 그 폴더가 영원히 못 쓰는 자리가 된다.
+
+    [중요] `UnicodeDecodeError` 를 빠뜨리지 않는다 — `OSError` 가 아니라 `ValueError` 라
+    앞의 둘만 잡으면 그대로 빠져나간다. 이 파일에는 한글 주장이 들어가므로
+    **끊긴 파일은 거의 언제나 그 모양**이다.
+    """
+    try:
+        saved = load(run_dir)
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return {}
+    return saved if isinstance(saved, dict) else {}
+
+
 def pin_candidate(run_dir: Path, candidate: Candidate) -> None:
     """그 회차가 파고 있는 후보를 상태에 박는다.
 
@@ -92,7 +119,7 @@ def pin_candidate(run_dir: Path, candidate: Candidate) -> None:
         run_dir: 그 회차의 실행 폴더
         candidate: 이 회차가 파는 후보
     """
-    saved = load(run_dir) or {}
+    saved = load_or_empty(run_dir)
     saved[KEY_CANDIDATE] = {KEY_CLAIM: candidate.claim, KEY_IDENTIFIER: candidate.identifier}
     save(run_dir, saved)
 
@@ -112,10 +139,15 @@ def pinned_candidate(run_dir: Path) -> Candidate | None:
     """
     try:
         saved = load(run_dir)
-    except (OSError, json.JSONDecodeError):
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
         # 반쯤 쓰이다 끊긴 파일이나 사람이 손으로 고치다 깨진 파일이다.
         # 「없음」으로 읽으면 그 회차는 새로 시작하면 되지만, 여기서 터뜨리면
-        # 그 실행 폴더 하나 때문에 파이프라인이 선다
+        # 그 실행 폴더 하나 때문에 파이프라인이 선다.
+        #
+        # [중요] **인코딩 오류를 빠뜨리지 않는다.** `UnicodeDecodeError` 는 `OSError` 가
+        # 아니라 `ValueError` 라 앞의 둘만 잡으면 그대로 빠져나간다. 이 파일에는 한글
+        # 주장이 들어가므로 **끊긴 파일은 거의 언제나 그 모양**이고, WSL 과 mac 을 오가는
+        # 저장소라 편집기 한 번이 같은 갈래를 만든다
         return None
 
     if not isinstance(saved, dict):
@@ -144,7 +176,7 @@ def close(run_dir: Path, reason: str) -> None:
         run_dir: 그 회차의 실행 폴더
         reason: 왜 접었나
     """
-    saved = load(run_dir) or {}
+    saved = load_or_empty(run_dir)
     saved[KEY_CLOSED] = {KEY_REASON: reason}
     save(run_dir, saved)
 
@@ -164,7 +196,9 @@ def closed_reason(run_dir: Path) -> str | None:
     """
     try:
         saved = load(run_dir)
-    except (OSError, json.JSONDecodeError):
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        # 갈래는 위 `pinned_candidate` 와 같다 — 인코딩 오류가 빠지면 접힌 폴더를 묻는
+        # 것만으로 파이프라인이 선다
         return None
 
     if not isinstance(saved, dict):

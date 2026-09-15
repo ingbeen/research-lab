@@ -18,7 +18,12 @@ from typing import Any
 
 import pytest
 
-from research_lab.common_constants import LINEAGE_FILENAME, MEASUREMENT_FILENAME, REBUTTAL_FILENAME
+from research_lab.common_constants import (
+    LINEAGE_FILENAME,
+    MEASUREMENT_FILENAME,
+    PRO_EVIDENCE_FILENAME,
+    REBUTTAL_FILENAME,
+)
 from research_lab.gate import measurement as measurement_gate
 from research_lab.runner import dossier, state
 from research_lab.runner.steps import StepQualityFailed
@@ -396,6 +401,72 @@ def test_a_dict_value_is_written_as_prose(prepared: Any) -> None:
     assert "{'" not in written
     assert "코스피 동일가중" in written
     assert "달러 기준 러셀3000" in written
+
+
+def test_table_cells_are_written_as_prose_not_as_code(prepared: Any) -> None:
+    """
+    목적: [중요] 표 «한 칸»에도 파이썬 표기가 새지 않는 계약을 고정한다.
+
+    바로 위 두 테스트가 막는 것은 «절»의 자리이고, 7·8번 칸은 **표**라 다른 함수를 탄다.
+    그 함수만 `str()` 을 쓰고 있어, 같은 고장이 **출처 표에서만** 났다.
+    에이전트가 `says` 를 한 문장이 아니라 여러 개로 내는 것은 흔하다.
+
+    Given: `says` 와 `published` 가 목록인 찬성 근거
+    When: 조립한다
+    Then: 대괄호 표기가 없고, 값이 사람이 읽는 문장으로 이어져 있다
+    """
+    ready = prepared()
+    path = ready.output_dir / PRO_EVIDENCE_FILENAME
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["evidence"][0]["says"] = ["소형주 초과수익", "1월에 집중"]
+    payload["evidence"][0]["published"] = [1976, 1]
+    path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+    written = _assembled(ready)
+
+    assert "['" not in written
+    assert "[1976," not in written
+    assert "소형주 초과수익 · 1월에 집중" in written
+
+
+def test_a_table_cell_keeps_its_own_empty_mark_and_escaping() -> None:
+    """
+    목적: 표 한 칸이 «빈 값 표기»와 이스케이프를 그대로 유지하는 계약을 고정한다.
+
+    [중요] 절의 빈 자리는 「적히지 않았습니다」이고 표의 빈 칸은 `-` 다. **둘은 달라야 한다** —
+    표 안에 긴 문장이 들어가면 칸 폭이 무너진다. 그래서 펴는 방식을 공유하되 빈 값 표기는
+    각자 둔다. 세로선을 안 막으면 **그 아래 표가 통째로 깨지면서 에러는 나지 않는다.**
+
+    Given: 빈 값 · `None` · 세로선과 줄바꿈이 든 값
+    When: 표 한 칸으로 만든다
+    Then: 빈 것은 `-` 이고, 세로선은 이스케이프되고 줄바꿈은 공백이 된다
+    """
+    assert dossier._cell(None) == "-"
+    assert dossier._cell("") == "-"
+    assert dossier._cell([]) == "-"
+    assert dossier._cell("가|나") == "가\\|나"
+    assert dossier._cell("가\n나") == "가 나"
+
+
+def test_nested_values_are_flattened_all_the_way_down() -> None:
+    """
+    목적: [중요] 펴기가 «한 겹»에서 멈추지 않는 계약을 고정한다.
+
+    격자의 항목 타입을 일부러 안 묶어 두었다 — 진입은 날짜 문자열, 보유는 숫자로 오는 것이
+    자연스럽기 때문이다. 그래서 **날짜 «구간»이 목록의 목록으로, 필요한 데이터가 사전의
+    목록으로 오는 것이 정상**이고, 게이트도 그것을 막지 않는다.
+
+    한 겹만 펴면 안쪽이 `str()` 을 타서 **이 함수가 막으려던 표기가 그대로 나온다.**
+    겉보기에는 고쳐진 것처럼 보이므로 이 자리를 따로 고정한다.
+
+    Given: 목록 안의 목록 · 목록 안의 사전
+    When: 문서에 실을 문장으로 만든다
+    Then: 어느 깊이에도 파이썬 표기가 없다
+    """
+    assert dossier._text([["12월 20일", "12월 24일"], ["12월 26일"]]) == "12월 20일 · 12월 24일 · 12월 26일"
+    assert dossier._text([{"name": "국내 ETF 일봉", "source": "pykrx"}]) == "name: 국내 ETF 일봉 · source: pykrx"
+    assert "[" not in dossier._text([[1, 2], [3]])
+    assert "{" not in dossier._text([{"k": "v"}])
 
 
 def test_the_header_date_matches_the_file_name(prepared: Any) -> None:

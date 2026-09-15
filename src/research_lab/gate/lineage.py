@@ -116,5 +116,8 @@ def _urls_of(source: Any) -> set[str]:
     """출처 하나에서 대조용 URL 을 꺼낸다."""
     if not isinstance(source, dict):
         return set()
-    normalized = normalize_url(str(source.get("url", "")))
+    # [중요] 값이 `null` 이면 기본값이 안 쓰여 `"None"` 이 URL 로 정규화된다 —
+    # 그 가짜 주소가 대조 집합에 들어가면 **빠뜨린 출처가 「덮였다」로 읽힌다**
+    raw = source.get("url")
+    normalized = normalize_url("" if raw is None else str(raw))
     return {normalized} if normalized else set()

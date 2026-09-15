@@ -445,3 +445,53 @@ def test_broken_candidate_reads_as_none(tmp_path: Path) -> None:
     state.save(tmp_path, {"settled": [], "skipped": [], "candidate": "첫 후보"})
 
     assert state.pinned_candidate(tmp_path) is None
+
+
+def test_a_state_file_with_broken_encoding_does_not_raise(tmp_path: Path) -> None:
+    """
+    목적: [중요] 인코딩이 깨진 상태 파일에 «죽지 않는» 계약을 고정한다.
+
+    `UnicodeDecodeError` 는 `OSError` 가 아니라 `ValueError` 라, 「파일 없음」과
+    「JSON 깨짐」만 잡으면 **이 갈래가 그대로 빠져나간다.** 이 저장소의 상태 파일에는
+    한글 주장이 들어가므로 **반쯤 쓰이다 끊기면 거의 언제나 이 모양**이 되고,
+    WSL 과 mac 을 오가는 저장소라 편집기 한 번이 같은 갈래를 만들 수 있다.
+
+    터지면 그 폴더 하나 때문에 **이후 모든 무인 회차가 같은 자리에서 죽는다.**
+    「없음」으로 읽으면 그 회차는 새로 시작하면 된다.
+
+    Given: 한글 중간에서 끊겨 UTF-8 로 못 읽는 상태 파일
+    When: 후보와 접힌 사유를 묻는다
+    Then: 둘 다 예외 없이 None 이다
+    """
+    # 「한 후보」를 UTF-8 로 쓴 뒤 마지막 글자를 바이트 중간에서 자른다
+    broken = ('{"candidate": {"claim": "한 후보"'.encode())[:-2]
+    (tmp_path / common_constants.STATE_FILENAME).write_bytes(broken)
+
+    assert state.pinned_candidate(tmp_path) is None
+    assert state.closed_reason(tmp_path) is None
+
+
+def test_writing_over_an_unreadable_state_does_not_raise(tmp_path: Path) -> None:
+    """
+    목적: [중요] 「읽어서 얹고 다시 쓰는」 자리가 못 읽는 파일에서도 죽지 않는 계약을 고정한다.
+
+    바로 위 테스트가 «읽기»를 고정한다면 이쪽은 «쓰기»다. 그 자리가 넷이고
+    (후보 박기 · 접기 · 진행 저장 둘) 한 곳만 가드가 빠지면 **그 경로에서만 회차가 죽는다.**
+    특히 접기는 **이미 실패한 회차 위에서** 불리므로, 여기서 터지면 실패 원문이 묻히고
+    종료 코드도 정해진 갈래 밖이 된다.
+
+    못 읽는 파일을 빈 상태로 보고 덮어쓰는 것이 맞다 — 그 내용은 이미 읽을 수 없으므로
+    잃을 것이 없고, 그대로 두면 그 폴더가 영원히 못 쓰는 자리가 된다.
+
+    Given: 한글 중간에서 끊겨 UTF-8 로 못 읽는 상태 파일
+    When: 후보를 박고 그 폴더를 접는다
+    Then: 예외 없이 끝나고, 이후 읽기가 성립한다
+    """
+    (tmp_path / common_constants.STATE_FILENAME).write_bytes(('{"candidate": "한 후보"'.encode())[:-2])
+
+    state.pin_candidate(tmp_path, state.Candidate(claim="새 후보", identifier="new"))
+    state.close(tmp_path, "세 회차 연속 막혔다")
+
+    pinned = state.pinned_candidate(tmp_path)
+    assert pinned is not None and pinned.claim == "새 후보"
+    assert state.closed_reason(tmp_path) == "세 회차 연속 막혔다"

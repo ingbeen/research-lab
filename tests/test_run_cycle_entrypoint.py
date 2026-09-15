@@ -218,6 +218,60 @@ def test_explicit_run_dir_wins(entrypoint: Any) -> None:
     assert entrypoint._resolve_run_dir(chosen) == chosen
 
 
+def test_a_run_folder_with_broken_encoding_does_not_stop_the_resume(entrypoint: Any) -> None:
+    """
+    목적: [중요] 인코딩이 깨진 상태 파일 하나가 «이어받기 판정»을 죽이지 않는 계약을 고정한다.
+
+    이 판정은 `runs/` 아래 폴더를 훑으므로, 한 폴더가 터지면 **이후 모든 회차가 같은
+    자리에서 같게 죽는다.** 게다가 그 죽음은 회차 시작을 적은 «뒤»에 와서
+    **매일 밤 「중단」으로 읽힌다** — 실제로 봐야 할 곳은 그 폴더 하나인데.
+
+    Given: 한글 중간에서 끊겨 UTF-8 로 못 읽는 상태 파일이 든 폴더
+    When: 인자 없이 실행 폴더를 고른다
+    Then: 예외 없이 그 폴더가 아닌 새 폴더가 돌아온다
+    """
+    from research_lab.common_constants import STATE_FILENAME
+
+    broken_dir = entrypoint.RUNS_DIR / "20260101_0100"
+    broken_dir.mkdir(parents=True)
+    (broken_dir / STATE_FILENAME).write_bytes(('{"settled": ["explore"], "claim": "한 후보"'.encode())[:-2])
+
+    assert entrypoint._resolve_run_dir(None) != broken_dir
+
+
+def test_an_unresolvable_dossier_path_is_recorded(entrypoint: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    목적: [중요] 근거 문서가 자격증명 검사에서 «빠진» 사실이 로그에 남는 계약을 고정한다.
+
+    이 저장소는 PUBLIC 이고 그 검사가 커밋 전 마지막 그물이다. 경로를 못 구하면 그 문서는
+    검사 범위에서 통째로 빠지는데, 지금은 **「문서를 안 썼다」와 글자 하나 다르지 않다.**
+
+    [중요] 삼키는 것 자체는 옳다 — 여기서 터뜨리면 완주한 회차가 산출물을 다 만들어 놓고
+    검사 «직전»에 죽고, 종료 코드도 정해진 갈래 밖이 된다. **고칠 것은 「조용함」이지
+    「삼킴」이 아니다.**
+
+    Given: 후보를 읽다 터지는 상태
+    When: 그 회차의 근거 문서 경로를 구한다
+    Then: 예외 없이 None 이고, 그 사실이 결정 로그에 남는다
+    """
+    from research_lab.runner import decision_log
+
+    def exploding(_run_dir: Path) -> None:
+        raise RuntimeError("이름을 만들 수 없었다")
+
+    monkeypatch.setattr(entrypoint.state, "pinned_candidate", exploding)
+    run_dir = entrypoint.RUNS_DIR / "20260101_0100"
+
+    assert entrypoint._dossier_of(run_dir) is None
+
+    failed = [entry for entry in decision_log.read(run_dir) if entry.get("event") == decision_log.EVENT_FAILED]
+    assert failed, "경로를 못 구한 사실이 남아야 「문서가 없다」와 갈린다"
+    # [중요] 「줄이 있다」로는 부족하다. 무엇이 왜 실패했나를 훑는 쪽은 `reason` 을 보므로,
+    # 그 열쇠가 빠지면 **하필 이 줄만 그 훑기에서 사라진다**
+    assert failed[-1].get("reason"), "사유가 없으면 `reason` 으로 훑는 쪽이 이 줄을 건너뛴다"
+    assert failed[-1].get("gate") == "dossier-path"
+
+
 def test_agent_env_drops_the_api_key(entrypoint: Any) -> None:
     """
     목적: 에이전트에게 넘길 환경에서 API 키가 «빠지는» 계약을 고정한다.

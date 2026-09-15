@@ -135,7 +135,10 @@ def _is_usable_axis(item: Any) -> bool:
     if not isinstance(item, dict):
         return False
 
-    if not str(item.get("name", "")).strip():
+    # [중요] 기본값 `""` 로는 «값이 null 인 경우»를 못 막는다 — 그때는 기본값이 안 쓰이고
+    # `str(None)` = `"None"` 이 되어 **이름이 적힌 것으로 읽힌다**
+    name = item.get("name")
+    if name is None or not str(name).strip():
         # 이름이 없으면 무슨 축인지 모른 채 숫자만 남는다. 그 격자는 나중에 못 읽는다
         return False
 
