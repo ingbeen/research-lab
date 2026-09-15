@@ -23,6 +23,7 @@ def _answer(payload: object, *, cost: float | None = 0.5, tokens: int | None = 1
         raw=text,
         cost_usd=cost,
         tokens=tokens,
+        usage=None,
         elapsed_seconds=1.0,
         session_id="세션",
     )
@@ -126,6 +127,7 @@ def test_explore_rejects_non_json_answer(tmp_path: Path) -> None:
         raw="미안, JSON 이 아니라 줄글로 적었어",
         cost_usd=None,
         tokens=None,
+        usage=None,
         elapsed_seconds=1.0,
         session_id="세션",
     )

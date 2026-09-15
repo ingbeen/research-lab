@@ -21,7 +21,9 @@ from research_lab.runner import collect, cycle, decision_log, failures, ledger, 
 def _answer(payload: object, *, cost: float | None = 0.5, tokens: int | None = 100) -> AgentResult:
     """에이전트가 그 JSON 을 돌려줬다고 치는 응답."""
     text = json.dumps(payload, ensure_ascii=False)
-    return AgentResult(text=text, raw=text, cost_usd=cost, tokens=tokens, elapsed_seconds=1.0, session_id="세션")
+    return AgentResult(
+        text=text, raw=text, cost_usd=cost, tokens=tokens, usage=None, elapsed_seconds=1.0, session_id="세션"
+    )
 
 
 def test_enough_queries_pass() -> None:

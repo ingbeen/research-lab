@@ -10,13 +10,12 @@
 완결되어, 컨테이너의 세션 로그에 의존하지 않고 기계를 옮겨도 기록이 따라온다.
 """
 
-import json
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Final
 
 from research_lab.agent.invoke import AgentResult
-from research_lab.common_constants import DECISION_LOG_FILENAME, KST
+from research_lab.common_constants import DECISION_LOG_FILENAME
+from research_lab.runner import jsonl
 
 # 이벤트 종류. 「무엇을 읽었나 · 무엇을 기준으로 판단했나 · 무엇을 버렸고 왜」를
 # 나중에 기계가 골라낼 수 있도록 이름을 고정한다 — 자유 문자열이면 훑을 때 매번 추측해야 한다
@@ -26,6 +25,34 @@ EVENT_DISCARDED: Final = "discarded"
 EVENT_SKIPPED: Final = "skipped"
 EVENT_FAILED: Final = "failed"
 EVENT_COST: Final = "cost"
+
+# 비용 줄에 적는 토큰 «성분»의 열쇠 -> 응답의 `usage` 필드 이름.
+#
+# [중요] 이 이름은 **이 로그의 계약**이라 여기가 주인이다. 읽는 쪽(`usage`)이 자기 이름을
+# 따로 들고 있으면 둘이 갈릴 수 있고, 갈렸다는 사실은 **집계가 0 으로 나오는 것 말고는
+# 아무 신호도 내지 않는다.**
+#
+# [중요] 합계(`tokens`)와 «따로» 적는다. 합계는 캐시에서 읽은 토큰을 빼고 센 값이라
+# 비용 기준으로 옳지만, 한도는 그 토큰도 먹는다. 성분이 없으면 나중에 가중치를 바꿔
+# 다시 계산할 수 없다 — 원본을 버리고 집계만 남기는 것이다
+KEY_TOKENS_INPUT: Final = "tokens_input"
+KEY_TOKENS_OUTPUT: Final = "tokens_output"
+KEY_TOKENS_CACHE_CREATION: Final = "tokens_cache_creation"
+KEY_TOKENS_CACHE_READ: Final = "tokens_cache_read"
+
+TOKEN_COMPONENT_KEYS: Final = {
+    KEY_TOKENS_INPUT: "input_tokens",
+    KEY_TOKENS_OUTPUT: "output_tokens",
+    KEY_TOKENS_CACHE_CREATION: "cache_creation_input_tokens",
+    KEY_TOKENS_CACHE_READ: "cache_read_input_tokens",
+}
+
+# 마지막 단계가 근거 문서를 쓴 뒤 그 파일명을 적는 열쇠.
+#
+# [중요] **이 이름도 이 로그의 계약이라 여기가 주인이다.** 적는 쪽(마지막 단계)과
+# 읽는 쪽(예산 표본 판정)이 각자 리터럴을 들고 있으면, 이름을 바꾼 날 **판정이 조용히
+# 거짓이 되어** 표본이 0건이 되고 루프가 회차마다 한 장에서 멈춘다 — 에러도 테스트 실패도 없다
+KEY_DOSSIER: Final = "dossier"
 
 # 예산 루프가 「한 장 더 갈까」를 판정했다.
 #
@@ -54,16 +81,7 @@ def record(run_dir: Path, step: str, event: str, **fields: Any) -> None:
 
     [주의] 덧붙이기만 한다. 다시 쓰면 그 회차의 앞부분이 사라지고 **예외도 나지 않는다**
     """
-    run_dir.mkdir(parents=True, exist_ok=True)
-    entry: dict[str, Any] = {
-        "ts": datetime.now(KST).isoformat(timespec="seconds"),
-        "step": step,
-        "event": event,
-        **fields,
-    }
-
-    with (run_dir / DECISION_LOG_FILENAME).open("a", encoding="utf-8") as file:
-        file.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    jsonl.append(run_dir / DECISION_LOG_FILENAME, {"step": step, "event": event, **fields})
 
 
 def record_cost(run_dir: Path, step: str, result: AgentResult) -> None:
@@ -78,6 +96,14 @@ def record_cost(run_dir: Path, step: str, result: AgentResult) -> None:
         step: 어느 단계의 호출인가
         result: 에이전트 호출 결과
     """
+    # [중요] 성분을 모를 때는 **열쇠를 아예 넣지 않는다.** `None` 으로 채우면
+    # 「잴 수 없었다」가 「0 이었다」와 구별되지 않는다
+    components = {
+        key: result.usage[field]
+        for key, field in TOKEN_COMPONENT_KEYS.items()
+        if result.usage is not None and field in result.usage
+    }
+
     record(
         run_dir,
         step,
@@ -86,6 +112,7 @@ def record_cost(run_dir: Path, step: str, result: AgentResult) -> None:
         tokens=result.tokens,
         elapsed_seconds=round(result.elapsed_seconds, 1),
         session_id=result.session_id,
+        **components,
     )
 
 
@@ -98,20 +125,7 @@ def read(run_dir: Path) -> list[dict[str, Any]]:
     Returns:
         적힌 순서 그대로의 기록. 파일이 없으면 빈 목록.
         **깨진 줄은 건너뛴다** — 한 줄이 깨졌다고 그 회차의 나머지 기록을 통째로
-        못 읽게 되면, 정작 원인을 되짚어야 할 때 아무것도 못 본다
+        못 읽게 되면, 정작 원인을 되짚어야 할 때 아무것도 못 본다.
+        잘린 글자까지 견디는 것은 `jsonl.read` 가 맡는다
     """
-    path = run_dir / DECISION_LOG_FILENAME
-    if not path.is_file():
-        return []
-
-    entries: list[dict[str, Any]] = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
-        try:
-            loaded: Any = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if isinstance(loaded, dict):
-            entries.append(loaded)
-    return entries
+    return jsonl.read(run_dir / DECISION_LOG_FILENAME)

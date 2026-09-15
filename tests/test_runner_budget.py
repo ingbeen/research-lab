@@ -7,6 +7,10 @@
 - **비용 0 으로 완주한 폴더를 표본에 넣는 것.** 원장이 포화라 전부 건너뛴 회차도
   단계가 전부 `settled` 라 「완주」로 읽히는데, 그것은 「한 장을 만든 것」이 아니다.
   섞이면 중앙값이 0 쪽으로 끌려 위와 같은 고장이 난다
+- **[중요] 문서를 «내지 않은» 폴더를 표본에 넣는 것.** [실측 2026-09-15] 단계를 늘리면 예전
+  완주 폴더가 미완성으로 보이고, 그 회차가 남은 단계를 **건너뛰기로 채우면서 `settled` 가
+  다시 꽉 찬다.** 그러면 「완주」로 읽히는데 **근거 문서는 한 장도 안 냈다.**
+  기존 가드(`비용 > 0`)는 그 폴더들이 예전 생애에 쓴 돈이 있어 못 걸러냈다
 - **한 표본을 그대로 평균으로 쓰는 것.** 같은 단계가 후보에 따라 두 배 드는 것이
   실측으로 확인됐으므로, 한 표본으로 잡으면 그 배수만큼 틀린다
 """
@@ -22,15 +26,33 @@ CHEAP_RUN_USD = 1.9609
 COSTLY_RUN_USD = 4.5735
 
 
-def _make_run(runs_dir: Path, name: str, *, costs: list[float], settled: list[str] | None = None) -> Path:
+def _make_run(
+    runs_dir: Path,
+    name: str,
+    *,
+    costs: list[float],
+    settled: list[str] | None = None,
+    produced: bool = True,
+) -> Path:
     """비용 줄이 든 실행 폴더 하나를 만든다.
 
-    `settled` 를 안 주면 **완주한** 폴더가 된다. 표본이 되려면 완주해야 하기 때문이다.
+    `settled` 를 안 주면 **단계를 전부 마친** 폴더가 되고, `produced` 가 참이면
+    **근거 문서를 냈다는 표시**까지 남는다. 표본이 되려면 그 표시가 있어야 한다 —
+    단계를 마친 것과 문서를 낸 것은 다르고, 그 둘을 헷갈린 것이 이 파일의 세 번째 고장이다.
     """
     run_dir = runs_dir / name
     state.save(run_dir, {"settled": list(steps.STEPS) if settled is None else settled, "skipped": []})
     for spent in costs:
         decision_log.record(run_dir, "collect", decision_log.EVENT_COST, cost_usd=spent, tokens=1, elapsed_seconds=1.0)
+    if produced:
+        decision_log.record(
+            run_dir,
+            steps.STEPS[-1],
+            decision_log.EVENT_JUDGED,
+            claim="한 줄 주장",
+            verdict="보류",
+            dossier="20260101_후보.md",
+        )
     return run_dir
 
 
@@ -78,21 +100,48 @@ def test_unfinished_run_is_not_a_sample(tmp_path: Path) -> None:
     """
     목적: 미완성 폴더가 표본에서 빠지는 계약을 고정한다.
 
-    [중요] 이 한 줄이 **단계를 늘리기 전에 완주한 폴더를 자동으로 걸러낸다.**
-    다섯 단계이던 시절의 완주 폴더는 여덟 단계 기준으로 `settled` 가 모자라고,
-    실제로 그 회차는 근거 문서를 내지 않았다 — 「한 장」의 표본이 아니다.
+    미완성 폴더는 마지막 단계에 닿지 못했으므로 **근거 문서를 냈다는 표시가 없다.**
+    그 폴더의 비용은 「한 장」보다 작은 값이라, 섞이면 한 단위가 조용히 줄어든다.
 
-    Given: 앞 단계만 끝난 폴더와, 완주한 폴더
+    Given: 앞 단계만 끝나 문서를 못 낸 폴더와, 문서를 낸 폴더
     When: 「한 단위」를 잰다
-    Then: 완주한 쪽만 표본이 된다
+    Then: 문서를 낸 쪽만 표본이 된다
     """
     runs_dir = tmp_path / "runs"
-    _make_run(runs_dir, "20260101_0100", costs=[CHEAP_RUN_USD], settled=list(steps.STEPS[:-1]))
+    _make_run(runs_dir, "20260101_0100", costs=[CHEAP_RUN_USD], settled=list(steps.STEPS[:-1]), produced=False)
     _make_run(runs_dir, "20260102_0100", costs=[COSTLY_RUN_USD])
 
     unit = budget.unit_cost(runs_dir)
 
     assert unit.samples == 1
+    assert unit.median_usd == COSTLY_RUN_USD
+
+
+def test_run_that_only_closed_itself_is_not_a_sample(tmp_path: Path) -> None:
+    """
+    목적: **단계를 다 마쳤지만 문서를 안 낸** 폴더가 표본에서 빠지는 계약을 고정한다.
+
+    [실측 2026-09-15] 이 고장이 실제로 진짜 원장에서 일어났다. 단계를 늘리면 예전 완주
+    폴더가 미완성으로 보이고, 그 회차가 남은 단계를 **건너뛰기로 채우면서 `settled` 가
+    다시 꽉 찬다.** 「완주」로 읽히지만 **근거 문서는 한 장도 안 냈고**, 비용은 예전 생애에
+    쓴 값이 남아 있어 `비용 > 0` 가드에도 걸리지 않았다.
+
+    결과가 과소계산이었다 — 실제 폴더 넷에서 표본이 3건(중앙값 $2.2411)으로 잡혔고,
+    문서를 낸 폴더는 **하나($4.5735)**뿐이었다. 한 단위가 절반으로 줄면
+    **시작 임계도 절반이 되어 루프가 실제보다 한 장 더 시작한다.**
+
+    Given: 실제로 그랬던 폴더 셋 — 문서를 안 낸 둘(단계는 다 마침)과 낸 하나
+    When: 「한 단위」를 잰다
+    Then: 문서를 낸 하나만 표본이고, 중앙값이 그 값이다
+    """
+    runs_dir = tmp_path / "runs"
+    _make_run(runs_dir, "20260912_2034", costs=[2.2411], produced=False)
+    _make_run(runs_dir, "20260914_1308", costs=[CHEAP_RUN_USD], produced=False)
+    _make_run(runs_dir, "20260914_1749", costs=[COSTLY_RUN_USD])
+
+    unit = budget.unit_cost(runs_dir)
+
+    assert unit.samples == 1, "단계를 마친 것과 문서를 낸 것은 다르다"
     assert unit.median_usd == COSTLY_RUN_USD
 
 
@@ -220,15 +269,15 @@ def test_broken_cost_lines_do_not_raise(tmp_path: Path) -> None:
     assert budget.unit_cost(runs_dir).samples == 1
 
 
-def test_unreadable_state_is_skipped_not_raised(tmp_path: Path) -> None:
+def test_unreadable_state_does_not_raise(tmp_path: Path) -> None:
     """
-    목적: 상태 파일이 깨진 폴더를 건너뛰는 계약을 고정한다.
+    목적: 상태 파일이 깨진 폴더에서 예외가 나지 않는 계약을 고정한다.
 
-    진입점이 같은 이유로 같게 동작한다 — 그 폴더 하나 때문에 파이프라인이 서면 안 된다.
+    그 폴더 하나 때문에 파이프라인이 서면 안 된다 — 진입점이 같은 이유로 같게 동작한다.
 
-    Given: 상태 파일이 깨진 폴더와 멀쩡한 완주 폴더
+    Given: 상태 파일만 깨진 채 있는 폴더와, 문서를 낸 폴더
     When: 「한 단위」를 잰다
-    Then: 예외 없이 멀쩡한 쪽만 표본이 된다
+    Then: 예외 없이 문서를 낸 쪽만 표본이 된다
     """
     runs_dir = tmp_path / "runs"
     broken = runs_dir / "20260101_0100"
@@ -239,22 +288,31 @@ def test_unreadable_state_is_skipped_not_raised(tmp_path: Path) -> None:
     assert budget.unit_cost(runs_dir).samples == 1
 
 
-def test_unknown_step_name_in_state_is_skipped(tmp_path: Path) -> None:
+def test_state_file_does_not_decide_the_sample(tmp_path: Path) -> None:
     """
-    목적: 정의에 없는 단계 이름이 든 예전 상태를 건너뛰는 계약을 고정한다.
+    목적: 표본 판정이 **상태 파일에 의존하지 않음**을 고정한다.
 
-    단계 이름을 바꾼 뒤에 남은 폴더가 여기 걸린다. 「완주했나」를 판정하려면 단계 이름을
-    봐야 하는데, 모르는 이름에서 터지면 **예전 폴더 하나가 이후 모든 회차의 예산 판정을 죽인다.**
+    예전에는 「단계를 다 마쳤나」를 상태 파일에서 읽어 판정했다. 그래서 단계 이름을 바꾼 뒤
+    남은 폴더나 사람이 손으로 고친 폴더가 **판정 대상**이었고, 거기서 터지면
+    예전 폴더 하나가 이후 모든 회차의 예산 판정을 죽일 수 있었다.
 
-    Given: 예전 이름이 든 상태 파일과 멀쩡한 완주 폴더
+    이제 판정 재료는 **결정 로그에 적힌 「문서를 냈다」** 하나다. 상태 파일이 예전 이름을
+    담고 있어도 그 폴더가 문서를 냈다면 **「한 장」의 표본으로 맞다** —
+    실제로 그 회차는 문서를 냈고, 그것이 이 값이 뜻하는 전부다.
+
+    Given: 정의에 없는 단계 이름이 든 상태 파일 + 문서를 냈다는 표시
     When: 「한 단위」를 잰다
-    Then: 예외 없이 멀쩡한 쪽만 표본이 된다
+    Then: 예외 없이 표본이 되고, 두 표본의 중앙값이 나온다
     """
     runs_dir = tmp_path / "runs"
     _make_run(runs_dir, "20260101_0100", costs=[CHEAP_RUN_USD], settled=["explore", "옛날단계"])
     _make_run(runs_dir, "20260102_0100", costs=[COSTLY_RUN_USD])
 
-    assert budget.unit_cost(runs_dir).samples == 1
+    unit = budget.unit_cost(runs_dir)
+
+    assert unit.samples == 2
+    assert unit.median_usd is not None
+    assert CHEAP_RUN_USD < unit.median_usd < COSTLY_RUN_USD
 
 
 def test_log_fields_name_the_sample_count(tmp_path: Path) -> None:
@@ -279,3 +337,30 @@ def test_log_fields_name_the_sample_count(tmp_path: Path) -> None:
     assert fields["unit_median_usd"] is not None
     assert fields["unit_min_usd"] == CHEAP_RUN_USD
     assert fields["unit_max_usd"] == COSTLY_RUN_USD
+
+
+def test_a_line_cut_mid_character_does_not_kill_the_judgment(tmp_path: Path) -> None:
+    """
+    목적: [중요] 지난 폴더의 **글자가 반쯤 잘린 줄** 하나가 예산 판정을 죽이지 않는 계약을 고정한다.
+
+    계층 계약 — **검사기가 죽어서 파이프라인을 멈추게 해서는 안 된다.** 이 판정은
+    회차의 반복마다 `runs/` 아래 «모든» 폴더를 읽으므로, 한 폴더가 터지면
+    **이후 모든 회차가 같은 자리에서 같게 죽는다.** 게다가 그 죽음은 에이전트 호출을
+    이미 치른 «뒤»에 오고, 종료 기록도 안 남아 **중단으로 읽힌다.**
+
+    잘리는 상황이 곧 강제 종료이고, 이 저장소의 로그는 사유·주장이 전부 한글이라
+    **잘린 줄은 거의 언제나 이 모양**이 된다.
+
+    Given: 마지막 줄이 한글 중간에서 끊긴 폴더와, 문서를 낸 멀쩡한 폴더
+    When: 비용과 「한 단위」를 잰다
+    Then: 예외 없이 멀쩡한 쪽만 표본이 된다
+    """
+    runs_dir = tmp_path / "runs"
+    broken = _make_run(runs_dir, "20260101_0100", costs=[1.0], produced=False)
+    line = json.dumps({"step": "rebut", "event": decision_log.EVENT_FAILED, "reason": "한도에 걸렸습니다"}) + "\n"
+    with (broken / DECISION_LOG_FILENAME).open("ab") as file:
+        file.write(line.encode()[:-9])
+    _make_run(runs_dir, "20260102_0100", costs=[COSTLY_RUN_USD])
+
+    assert budget.cost_of(broken) == 1.0
+    assert budget.unit_cost(runs_dir).samples == 1

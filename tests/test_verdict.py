@@ -26,7 +26,7 @@ from research_lab.runner.steps import StepQualityFailed
 def _answer(payload: object) -> AgentResult:
     """에이전트가 그 JSON 을 돌려줬다고 치는 응답."""
     text = json.dumps(payload, ensure_ascii=False)
-    return AgentResult(text=text, raw=text, cost_usd=0.2, tokens=70, elapsed_seconds=1.0, session_id="세션")
+    return AgentResult(text=text, raw=text, cost_usd=0.2, tokens=70, usage=None, elapsed_seconds=1.0, session_id="세션")
 
 
 def _payload(**overrides: Any) -> dict[str, Any]:

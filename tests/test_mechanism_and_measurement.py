@@ -30,7 +30,7 @@ BEFORE_MEASUREMENT = 5
 def _answer(payload: object) -> AgentResult:
     """에이전트가 그 JSON 을 돌려줬다고 치는 응답."""
     text = json.dumps(payload, ensure_ascii=False)
-    return AgentResult(text=text, raw=text, cost_usd=0.3, tokens=80, elapsed_seconds=1.0, session_id="세션")
+    return AgentResult(text=text, raw=text, cost_usd=0.3, tokens=80, usage=None, elapsed_seconds=1.0, session_id="세션")
 
 
 # --------------------------------------------------------------------------

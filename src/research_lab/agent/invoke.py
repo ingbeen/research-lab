@@ -38,6 +38,10 @@ FORBIDDEN_FLAGS: Final = ("--no-session-persistence", "--disable-slash-commands"
 # 토큰 집계에 «넣는» 필드. 캐시에서 읽은 토큰은 일부러 뺀다 — 아래 `_new_tokens` 참고
 COUNTED_USAGE_KEYS: Final = ("input_tokens", "output_tokens", "cache_creation_input_tokens")
 
+# 성분으로 «그대로 옮기는» 필드. 위 집계와 달리 캐시에서 읽은 토큰이 들어간다 —
+# 한도는 그 토큰도 먹으므로, 빼고 남기면 한도 소비를 되짚을 방법이 사라진다
+ALL_USAGE_KEYS: Final = (*COUNTED_USAGE_KEYS, "cache_read_input_tokens")
+
 
 class AgentInvocationError(RuntimeError):
     """에이전트 호출 자체가 성립하지 않을 때 (바이너리 없음 등)."""
@@ -55,6 +59,13 @@ class AgentResult:
     raw: str
     cost_usd: float | None
     tokens: int | None
+    # 응답의 `usage` 에서 «아는 이름만» 꺼낸 성분. 모양이 다르거나 없으면 None.
+    #
+    # [중요] 이 계층은 **판정하지 않고 옮긴다.** 위 `tokens` 는 캐시에서 읽은 토큰을 빼고
+    # 센 값이라 **비용** 기준으로 옳지만, **한도**는 그 토큰도 먹으므로 합계만 남기면
+    # 나중에 가중치를 바꿔 다시 계산할 수 없다. 어느 성분이 한도에서 몇으로 세는지는
+    # 이 계층이 알 일이 아니다 — 뜻을 붙이는 것은 러너의 일이다(계층 계약 §2)
+    usage: dict[str, int] | None
     elapsed_seconds: float
     session_id: str
 
@@ -280,6 +291,7 @@ def _parse(*, raw: str, elapsed: float, session_id: str) -> AgentResult:
         raw=raw,
         cost_usd=float(cost) if isinstance(cost, int | float) else None,
         tokens=_new_tokens(payload.get("usage")),
+        usage=_usage_components(payload.get("usage")),
         elapsed_seconds=elapsed,
         session_id=str(payload.get("session_id", session_id)),
     )
@@ -317,5 +329,26 @@ def _new_tokens(usage: Any) -> int | None:
         return None
 
     counted = [usage.get(name) for name in COUNTED_USAGE_KEYS]
-    known = [value for value in counted if isinstance(value, int)]
+    # [주의] `bool` 을 걸러낸다. 파이썬에서 `True` 는 `int` 라 그냥 두면 **토큰 1 로 더해진다.**
+    # 아래 `_usage_components` 가 같은 가드를 갖고 있어, 여기만 빠지면 한 비용 줄 안에서
+    # **합계와 성분이 서로 다른 값을 말하고** 그 어긋남은 아무 신호도 내지 않는다
+    known = [value for value in counted if isinstance(value, int) and not isinstance(value, bool)]
     return sum(known) if known else None
+
+
+def _usage_components(usage: Any) -> dict[str, int] | None:
+    """`usage` 에서 «아는 이름»의 정수만 꺼낸다.
+
+    [중요] 위 `_new_tokens` 와 달리 **캐시에서 읽은 토큰도 담는다.** 그 값을 버리면
+    한도 소비를 되짚을 방법이 사라지고, 성분이 없으면 **가중치가 나중에 드러나도
+    다시 계산할 수 없다** — 원본을 버리고 집계만 남기는 것이다.
+
+    [주의] 중첩된 세부 항목(`output_tokens_details` 등)은 **싣지 않는다.** 실을 이름을
+    고정해 두면 CLI 가 새 필드를 더해도 조용히 섞이지 않는다.
+    """
+    if not isinstance(usage, dict):
+        return None
+
+    found = {name: usage.get(name) for name in ALL_USAGE_KEYS}
+    known = {name: value for name, value in found.items() if isinstance(value, int) and not isinstance(value, bool)}
+    return known or None

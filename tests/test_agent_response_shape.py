@@ -109,6 +109,66 @@ def test_cache_read_tokens_are_excluded_from_the_count() -> None:
     assert counted == 160
 
 
+def test_usage_components_survive_the_parse() -> None:
+    """
+    목적: 네 성분이 «그대로» 결과에 실려 나가는 계약을 고정한다.
+
+    [중요] 바로 위 테스트가 고정한 「캐시 읽기를 빼고 센다」는 **비용** 기준이라 옳지만,
+    **한도** 기준으로는 정반대다 — 한도는 캐시에서 읽은 토큰도 먹는다. 합계만 남기면
+    나중에 가중치를 바꿔 **다시 계산할 수가 없다.** 그래서 이 계층은 **판정하지 않고
+    응답에 있는 것을 옮긴다** — 어느 성분이 한도에서 몇으로 세는지는 이 계층이 알 일이 아니다.
+
+    Given: 캐시 읽기가 큰 성공 응답
+    When: 호출 계층이 읽는다
+    Then: 합계와 «네 성분»이 함께 나온다
+    """
+    raw = json.dumps(
+        {
+            "type": "result",
+            "is_error": False,
+            "result": "답입니다",
+            "total_cost_usd": 0.34,
+            "usage": {
+                "input_tokens": 100,
+                "output_tokens": 50,
+                "cache_creation_input_tokens": 10,
+                "cache_read_input_tokens": 90_000,
+                "output_tokens_details": {"thinking_tokens": 7},
+            },
+        }
+    )
+
+    parsed = invoke._parse(raw=raw, elapsed=1.5, session_id="세션")
+
+    assert parsed.tokens == 160, "합계의 뜻이 바뀌면 지난 회차와 비교가 끊긴다"
+    assert parsed.usage == {
+        "input_tokens": 100,
+        "output_tokens": 50,
+        "cache_creation_input_tokens": 10,
+        "cache_read_input_tokens": 90_000,
+    }, "중첩된 세부 항목은 싣지 않는다 — 실을 열쇠를 이름으로 고정한다"
+
+
+def test_usage_components_are_none_when_absent() -> None:
+    """
+    목적: `usage` 가 없거나 모양이 다를 때 성분이 «없음»인 계약을 고정한다.
+
+    응답 모양은 CLI 가 정하는 것이라 언제 바뀌어도 이상하지 않다. 그때
+    **파이프라인이 죽는 것보다 「그 값을 모른다」로 남는 편이 낫다** — 이 모듈의 축이다.
+
+    Given: `usage` 가 없는 응답과, 문자열이 들어온 응답
+    When: 호출 계층이 읽는다
+    Then: 둘 다 예외 없이 성분이 None 이다
+    """
+    without = invoke._parse(raw=json.dumps({"result": "답", "is_error": False}), elapsed=0.1, session_id="세션")
+    wrong_shape = invoke._parse(
+        raw=json.dumps({"result": "답", "is_error": False, "usage": "많이 씀"}), elapsed=0.1, session_id="세션"
+    )
+
+    assert without.usage is None
+    assert wrong_shape.usage is None
+
+
 def test_successful_response_fields_are_read() -> None:
     """
     목적: 실측된 필드 이름으로 결과를 읽는 계약을 고정한다.
@@ -230,6 +290,7 @@ def test_code_fenced_json_is_unwrapped() -> None:
         raw=MEASURED_FENCED_ANSWER,
         cost_usd=None,
         tokens=None,
+        usage=None,
         elapsed_seconds=1.0,
         session_id="세션",
     )

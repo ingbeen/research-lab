@@ -109,3 +109,24 @@ poetry run python scripts/run_cycle.py --budget-usd 0.5
 | `2` | 한도 소진 | 없음. **정상입니다** — 넘어가서 과금되지 않습니다 |
 | `3` | 인증·과금 거부 | 🔴 **사람이 손대야 합니다.** 토큰 만료·정책 변경·API 키 혼입 |
 | `4` | 자격증명 발견 | 🔴 **산출물에 자격증명이 들어갔습니다.** 이 저장소는 PUBLIC 입니다 |
+
+🔴 **종료 코드는 «끝난» 회차의 신호입니다.** 끊긴 회차는 종료 코드를 내지 못하므로
+아래로 봅니다.
+
+### 중단된 회차 조회
+
+`runs/cycles.jsonl` 에 회차마다 **시작 한 줄 · 종료 한 줄**이 남습니다.
+**시작만 있고 종료가 없는 회차가 「중단」**입니다 — 강제 종료·컨테이너 죽음·전원 차단은
+끝을 적지 못한 채 끝나기 때문입니다.
+
+```bash
+poetry run python -c "
+import sys; sys.path.insert(0,'src')
+from research_lab.runner import cycle_log
+from research_lab.common_constants import RUNS_DIR
+print(cycle_log.unfinished_ids(RUNS_DIR) or '중단된 회차 없음')
+"
+```
+
+**[주의] 지금 도는 중인 회차도 여기 나옵니다.** 그 구별은 `docker ps` 로 합니다 —
+자세한 것은 [OPERATIONS.md](OPERATIONS.md) 5.1 에 있습니다.

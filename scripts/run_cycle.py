@@ -12,6 +12,7 @@ import json
 import os
 import sys
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Final
@@ -32,6 +33,7 @@ from research_lab.runner import (  # noqa: E402
     budget,
     collect,
     cycle,
+    cycle_log,
     decision_log,
     dossier,
     explore,
@@ -42,6 +44,7 @@ from research_lab.runner import (  # noqa: E402
     rebut,
     state,
     steps,
+    usage,
     verdict,
 )
 from research_lab.runner.failures import FailureKind  # noqa: E402
@@ -89,6 +92,13 @@ LOOP_STEP: Final = "cycle"
 
 CONTINUE_REASON: Final = "예산이 남아 다음 후보로 갑니다"
 
+# 회차 예산 플래그의 도움말. 문장을 «한 리터럴»로 둔다 —
+# 이 저장소의 자동 포맷은 인접한 두 문자열을 길이와 무관하게 한 줄로 붙이므로,
+# 나눠 적으면 「두 리터럴이 한 줄에 붙은」 모양만 남고 길이는 그대로다
+CYCLE_BUDGET_HELP: Final = (
+    "한 «회차»의 예산. 이만큼 남지 않으면 다음 근거 문서를 시작하지 않습니다. 상한이 아니라 «시작 판정»이라 마지막 한 장이 넘길 수 있습니다 (기본값: %(default)s)"
+)
+
 # 응답 모양을 스키마로 강제할 단계들.
 #
 # [실측 2026-09-14] `--json-schema` 는 인라인 JSON 이고 구독 인증에서 동작하며, 파싱된 객체를
@@ -109,17 +119,72 @@ STEP_SCHEMAS: Final = {
 PASSED_ENV_VARS: Final = ("PATH", "HOME", "LANG", "LC_ALL", "TZ", "CLAUDE_CODE_OAUTH_TOKEN")
 
 
+@dataclass(frozen=True)
+class CycleOutcome:
+    """한 «회차»가 무엇을 했나 — 실행 폴더 하나가 아니라 회차 전체다."""
+
+    exit_code: int
+    produced: int
+    spent_usd: float
+    tokens: usage.Tokens
+    stop_reason: str
+    last_run_dir: Path
+
+
 def main(argv: list[str] | None = None) -> int:
-    """회차를 돌고 결과를 종료 코드로 알린다."""
+    """회차를 돌고 결과를 종료 코드로 알린다.
+
+    [중요] **회차의 시작과 종료를 여기서 «한 번씩만» 적는다.** 루프 안에서 갈래마다
+    적으면 어느 한 경로가 빠지고(자격증명 발견처럼 중간에서 바로 나가는 자리),
+    그러면 **사람이 손대야 하는 바로 그 회차가 「중단」으로 보인다.**
+    그래서 도는 일은 `_run_cycles` 가 «돌려주고», 기록은 이 함수가 한다.
+    """
     args = _parse_args(argv)
 
     try:
         # 가장 앞에서 막는다. 한 줄이라도 돈 뒤에 막으면 이미 과금된 뒤다
         assert_subscription_only(os.environ)
     except BillingGuardError as blocked:
+        # [중요] 회차 로그에 **아무것도 적지 않는다.** 여기서 막힌 것은 「시작한 회차」가
+        # 아니라 「시작하지 못한 회차」다. 적으면 짝이 없어 중단으로 읽히는데,
+        # 실제로는 사람이 환경을 고쳐야 하는 상태다
         print(f"[중지] {blocked}", file=sys.stderr)
         return EXIT_AUTH
 
+    cycle_id = cycle_log.new_cycle_id()
+    cycle_log.started(
+        RUNS_DIR,
+        cycle_id=cycle_id,
+        cycle_budget_usd=args.cycle_budget_usd,
+        step_budget_usd=args.budget_usd,
+        ledger_name=args.ledger.name,
+        run_dir_name=args.run_dir.name if args.run_dir is not None else None,
+    )
+
+    outcome = _run_cycles(args)
+
+    # [중요] 화면과 저장소 안의 기록이 **같은 값**을 말해야 한다. 그래서 둘을 나란히 두고,
+    # 어느 경로로 끝나도 둘 다 한 번씩 지나가게 한다
+    _print_cycle_summary(outcome)
+    cycle_log.finished(
+        RUNS_DIR,
+        cycle_id=cycle_id,
+        exit_code=outcome.exit_code,
+        produced=outcome.produced,
+        spent_usd=round(outcome.spent_usd, budget.COST_DIGITS),
+        stop_reason=outcome.stop_reason,
+        last_run_dir_name=outcome.last_run_dir.name,
+        tokens=outcome.tokens,
+    )
+    return outcome.exit_code
+
+
+def _run_cycles(args: argparse.Namespace) -> CycleOutcome:
+    """예산이 남는 한 실행 폴더를 만들어 돈다.
+
+    [중요] **종료 코드를 «돌려준다».** 여기서 `return` 하는 모든 갈래가 위 함수의
+    기록을 지나가므로, 갈래를 새로 더해도 종료 기록이 빠질 수 없다.
+    """
     agent_env = _agent_env(os.environ)
 
     def ask_for(step: str) -> Callable[[str], invoke.AgentResult]:
@@ -149,6 +214,7 @@ def main(argv: list[str] | None = None) -> int:
     run_dir = _resolve_run_dir(args.run_dir)
     result: cycle.CycleResult | None = None
     spent_usd = 0.0
+    spent_tokens = usage.Tokens()
     produced = 0
     stop_reason = CONTINUE_REASON
 
@@ -159,20 +225,42 @@ def main(argv: list[str] | None = None) -> int:
 
         # [중요] 이 회차가 쓴 비용은 «차분»으로 센다. 폴더의 합을 그대로 더하면
         # 이어받은 폴더에 남아 있던 **지난 회차의 비용까지 이번 것으로 세어** 예산이
-        # 조기 소진되고, 그 어긋남은 아무 에러도 내지 않는다
+        # 조기 소진되고, 그 어긋남은 아무 에러도 내지 않는다.
+        # 토큰도 같은 이유로 차분이다 — 한도 소비가 그 배수만큼 부풀면 「한 장이 한도의
+        # 몇 %인가」가 조용히 틀린다
         before_usd = budget.cost_of(run_dir)
+        before_tokens = usage.tokens_of(run_dir)
         try:
             result = cycle.run_cycle(run_dir=run_dir, ledger_path=args.ledger, execute=execute)
         except state.AlreadyRunningError as running:
+            # [중요] 예외 «원문»을 회차 로그에 싣지 않는다. 그 문구에는 실행 폴더의
+            # **절대경로**가 들어 있어, 저장소에 커밋되는 이 로그에 호스트의 사용자 폴더가
+            # 그대로 남는다 — 이 저장소는 PUBLIC 이고 이 파일은 자격증명 스캔 «밖»이다.
+            # 화면(저장소 밖)에는 원문 그대로 알린다 — 사람이 고칠 때 경로가 필요하다
             print(f"[중지] {running}", file=sys.stderr)
-            return EXIT_INCOMPLETE
+            return CycleOutcome(
+                exit_code=EXIT_INCOMPLETE,
+                produced=produced,
+                spent_usd=spent_usd,
+                tokens=spent_tokens,
+                stop_reason=f"이미 도는 회차가 있어 그 폴더를 잡지 못했습니다 — {run_dir.name}",
+                last_run_dir=run_dir,
+            )
         spent_usd += budget.cost_of(run_dir) - before_usd
+        spent_tokens = spent_tokens + (usage.tokens_of(run_dir) - before_tokens)
 
         # [중요] **반복마다** 검사한다. 마지막 폴더만 보면 앞의 폴더들이 통째로 빠지고,
         # 이 저장소는 PUBLIC 이라 그 누락이 그대로 공개 이력이 된다
         leaked = _report_secrets(run_dir)
         if leaked is not None:
-            return leaked
+            return CycleOutcome(
+                exit_code=leaked,
+                produced=produced,
+                spent_usd=spent_usd,
+                tokens=spent_tokens,
+                stop_reason="자격증명이 발견돼 그 자리에서 멈췄습니다",
+                last_run_dir=run_dir,
+            )
 
         if result.produced:
             produced += 1
@@ -199,7 +287,16 @@ def main(argv: list[str] | None = None) -> int:
     if result is None:
         raise RuntimeError(f"내부 불변조건 위반: 회차가 한 번도 돌지 않았습니다 — 반복 상한={MAX_CYCLE_ITERATIONS}")
 
-    return _report(run_dir, result, produced=produced, spent_usd=spent_usd, stop_reason=stop_reason)
+    return CycleOutcome(
+        exit_code=_report(
+            run_dir, result, produced=produced, spent_usd=spent_usd, tokens=spent_tokens, stop_reason=stop_reason
+        ),
+        produced=produced,
+        spent_usd=spent_usd,
+        tokens=spent_tokens,
+        stop_reason=stop_reason,
+        last_run_dir=run_dir,
+    )
 
 
 def _loop_stop_reason(
@@ -329,17 +426,23 @@ def _dossier_of(run_dir: Path) -> Path | None:
 
 
 def _report(
-    run_dir: Path, result: cycle.CycleResult, *, produced: int, spent_usd: float, stop_reason: str
+    run_dir: Path,
+    result: cycle.CycleResult,
+    *,
+    produced: int,
+    spent_usd: float,
+    tokens: usage.Tokens,
+    stop_reason: str,
 ) -> int:
-    """무엇이 됐고 무엇이 남았는지 알린다.
+    """그 **실행 폴더**가 어디까지 갔는지 알리고 종료 코드를 정한다.
 
-    [중요] **마지막 실행 폴더가 아니라 «회차»를 보고한다.** 루프가 여러 장을 낼 수 있으므로
-    마지막 폴더만 알리면 그 회차가 무엇을 했는지가 드러나지 않는다.
+    [주의] 회차 «전체»의 요약(장수·쓴 돈·토큰·한도 비율·멈춘 이유)은 여기서 찍지 않는다.
+    이 함수는 정상 경로에서만 불리므로, 여기 찍으면 **중간에서 바로 나가는 경로**
+    (자격증명 발견 · 이미 도는 회차)에서 화면에 그 숫자가 안 나온다 —
+    그런데 자격증명은 **사람이 즉시 손대야 하는** 갈래다. 요약은 `main` 이 찍는다.
     """
     print(f"실행 폴더: {run_dir}")
     print(f"마친 단계: {list(result.settled)}  건너뛴 단계: {list(result.skipped)}")
-    print(f"이번 회차: 근거 문서 {produced}장 · ${spent_usd:.{budget.COST_DIGITS}f} 사용")
-    print(f"멈춘 이유: {stop_reason}")
 
     if result.failure is None:
         print("회차를 완주했습니다.")
@@ -364,6 +467,38 @@ def _report(
     if result.failure.kind is FailureKind.AUTH:
         return EXIT_AUTH
     return EXIT_INCOMPLETE
+
+
+def _print_cycle_summary(outcome: CycleOutcome) -> None:
+    """그 «회차»가 무엇을 했는지 한 자리에서 알린다.
+
+    [중요] 실행 폴더 하나가 아니라 회차 전체다 — 루프가 여러 장을 낼 수 있으므로
+    마지막 폴더만 알리면 그 회차가 무엇을 했는지가 드러나지 않는다.
+
+    예약 실행에서 **사람이 가장 먼저 보는 화면**이 이것이고, 같은 값이 회차 로그에도
+    적힌다. 둘 중 어느 쪽을 봐도 같은 숫자가 나와야 한다.
+    """
+    tokens = outcome.tokens
+    print(f"이번 회차: 근거 문서 {outcome.produced}장 · ${outcome.spent_usd:.{budget.COST_DIGITS}f} 사용")
+    print(f"토큰: 새로 {tokens.new_total:,} · 캐시 읽기 {tokens.cache_read:,} · 한도 기준 합 {tokens.all_total:,}")
+    print(f"5시간 한도 대비: {_share_text(tokens, produced=outcome.produced)}")
+    print(f"멈춘 이유: {outcome.stop_reason}")
+
+
+def _share_text(tokens: usage.Tokens, *, produced: int) -> str:
+    """한도 비율을 사람이 읽는 한 줄로.
+
+    [중요] 보정값이 없을 때 **「0%」라고 적지 않는다.** 0 은 「한도를 안 썼다」로 읽히고,
+    실제로는 「분모를 모른다」다. 분모는 프로그램으로 읽을 수 없어 사람이 한 번 재서 넣는다.
+    """
+    calibration = usage.calibrated()
+    share = usage.window_share_percent(tokens, calibration=calibration)
+    if share is None or calibration is None:
+        return "잴 수 없음 — 한 창의 한도를 아직 보정하지 않았습니다 (회차 전후의 사용량을 비교해 넣습니다)"
+
+    per_dossier = usage.per_dossier_percent(share, produced=produced)
+    tail = f" · 근거 문서 한 장당 약 {per_dossier:.1f}%" if per_dossier is not None else ""
+    return f"이 회차가 한 창의 약 {share:.1f}%{tail} (보정 기준일 {calibration.measured_on})"
 
 
 def _resolve_run_dir(explicit: Path | None) -> Path:
@@ -486,8 +621,7 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         "--cycle-budget-usd",
         type=float,
         default=DEFAULT_CYCLE_BUDGET_USD,
-        help="한 «회차»의 예산. 이만큼 남지 않으면 다음 근거 문서를 시작하지 않습니다. "
-        "상한이 아니라 «시작 판정»이라 마지막 한 장이 넘길 수 있습니다 (기본값: %(default)s)",
+        help=CYCLE_BUDGET_HELP,
     )
     parser.add_argument("--ledger", type=Path, default=LEDGER_PATH, help="원장 경로 (기본값: %(default)s)")
     parser.add_argument(

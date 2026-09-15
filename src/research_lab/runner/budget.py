@@ -7,7 +7,7 @@
 누적 파일로 저장하지 않는다 — 하루를 걸러도 표본이 하나 없을 뿐이지만, 누적 집계는
 한 번 틀어지면 **틀어졌다는 사실을 아무도 모른다.**
 
-[중요] 이 모듈이 막는 고장 셋은 **전부 에러를 내지 않는다.**
+[중요] 이 모듈이 막는 고장 넷은 **전부 에러를 내지 않는다.**
 
 - **표본이 없는데 「한 단위 = 0」으로 읽는 것.** 그러면 남은 예산이 언제나 충분해 보여
   루프가 상한까지 돈다. 「잴 수 없었다」와 「0이었다」는 다르고, 그 둘을 구별하지 못하는
@@ -15,6 +15,10 @@
 - **비용 0 으로 완주한 폴더를 표본에 넣는 것.** 원장이 포화라 전부 건너뛴 회차도 단계가
   전부 끝난 것으로 기록되는데, 그것은 「한 장을 만든 것」이 아니다. 섞이면 중앙값이
   0 쪽으로 끌려 위와 같은 고장이 난다
+- **문서를 «내지 않은» 폴더를 표본에 넣는 것.** [실측 2026-09-15] 단계를 늘리면 예전
+  완주 폴더가 미완성으로 보이고, 그 회차가 남은 단계를 **건너뛰기로 채우면서** 마친 단계
+  목록이 다시 꽉 찬다. 비용 가드로도 안 걸린다 — **예전 생애에 쓴 돈**이 남아 있기 때문이다.
+  그래서 판정 재료를 「마친 단계」가 아니라 **「문서를 냈다는 로그」**로 둔다
 - **한 표본을 그대로 평균으로 쓰는 것.** [실측] 같은 단계가 후보에 따라 두 배 드는 것이
   확인됐다(반증 $0.71 → $1.45). 그래서 **분포**에서 뽑고, 표본 수를 로그에 함께 남긴다
 
@@ -22,13 +26,12 @@
 **어느 쪽에도 맞지 않는 값**이 나온다. 중앙값은 한쪽으로 끌려가지 않는다.
 """
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
 from statistics import median
 from typing import Any, Final
 
-from research_lab.runner import decision_log, state, steps
+from research_lab.runner import decision_log, steps
 
 # 다음 한 장을 시작하려면 「한 단위」의 몇 배가 남아 있어야 하나 (0.5 = 절반).
 #
@@ -47,10 +50,14 @@ KEY_MIN: Final = "unit_min_usd"
 KEY_MAX: Final = "unit_max_usd"
 
 KEY_COST_USD: Final = "cost_usd"
-KEY_SETTLED: Final = "settled"
 
 # 돈을 적을 때의 자릿수. 한 호출의 바닥값이 $0.0951 이라 그보다 잘게 봐야 의미가 있다
 COST_DIGITS: Final = 4
+
+# 표본이 없을 때의 사유. 문장을 «한 리터럴»로 둔다 —
+# 이 저장소의 자동 포맷은 인접한 두 문자열을 길이와 무관하게 한 줄로 붙이므로,
+# 나눠 적으면 「두 리터럴이 한 줄에 붙은」 모양만 남고 길이는 그대로다
+NO_SAMPLE_REASON: Final = "지난 회차에서 「근거 문서 한 장」의 비용을 잰 적이 없습니다 (표본 0건). 「0이 든다」가 아니라 「모른다」이므로 다음 장을 시작하지 않습니다"
 
 
 @dataclass(frozen=True)
@@ -94,8 +101,13 @@ def cost_of(run_dir: Path) -> float:
         멈추게 해서는 안 된다.** 결정 로그는 회차마다 덧붙여지는 파일이라 한 줄이 반쯤
         쓰이다 끊길 수 있고, 사람이 손으로 고칠 수도 있다
     """
+    return _cost_from(decision_log.read(run_dir))
+
+
+def _cost_from(entries: list[dict[str, Any]]) -> float:
+    """읽어 둔 결정 로그에서 비용 합을 구한다."""
     total = 0.0
-    for entry in decision_log.read(run_dir):
+    for entry in entries:
         if entry.get("event") != decision_log.EVENT_COST:
             continue
         spent = entry.get(KEY_COST_USD)
@@ -132,10 +144,7 @@ def shortfall_reason(unit: Unit, remaining_usd: float) -> str | None:
         「모자랍니다」만 남으면 나중에 그 판정이 옳았는지 되짚을 수 없다
     """
     if unit.median_usd is None:
-        return (
-            "지난 회차에서 「근거 문서 한 장」의 비용을 잰 적이 없습니다 (표본 0건). "
-            "「0이 든다」가 아니라 「모른다」이므로 다음 장을 시작하지 않습니다"
-        )
+        return NO_SAMPLE_REASON
 
     needed_usd = unit.median_usd * START_THRESHOLD_RATIO
     if remaining_usd < needed_usd:
@@ -148,37 +157,52 @@ def shortfall_reason(unit: Unit, remaining_usd: float) -> str | None:
 
 
 def _completed_costs(runs_dir: Path) -> list[float]:
-    """완주한 실행 폴더들의 비용."""
+    """근거 문서를 «낸» 실행 폴더들의 비용.
+
+    [중요] 폴더마다 결정 로그를 **한 번만** 읽는다. 「냈나」와 「얼마였나」를 따로 물으면
+    같은 파일을 두 번 파싱하는데, 이 함수는 **회차의 반복마다** 불리고 `runs/` 는
+    git 에 포함돼 **회차당 한 폴더씩 영원히 늘어난다** — 지우지 않기로 한 폴더다.
+    """
     if not runs_dir.is_dir():
         return []
-    return [cost_of(run_dir) for run_dir in sorted(runs_dir.iterdir()) if run_dir.is_dir() and _is_completed(run_dir)]
+
+    costs: list[float] = []
+    for run_dir in sorted(runs_dir.iterdir()):
+        if not run_dir.is_dir():
+            continue
+        entries = decision_log.read(run_dir)
+        if _produced_from(entries):
+            costs.append(_cost_from(entries))
+    return costs
 
 
-def _is_completed(run_dir: Path) -> bool:
-    """그 폴더가 마지막 단계까지 갔나.
+def _produced_from(entries: list[dict[str, Any]]) -> bool:
+    """읽어 둔 결정 로그에서 그 폴더가 근거 문서를 «실제로» 냈나를 판정한다.
 
-    [중요] 이 한 줄이 **단계를 늘리기 전에 완주한 폴더를 자동으로 걸러낸다.** 다섯 단계이던
-    시절의 완주 폴더는 여덟 단계 기준으로 남은 단계가 있어 여기서 빠지고, 실제로 그 회차는
-    근거 문서를 내지 않았다 — 「한 장」의 표본이 아니다.
+    [중요] **「단계를 다 마쳤나」로는 못 가른다.** 마친 단계 목록에는 건너뛴 단계도 들어가고,
+    단계를 늘리면 예전 완주 폴더가 미완성으로 보이는데 그 회차가 남은 단계를 **건너뛰기로
+    채우면서 목록이 다시 꽉 찬다.** 그러면 「완주」로 읽히지만 문서는 한 장도 안 냈다.
 
-    [중요] **어떤 폴더 때문에도 예외를 올리지 않는다.** 상태 파일은 사람이 손으로 고칠 수
-    있고, 단계 이름을 바꾸기 «전»의 파일이 남아 있을 수도 있다. 여기서 터지면
-    **예전 폴더 하나가 이후 모든 회차의 예산 판정을 죽인다.**
+    [실측 2026-09-15] 이 고장이 진짜 원장에서 일어났다 — 실제 폴더 넷에서 표본이 3건
+    (중앙값 $2.2411)으로 잡혔고, 문서를 낸 폴더는 **하나($4.5735)**뿐이었다.
+    한 단위가 절반으로 줄면 **시작 임계도 절반이 되어 루프가 실제보다 한 장 더 시작한다.**
+    비용 가드(`> 0`)로도 안 걸렸다 — 그 폴더들은 **예전 생애에 쓴 돈**이 남아 있었다.
+
+    [중요] 판정 재료는 **결정 로그에 적힌 사실** 하나다. 마지막 단계가 문서를 쓴 뒤
+    그 파일명을 함께 적으므로, 그 표시가 곧 「냈다」다. 상태 파일을 읽지 않는 덕에
+    **사람이 손으로 고친 폴더나 예전 단계 이름이 든 폴더에서도 판정이 죽지 않는다.**
+
+    [주의] 파일 존재로 되짚지 않는다. 산출물 폴더는 부르는 쪽이 고를 수 있어서,
+    경로를 다시 계산하면 **시험 삼아 돌린 실행과 진짜 회차가 갈리지 않는다.**
+
+    [중요] **마지막 단계의 것만 센다.** 뒤에 단계를 더하면서 그 단계도 문서 파일명을
+    적게 되면, 열쇠만 보는 판정은 **한 폴더를 두 번 「냈다」로 읽는다.**
+    「판 것」 표시가 언제나 마지막 단계로 옮겨가는 것과 같은 축이다(계층 계약 §4).
     """
-    try:
-        saved = state.load(run_dir)
-    except (OSError, json.JSONDecodeError):
-        return False
-
-    if not isinstance(saved, dict):
-        return False
-
-    settled: Any = saved.get(KEY_SETTLED)
-    if not isinstance(settled, list):
-        return False
-
-    try:
-        return steps.next_step([name for name in settled if isinstance(name, str)]) is None
-    except steps.UnknownStepError:
-        # 단계 이름을 바꾼 뒤에 남은 예전 상태다. 완주 여부를 판정할 수 없으므로 표본에서 뺀다
-        return False
+    last_step = steps.STEPS[-1]
+    return any(
+        entry.get("step") == last_step
+        and entry.get("event") == decision_log.EVENT_JUDGED
+        and isinstance(entry.get(decision_log.KEY_DOSSIER), str)
+        for entry in entries
+    )

@@ -8,6 +8,7 @@
 
 from pathlib import Path
 
+from research_lab.agent import invoke
 from research_lab.runner import decision_log
 
 
@@ -98,6 +99,68 @@ def test_cost_and_tokens_are_recordable(tmp_path: Path) -> None:
     assert entry["cost_usd"] == 0.12
     assert entry["tokens"] == 4321
     assert entry["elapsed_seconds"] == 48.5
+
+
+def test_cost_line_carries_the_token_components(tmp_path: Path) -> None:
+    """
+    목적: 한 호출의 토큰이 «성분별로» 남는 계약을 고정한다.
+
+    [중요] 합계 하나만 남기면 **되돌릴 수 없다.** 합계는 캐시에서 읽은 토큰을 빼고 세는데
+    (비용 기준으로는 옳다) 한도는 그 토큰도 먹으므로, 한도 소비를 보려면 성분이 필요하다.
+    가중치는 공개돼 있지 않아 나중에 바뀔 수 있고, **그때 성분이 없으면 다시 계산할 방법이 없다.**
+
+    Given: 네 성분이 든 호출 결과
+    When: 비용을 적는다
+    Then: 합계와 성분이 한 줄에 함께 남는다
+    """
+    result = invoke.AgentResult(
+        text="답",
+        raw="{}",
+        cost_usd=0.5,
+        tokens=160,
+        usage={
+            "input_tokens": 100,
+            "output_tokens": 50,
+            "cache_creation_input_tokens": 10,
+            "cache_read_input_tokens": 90_000,
+        },
+        elapsed_seconds=12.0,
+        session_id="세션",
+    )
+
+    decision_log.record_cost(tmp_path, "collect", result)
+
+    entry = decision_log.read(tmp_path)[0]
+
+    assert entry["tokens"] == 160
+    assert entry["tokens_input"] == 100
+    assert entry["tokens_output"] == 50
+    assert entry["tokens_cache_creation"] == 10
+    assert entry["tokens_cache_read"] == 90_000
+
+
+def test_cost_line_without_components_stays_recordable(tmp_path: Path) -> None:
+    """
+    목적: 성분을 모를 때도 비용 줄이 «적히는» 계약을 고정한다.
+
+    응답 모양이 바뀌면 성분이 안 올 수 있다. 그때 비용 줄 자체가 빠지면
+    **예산 판정의 재료가 사라져** 루프가 「표본 없음」으로 멈춘다 — 응답 모양 변화 하나가
+    회차 구조를 바꾸는 셈이다.
+
+    Given: 성분이 없는 호출 결과
+    When: 비용을 적는다
+    Then: 비용과 합계는 남고, 성분 자리는 비어 있다
+    """
+    result = invoke.AgentResult(
+        text="답", raw="{}", cost_usd=0.5, tokens=None, usage=None, elapsed_seconds=1.0, session_id="세션"
+    )
+
+    decision_log.record_cost(tmp_path, "collect", result)
+
+    entry = decision_log.read(tmp_path)[0]
+
+    assert entry["cost_usd"] == 0.5
+    assert entry.get("tokens_input") is None
 
 
 def test_korean_is_not_escaped(tmp_path: Path) -> None:

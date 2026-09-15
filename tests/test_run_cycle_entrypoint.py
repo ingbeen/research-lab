@@ -364,14 +364,19 @@ def _failed(kind: Any) -> Any:
     return cycle.CycleResult(tuple(steps.STEPS[:2]), (), Failure(kind=kind, raw="원문"))
 
 
-def _stub_cycle(entrypoint: Any, monkeypatch: pytest.MonkeyPatch, *, outcomes: list[Any], cost_usd: float) -> list[Path]:
+def _stub_cycle(
+    entrypoint: Any, monkeypatch: pytest.MonkeyPatch, *, outcomes: list[Any], cost_usd: float
+) -> list[Path]:
     """회차 실행을 미리 정한 결과로 바꾸고, 어느 폴더가 돌았는지 돌려준다.
 
-    진짜 단계가 남기는 것 중 **루프 판정에 쓰이는 둘**만 흉내 낸다 — 상태 파일과 비용 줄.
-    둘 다 없으면 다음 반복이 같은 폴더를 이어받거나 「한 단위」 표본이 안 생겨,
-    **흉내가 모자라서 통과하는 테스트**가 된다.
+    진짜 단계가 남기는 것 중 **루프 판정에 쓰이는 셋**만 흉내 낸다 — 상태 파일 · 비용 줄 ·
+    **근거 문서를 냈다는 표시**. 하나라도 없으면 다음 반복이 같은 폴더를 이어받거나
+    「한 단위」 표본이 안 생겨, **흉내가 모자라서 통과하는 테스트**가 된다.
+
+    [중요] 세 번째가 늦게 추가됐다. 문서를 냈다는 표시를 안 남기면 표본이 0건이 되어
+    루프가 첫 반복에서 「표본 없음」으로 멈추는데, 그것은 **흉내의 결함**이지 코드의 동작이 아니다.
     """
-    from research_lab.runner import cycle, decision_log, state
+    from research_lab.runner import cycle, decision_log, state, steps
 
     seen: list[Path] = []
     queue = list(outcomes)
@@ -380,7 +385,18 @@ def _stub_cycle(entrypoint: Any, monkeypatch: pytest.MonkeyPatch, *, outcomes: l
         seen.append(run_dir)
         outcome = queue.pop(0) if queue else outcomes[-1]
         state.save(run_dir, {"settled": list(outcome.settled), "skipped": list(outcome.skipped)})
-        decision_log.record(run_dir, "collect", decision_log.EVENT_COST, cost_usd=cost_usd, tokens=1, elapsed_seconds=1.0)
+        decision_log.record(
+            run_dir, "collect", decision_log.EVENT_COST, cost_usd=cost_usd, tokens=1, elapsed_seconds=1.0
+        )
+        if outcome.produced:
+            decision_log.record(
+                run_dir,
+                steps.STEPS[-1],
+                decision_log.EVENT_JUDGED,
+                claim="한 줄 주장",
+                verdict="보류",
+                dossier=f"{run_dir.name}_후보.md",
+            )
         return outcome
 
     monkeypatch.setattr(cycle, "run_cycle", run_cycle)
@@ -412,7 +428,9 @@ def test_a_second_new_run_dir_does_not_collide(entrypoint: Any) -> None:
     assert second.name[:RUN_DIR_DATE_LENGTH] == first.name[:RUN_DIR_DATE_LENGTH]
 
 
-def test_the_loop_goes_to_the_next_candidate_while_budget_remains(entrypoint: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_loop_goes_to_the_next_candidate_while_budget_remains(
+    entrypoint: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """
     목적: 한 장을 끝내고 예산이 남으면 «다음 후보로 가는» 계약을 고정한다 (설계 §3.1.1).
 
@@ -595,3 +613,149 @@ def test_the_stop_reason_is_recorded(entrypoint: Any, monkeypatch: pytest.Monkey
     assert last.get("reason"), "왜 멈췄는지가 적혀야 한다"
     assert last.get("unit_samples") is not None, "「한 단위」를 몇 표본으로 쟀는지가 함께 있어야 한다"
     assert last.get("spent_usd") is not None and last.get("produced") is not None
+
+
+def test_the_cycle_records_its_own_start_and_end(entrypoint: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    목적: 회차가 «자기 시작과 끝»을 저장소 안의 로그에 남기는 계약을 고정한다.
+
+    [중요] 회차는 주로 새벽에 돈다. 시작 기록이 없으면 강제 종료된 회차가 **아무 흔적도
+    남기지 못하고**, 아침에 「중단됐다」와 「아예 안 돌았다」를 가릴 수 없다.
+    종료 코드도 지금까지 화면에만 나갔는데, 그 화면 기록은 **저장소 밖**이라 따라오지 않는다.
+
+    Given: 여러 장을 내는 회차
+    When: 회차를 돈다
+    Then: 시작과 종료가 «각각 한 번» 남고, 종료에 코드와 요약이 들어 있다
+    """
+    from research_lab.runner import cycle_log
+
+    seen = _stub_cycle(entrypoint, monkeypatch, outcomes=[_finished()], cost_usd=4.0)
+
+    assert entrypoint.main(["--cycle-budget-usd", "10"]) == entrypoint.EXIT_OK
+
+    entries = cycle_log.read(entrypoint.RUNS_DIR)
+    started = [entry for entry in entries if entry["event"] == cycle_log.EVENT_STARTED]
+    finished = [entry for entry in entries if entry["event"] == cycle_log.EVENT_FINISHED]
+
+    assert len(started) == 1, "폴더를 여럿 만든 회차도 «한 회차»다"
+    assert len(finished) == 1
+    assert started[0]["cycle_id"] == finished[0]["cycle_id"], "짝이 지어져야 중단을 판정할 수 있다"
+    assert finished[0]["exit_code"] == entrypoint.EXIT_OK
+    assert finished[0]["produced"] == len(seen)
+    assert cycle_log.unfinished_ids(entrypoint.RUNS_DIR) == []
+
+
+def test_a_secret_finding_still_records_the_end(entrypoint: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    목적: [중요] **루프 중간에서 바로 돌아 나가는** 경로에서도 종료가 남는 계약을 고정한다.
+
+    자격증명이 걸리면 그 자리에서 멈추고 나간다. 그 경로가 종료를 안 적으면 **사람이
+    손대야 하는 바로 그 회차가 「중단」으로 보이고**, 원인을 컨테이너나 에이전트에서 찾게 된다.
+
+    Given: 첫 반복에서 자격증명이 걸린다
+    When: 회차를 돈다
+    Then: 자격증명 갈래의 종료 코드가 로그에 남고, 짝 없는 시작이 없다
+    """
+    from research_lab.gate.secrets import Finding
+    from research_lab.runner import cycle_log
+
+    _stub_cycle(entrypoint, monkeypatch, outcomes=[_finished()], cost_usd=1.0)
+    monkeypatch.setattr(
+        entrypoint.secrets,
+        "scan",
+        lambda _roots: [Finding(path=Path("어딘가"), rule="anthropic-oauth-token", line_number=1)],
+    )
+
+    assert entrypoint.main(["--cycle-budget-usd", "100"]) == entrypoint.EXIT_SECRET
+
+    finished = [e for e in cycle_log.read(entrypoint.RUNS_DIR) if e["event"] == cycle_log.EVENT_FINISHED]
+    assert len(finished) == 1
+    assert finished[0]["exit_code"] == entrypoint.EXIT_SECRET
+    assert cycle_log.unfinished_ids(entrypoint.RUNS_DIR) == []
+
+
+def test_an_incomplete_cycle_records_its_exit_code(entrypoint: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    목적: 미완성으로 끝난 회차도 «끝났다»고 적히는 계약을 고정한다.
+
+    미완성은 정상 결과다 — 다음 회차가 이어받는다. 그것이 중단으로 보이면
+    **고칠 것이 없는 자리를 들여다보게** 된다.
+
+    Given: 미완성으로 끝나는 회차
+    When: 회차를 돈다
+    Then: 그 종료 코드가 로그에 남는다
+    """
+    from research_lab.runner import cycle_log
+    from research_lab.runner.failures import FailureKind
+
+    _stub_cycle(entrypoint, monkeypatch, outcomes=[_failed(FailureKind.OTHER)], cost_usd=1.0)
+
+    assert entrypoint.main(["--cycle-budget-usd", "100"]) == entrypoint.EXIT_INCOMPLETE
+
+    finished = [e for e in cycle_log.read(entrypoint.RUNS_DIR) if e["event"] == cycle_log.EVENT_FINISHED]
+    assert finished[0]["exit_code"] == entrypoint.EXIT_INCOMPLETE
+
+
+def test_the_billing_guard_records_nothing(entrypoint: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    목적: 과금 가드가 막은 회차가 «시작으로 기록되지 않는» 계약을 고정한다.
+
+    [중요] 가드는 한 줄이라도 돌기 «전»에 막는 것이다. 그 앞에 시작을 적으면
+    **돌지도 않은 회차가 「시작했다」로 남고**, 짝이 없으니 중단으로 읽힌다 —
+    실제로는 아무것도 시작되지 않았고 사람이 환경을 고쳐야 하는 상태다.
+
+    Given: 환경에 API 키가 있다
+    When: 회차를 부른다
+    Then: 인증 갈래로 끝나고 회차 로그가 비어 있다
+    """
+    from research_lab.runner import cycle_log
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "값은-중요하지-않다")
+
+    assert entrypoint.main([]) == entrypoint.EXIT_AUTH
+    assert cycle_log.read(entrypoint.RUNS_DIR) == []
+
+
+def test_the_end_line_carries_the_token_components(entrypoint: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    목적: 그 회차가 쓴 토큰 성분이 종료 줄에 실리는 계약을 고정한다.
+
+    「한 회차가 5시간 한도의 몇 %인가」를 되짚으려면 **회차 단위의 합**이 한 줄에 있어야
+    한다. 단계별 값은 폴더마다 흩어져 있고, 한 회차가 폴더를 여럿 만들 수 있다.
+
+    Given: 성분이 든 비용 줄을 남기는 회차
+    When: 회차를 돈다
+    Then: 종료 줄에 성분 합이 실린다
+    """
+    from research_lab.runner import cycle_log, decision_log, state, steps
+
+    def run_cycle(*, run_dir: Path, ledger_path: Path, execute: Any) -> Any:
+        outcome = _finished()
+        state.save(run_dir, {"settled": list(outcome.settled), "skipped": list(outcome.skipped)})
+        decision_log.record(
+            run_dir,
+            "collect",
+            decision_log.EVENT_COST,
+            cost_usd=4.0,
+            tokens=160,
+            tokens_input=100,
+            tokens_output=50,
+            tokens_cache_creation=10,
+            tokens_cache_read=90_000,
+        )
+        decision_log.record(
+            run_dir, steps.STEPS[-1], decision_log.EVENT_JUDGED, claim="주장", verdict="보류", dossier="문서.md"
+        )
+        return outcome
+
+    from research_lab.runner import cycle
+
+    monkeypatch.setattr(cycle, "run_cycle", run_cycle)
+    monkeypatch.setattr(entrypoint.secrets, "scan", lambda _roots: [])
+
+    entrypoint.main(["--cycle-budget-usd", "1"])
+
+    finished = [e for e in cycle_log.read(entrypoint.RUNS_DIR) if e["event"] == cycle_log.EVENT_FINISHED][0]
+
+    assert finished["tokens_input"] == 100
+    assert finished["tokens_cache_read"] == 90_000, "한도는 캐시에서 읽은 토큰도 먹는다"
