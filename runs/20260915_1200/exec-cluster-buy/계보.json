@@ -1,0 +1,86 @@
+{
+  "claim": "3인 이상 임원이 짧은 기간 내 동시에 자사주를 장내 매수(클러스터 매수)한 종목을 매수해 6~12개월 보유한다",
+  "groups": [
+    {
+      "origin": {
+        "title": "Do Insiders Cluster Trades with Colleagues? Evidence from Daily Insider Trading (Alldredge & Blank, JFR 42(2))",
+        "url": "https://ideas.repec.org/a/bla/jfnres/v42y2019i2p331-360.html",
+        "published": "2019-07"
+      },
+      "copies": [
+        {
+          "title": "Guide to Cluster Buying (2iqresearch blog)",
+          "url": "https://www.2iqresearch.com/blog/what-is-cluster-buying-and-why-is-it-such-a-powerful-insider-signal"
+        }
+      ],
+      "why": "2iqresearch 는 이 논문을 실명·연도(다만 2017로 오기)로 인용하며 '2일 내 동료 매매 후속 매매는 월별 2.1% 초과수익률'이라 적었다. 원 논문 초록의 '클러스터링된 임원 매수는 다음 달 2% 이상의 초과수익률'과 수치가 사실상 같다. 2iqresearch 는 독자적 데이터 분석 없이 이 논문(과 다른 두 논문)을 요약한 2차 블로그다."
+    },
+    {
+      "origin": {
+        "title": "Cluster Trading of Corporate Insiders (Kang, Kim & Wang, 2018)",
+        "url": "https://opis-cdn.tinkoffjournal.ru/mercury/insider-pdf-002.pdf",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "PDF 본문 텍스트 추출에 실패해 직접 대조하지 못했다. 다만 2iqresearch 블로그가 같은 제목·저자·연도(Kang, Kim & Wang, 2018 'Cluster Trading of Corporate Insiders')를 인용하며 '21거래일 기준 클러스터 매매 3.8% vs 비클러스터 2%, 90일 기준 격차 2.5%'라는 구체 수치를 제시했다. 이 수치가 실제로 이 PDF의 것인지는 원문 대조가 안 돼 확인 못 했고, 호스팅 도메인(러시아 금융 미디어의 CDN, 파일명이 일련번호 형태)이 학술 논문의 통상적 소재지(SSRN·저널·저자 소속기관)와 달라 소재 자체가 의심스럽다. 별도 원본으로 취급하되 신뢰도는 미검증으로 남긴다."
+    },
+    {
+      "origin": {
+        "title": "Decoding Inside Information (NBER WP 16454; Cohen, Malloy & Pomorski, JoF 67(3))",
+        "url": "https://www.nber.org/papers/w16454",
+        "published": "2010-10"
+      },
+      "copies": [
+        {
+          "title": "Insider Cluster Buys: SEC Form 4 Tracker (MarketTriage)",
+          "url": "https://markettriage.com/insider-trading-signals"
+        }
+      ],
+      "why": "MarketTriage 가 이 논문을 실명 인용하며 '82 basis points per month (about 9.8% annualized)'라는 수치를 그대로 옮겼다. 원 논문의 '기회적(opportunistic) 거래 포트폴리오 월 82bp 초과수익'과 숫자가 정확히 일치한다. MarketTriage 는 이 논문과 Lakonishok & Lee(2001, 목록 밖)를 종합한 2차 정리 글로, 자체 데이터 분석 없이 두 논문의 수치를 요약·병기했다."
+    },
+    {
+      "origin": {
+        "title": "자사주 취득 공시와 내부자거래 관계 분석 (Korean Journal of Financial Studies 51(3))",
+        "url": "https://www.e-kjfs.org/journal/view.php?viewtype=pubreader&number=942",
+        "published": "2022-06-27"
+      },
+      "copies": [],
+      "why": "자체 표본(1,030건 공시, 내부자매수 377건/매도 291건)과 독자 산출 수치(NPR 0.067, 6개월 8.484~13.543%, 12개월 16.899~31.787% 초과수익)를 제시한다. 목록 안 다른 출처와 문장·숫자·사례가 겹치지 않아 독립 원본으로 본다."
+    },
+    {
+      "origin": {
+        "title": "잦아진 오너들의 자사주 매입…책임경영 일환이지만 변동성 확대 지적도 [비즈360] (헤럴드경제)",
+        "url": "https://biz.heraldcorp.com/article/10834293",
+        "published": "2026-08-08"
+      },
+      "copies": [],
+      "why": "1년간(2025.8~2026.7) 공시 3,947건을 자체 집계한 월별 추이(7월 444건/84.7%, 6월 447건/90.5%, 작년 8월 74.6%→올해 7월 84.7%)와 최태원·노태문 개별 매수 사례를 제시한다. 목록 안 다른 출처와 겹치는 숫자·문장이 없어 독자 취재/집계로 본다."
+    },
+    {
+      "origin": {
+        "title": "Most of the insider trading alpha is gone by the time you see the filing (Tommi Johnsen)",
+        "url": "https://tommijohnsen.substack.com/p/most-of-the-insider-trading-alpha",
+        "published": "2026-05-27"
+      },
+      "copies": [],
+      "why": "ONON·WGS·VW-리비안 등 구체적 개별 이벤트에 대해 직접 수행한 것으로 보이는 이벤트 스터디 수치(공시 전날 +1.61%, 공시일 +3.55%, +4.27% 등)를 제시하고, Ozlen & Batumoglu(2026, SSRN, 목록 밖)를 인용한다. 목록 안 다른 출처와 사례·숫자가 겹치지 않아 독립 원본으로 본다."
+    },
+    {
+      "origin": {
+        "title": "Testing the Insider Trading Anomaly in FTSE-350 (Meng, Huang & Lu, Frontiers in Psychology)",
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8886886/",
+        "published": "2022-02-15"
+      },
+      "copies": [],
+      "why": "영국 FTSE-350 대형·중형주만 표본으로 한 독자적 회귀분석 수치(-0.839%, 0.755%, -0.752%)를 제시하며 이전 연구(2.85~5.97%)와 비교한다. 목록 안 다른 출처와 표본·숫자가 겹치지 않아 독립 원본으로 본다."
+    }
+  ],
+  "independent_source_count": 7,
+  "unverified": [
+    "Kang, Kim & Wang (2018) PDF(opis-cdn.tinkoffjournal.ru) 본문을 직접 읽지 못했다 — 텍스트 추출 실패, 호스팅 도메인이 학술 논문의 통상적 소재지와 달라 원문 소재 자체가 불확실하다",
+    "2iqresearch 가 인용한 Journal of Business and Economic Policy(2017) 논문 — 목록 밖 출처라 원문 대조를 못 했고, 그 안의 수치(1개월 24.94%·6개월 30.59%·1년 36.33%)가 실제 존재하는 논문의 것인지 확인 못 했다",
+    "MarketTriage 가 인용한 Lakonishok & Lee(2001, RFS) — 목록 밖 출처라 원문 대조를 못 했다",
+    "tommijohnsen 이 인용한 Ozlen & Batumoglu(2026-01, SSRN) — 목록 밖 출처라 원문 대조를 못 했다",
+    "2iqresearch 는 Alldredge & Blank 논문의 발표 연도를 2017 로 적었으나 실제 게재는 JFR 2019(2)호다 — 워킹페이퍼와 게재본의 연도 차이인지 오기인지 원문으로 확인하지 못했다"
+  ]
+}

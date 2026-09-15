@@ -35,10 +35,12 @@ def test_new_total_excludes_cache_reads() -> None:
 
 def test_all_total_includes_cache_reads() -> None:
     """
-    목적: 「한도 기준 합」이 캐시 읽기를 «포함»하는 계약을 고정한다.
+    목적: 「전체 합」이 캐시 읽기를 «포함»하는 계약을 고정한다.
 
-    한도는 캐시에서 읽은 토큰도 먹는다. 이 값을 빼고 세면 **한도 소비를 과소계산**하고,
-    그 숫자를 근거로 예산을 정하면 실제보다 많이 쓰게 된다.
+    [주의] 이 값은 **한도 비율의 분자가 아니다.** 한때 그렇게 보았으나
+    [실측 2026-09-15] 이 부정했다 — 자세한 것은 아래 분자 테스트에 있다.
+    그래도 이 성분을 계속 세는 이유는, 가중치가 나중에 드러나면 **다시 계산할 재료**가
+    되기 때문이다. 원본을 버리고 집계만 남기지 않는다.
 
     Given: 네 성분이 있는 토큰
     When: 전체 합을 본다
@@ -133,25 +135,71 @@ def test_share_is_none_without_calibration() -> None:
     assert usage.window_share_percent(SAMPLE, calibration=None) is None
 
 
-def test_share_uses_the_limit_accounting_total() -> None:
+def test_share_uses_new_tokens() -> None:
     """
-    목적: 보정값이 있을 때 비율이 «전체 합» 기준으로 나오는 계약을 고정한다.
+    목적: 한도 비율의 분자가 «새 토큰»이라는 계약을 고정한다.
 
     보정은 「그 회차의 토큰 대비 관측된 %」 한 쌍이므로, 분자에 무엇을 쓰는지가 분모의
-    뜻을 정한다. **캐시 읽기를 포함한 합**으로 고정해야 보정값과 이후 계산의 단위가 같다.
+    뜻을 정한다. **분자를 새 토큰으로 고정해야** 보정값과 이후 계산의 단위가 같다.
 
-    Given: 한 창이 전체 합 기준 100만 토큰이라는 보정값
-    When: 그 절반을 쓴 회차의 비율을 구한다
-    Then: 50% 가 나온다
+    Given: 한 창이 새 토큰 기준 100만이라는 보정값
+    When: 새 토큰 40만을 쓴 회차의 비율을 구한다
+    Then: 40% 가 나온다 — 캐시 읽기 10만은 세지 않는다
     """
-    half = usage.Tokens(input=200_000, output=100_000, cache_creation=100_000, cache_read=100_000)
+    sample = usage.Tokens(input=200_000, output=100_000, cache_creation=100_000, cache_read=100_000)
 
     share = usage.window_share_percent(
-        half, calibration=usage.LimitCalibration(tokens_per_window=1_000_000, measured_on="2026-09-15")
+        sample, calibration=usage.LimitCalibration(tokens_per_window=1_000_000, measured_on="2026-09-15")
     )
 
     assert share is not None
-    assert abs(share - 50.0) < 0.001
+    assert abs(share - 40.0) < 0.001
+
+
+def test_cache_reads_do_not_move_the_share() -> None:
+    """
+    목적: [중요] 캐시 읽기가 한도 비율을 «바꾸지 않는» 계약을 고정한다.
+
+    [실측 2026-09-15] 같은 날 회차 둘의 전후 사용률을 재서 창 크기를 역산했다.
+    **분자를 새 토큰으로 두면 두 측정이 2.4% 안에서 일치하고, 캐시 읽기를 포함한 합으로
+    두면 1.8배 어긋난다** — 어긋나는 쪽이 그때까지의 코드였다.
+
+    | 분자 | 1차로 푼 창 | 2차로 푼 창 |
+    | --- | --- | --- |
+    | 새 토큰 | 1,878,750 | 1,924,835 |
+    | 전체 합 | 23,635,475 | 12,825,038 |
+
+    이 고장은 에러를 내지 않는다. 비율이 그럴듯한 숫자로 계속 나오기 때문이다.
+
+    Given: 새 토큰이 같고 캐시 읽기만 100배 차이 나는 두 회차
+    When: 각각의 한도 비율을 구한다
+    Then: 두 비율이 같다
+    """
+    calibrated = usage.LimitCalibration(tokens_per_window=1_000_000, measured_on="2026-09-15")
+    lean = usage.Tokens(input=10_000, output=10_000, cache_creation=10_000, cache_read=1_000)
+    cached = usage.Tokens(input=10_000, output=10_000, cache_creation=10_000, cache_read=100_000)
+
+    assert usage.window_share_percent(lean, calibration=calibrated) == usage.window_share_percent(
+        cached, calibration=calibrated
+    )
+
+
+def test_the_calibration_is_filled_in_with_the_date_it_was_measured() -> None:
+    """
+    목적: 보정값이 «들어 있고» 잰 날짜를 달고 다니는 계약을 고정한다.
+
+    한도 정책이 바뀌면 이 값은 조용히 틀린다. 날짜가 없으면 언제 잰 것인지 알 수 없어
+    **틀렸는지조차 판정할 수 없다.** 그래서 날짜 없는 비율을 내지 않는다.
+
+    Given: 이 저장소가 쓰는 보정값
+    When: 그 값을 본다
+    Then: 토큰 수가 양수이고 잰 날짜가 붙어 있다
+    """
+    calibration = usage.calibrated()
+
+    assert calibration is not None, "보정값이 비어 있으면 모든 회차의 한도 비율이 「잴 수 없음」이 된다"
+    assert calibration.tokens_per_window > 0
+    assert calibration.measured_on
 
 
 def test_per_dossier_share_needs_a_dossier() -> None:

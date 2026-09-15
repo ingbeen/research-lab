@@ -23,7 +23,7 @@ def _start(runs_dir: Path, cycle_id: str) -> None:
     cycle_log.started(
         runs_dir,
         cycle_id=cycle_id,
-        cycle_budget_usd=10.0,
+        cycle_dossiers=4,
         step_budget_usd=2.0,
         ledger_name="원장.md",
         run_dir_name=None,
@@ -62,7 +62,7 @@ def test_start_is_recorded_before_anything_else(tmp_path: Path) -> None:
     assert len(entries) == 1
     assert entries[0]["event"] == cycle_log.EVENT_STARTED
     assert entries[0]["cycle_id"] == "cyc-1"
-    assert entries[0]["cycle_budget_usd"] == 10.0
+    assert entries[0]["cycle_dossiers"] == 4
     assert entries[0]["ts"], "시각이 없으면 언제 돌았는지 되짚을 수 없다"
 
 
@@ -178,7 +178,7 @@ def test_tokens_ride_on_the_finish_line(tmp_path: Path) -> None:
         exit_code=0,
         produced=2,
         spent_usd=8.0,
-        stop_reason="예산이 모자랍니다",
+        stop_reason="요청한 2장을 냈습니다",
         last_run_dir_name="20260915_1200",
         tokens=usage.Tokens(input=10, output=20, cache_creation=30, cache_read=40),
     )
@@ -189,9 +189,10 @@ def test_tokens_ride_on_the_finish_line(tmp_path: Path) -> None:
     assert finished["tokens_output"] == 20
     assert finished["tokens_cache_creation"] == 30
     assert finished["tokens_cache_read"] == 40
-    # [중요] 합계도 같이 적힌다. 보정이 이 값을 분자로 쓰므로, 없으면 사람이 성분 넷을
-    # 손으로 더해야 하고 **눈으로 읽어 다시 타이핑한 값은 근거물이 아니다**
-    assert finished["tokens_limit_total"] == 100
+    # [중요] 보정의 «분자»가 같이 적힌다. 없으면 사람이 성분을 손으로 더해야 하고
+    # **눈으로 읽어 다시 타이핑한 값은 근거물이 아니다.**
+    # [중요] 캐시 읽기(40)가 «빠진» 값이어야 한다 — 한도는 그 토큰을 세지 않는다
+    assert finished["tokens_new_total"] == 60
 
 
 def test_a_line_cut_mid_character_does_not_raise(tmp_path: Path) -> None:

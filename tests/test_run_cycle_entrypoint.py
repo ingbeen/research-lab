@@ -265,6 +265,7 @@ def test_exit_codes_are_all_distinct(entrypoint: Any) -> None:
         entrypoint.EXIT_LIMIT,
         entrypoint.EXIT_AUTH,
         entrypoint.EXIT_SECRET,
+        entrypoint.EXIT_USAGE,
     ]
 
     assert len(set(codes)) == len(codes)
@@ -369,12 +370,12 @@ def _stub_cycle(
 ) -> list[Path]:
     """회차 실행을 미리 정한 결과로 바꾸고, 어느 폴더가 돌았는지 돌려준다.
 
-    진짜 단계가 남기는 것 중 **루프 판정에 쓰이는 셋**만 흉내 낸다 — 상태 파일 · 비용 줄 ·
-    **근거 문서를 냈다는 표시**. 하나라도 없으면 다음 반복이 같은 폴더를 이어받거나
-    「한 단위」 표본이 안 생겨, **흉내가 모자라서 통과하는 테스트**가 된다.
+    진짜 단계가 남기는 것 중 **뒤에서 읽히는 것**만 흉내 낸다 — 상태 파일 · 비용 줄 ·
+    근거 문서를 냈다는 표시. 없으면 다음 반복이 같은 폴더를 이어받거나, 회차 로그·화면
+    요약이 빈 값을 실어 **흉내가 모자라서 통과하는 테스트**가 된다.
 
-    [중요] 세 번째가 늦게 추가됐다. 문서를 냈다는 표시를 안 남기면 표본이 0건이 되어
-    루프가 첫 반복에서 「표본 없음」으로 멈추는데, 그것은 **흉내의 결함**이지 코드의 동작이 아니다.
+    [주의] 루프가 「한 장을 냈나」를 보는 자리는 `CycleResult.produced` 이지 이 로그 줄이
+    아니다. 줄을 함께 남기는 것은 **그 폴더가 진짜 회차와 같은 모양이 되게** 하기 위해서다.
     """
     from research_lab.runner import cycle, decision_log, state, steps
 
@@ -428,39 +429,89 @@ def test_a_second_new_run_dir_does_not_collide(entrypoint: Any) -> None:
     assert second.name[:RUN_DIR_DATE_LENGTH] == first.name[:RUN_DIR_DATE_LENGTH]
 
 
-def test_the_loop_goes_to_the_next_candidate_while_budget_remains(
-    entrypoint: Any, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_the_step_guard_clears_the_most_expensive_step_ever_measured(entrypoint: Any) -> None:
     """
-    목적: 한 장을 끝내고 예산이 남으면 «다음 후보로 가는» 계약을 고정한다 (설계 §3.1.1).
+    목적: 단계 상한이 «정상 작업을 자르지 않는» 자리에 있음을 고정한다.
+
+    [실측 2026-09-15] 상한이 $2 였을 때 반증 단계가 $2.4330 에서 잘렸고,
+    **근거 문서 한 장이 통째로 날아갔다.** 이 값은 폭주 감지이지 과금 방지가 아니므로
+    (과금은 `billing_guard` 가 막는다) 정상 작업보다 낮게 두면 잃는 것만 있다.
+
+    Given: 지금까지 실측된 한 단계의 최고액
+    When: 단계 상한을 본다
+    Then: 그보다 넉넉히 위에 있다
+    """
+    measured_max_usd = 2.4330
+
+    assert entrypoint.DEFAULT_BUDGET_USD > measured_max_usd, "정상으로 확인된 단계 비용보다 낮은 상한은 폭주가 아니라 «작업»을 자른다"
+
+
+def test_the_loop_produces_the_requested_number_of_dossiers(entrypoint: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    목적: 한 장을 끝내고도 «요청한 장수까지» 가는 계약을 고정한다 (설계 §3.1.1).
 
     **남는 토큰을 쓰는 것이 이 프로젝트의 목적**이라, 일찍 끝났다고 멈추면 목적과 어긋난다.
 
-    Given: 예산 $10 · 한 장에 $4 가 드는 회차
+    [중요] 지시를 «장수»로 받는다. 달러로 받으면 사람이 원하는 것(「세 장」)과 적는 것
+    (「$12」)이 달라지고, 그 대응은 한 장의 비용 중앙값이 바뀔 때마다 조용히 달라진다.
+
+    Given: 세 장을 요청한 회차
     When: 회차를 돈다
-    Then: 남은 예산이 한 장의 절반에 못 미칠 때까지 돌고, 실행 폴더가 매번 다르다
+    Then: 세 번 돌고, 실행 폴더가 매번 다르다
     """
     seen = _stub_cycle(entrypoint, monkeypatch, outcomes=[_finished()], cost_usd=4.0)
 
-    assert entrypoint.main(["--cycle-budget-usd", "10"]) == entrypoint.EXIT_OK
-    assert len(seen) == 3, "$10 에서 $4 짜리를 셋 돌면 남은 예산이 절반($2) 아래로 내려간다"
+    assert entrypoint.main(["--cycle-dossiers", "3"]) == entrypoint.EXIT_OK
+    assert len(seen) == 3
     assert len(set(seen)) == len(seen), "반복마다 «다른» 실행 폴더를 써야 한다"
 
 
-def test_the_loop_stops_when_half_a_unit_is_not_left(entrypoint: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_cost_of_a_dossier_does_not_change_how_many_are_produced(
+    entrypoint: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """
-    목적: 「평균의 절반도 안 남았으면 시작하지 않는다」가 루프에 걸리는 계약을 고정한다.
+    목적: [중요] 장수가 «비용에 흔들리지 않는» 계약을 고정한다.
 
-    시작 비용(검색·컨텍스트 적재)이 매번 다시 들어, 모자란 예산으로 시작하면 순 낭비다.
+    예전에는 「한 장 비용 중앙값의 절반이 남았나」로 다음 장을 시작할지 정했다. 그래서
+    같은 지시가 후보에 따라 다른 장수를 냈고, **그 중앙값 자체가 잘못 잡힌 적이 있다**
+    ([실측 2026-09-15] 문서를 안 낸 폴더가 표본에 섞여 한 단위가 절반으로 잡혔다).
+    장수로 세면 그 경로가 통째로 사라진다.
 
-    Given: 예산 $5 · 한 장에 $4 가 드는 회차
-    When: 회차를 돈다
-    Then: 한 장에서 멈춘다
+    Given: 같은 「두 장」 지시 · 한 장이 싼 회차와 비싼 회차
+    When: 각각 회차를 돈다
+    Then: 둘 다 두 장을 낸다
     """
-    seen = _stub_cycle(entrypoint, monkeypatch, outcomes=[_finished()], cost_usd=4.0)
+    cheap = _stub_cycle(entrypoint, monkeypatch, outcomes=[_finished()], cost_usd=0.01)
+    assert entrypoint.main(["--cycle-dossiers", "2"]) == entrypoint.EXIT_OK
 
-    assert entrypoint.main(["--cycle-budget-usd", "5"]) == entrypoint.EXIT_OK
-    assert len(seen) == 1
+    expensive = _stub_cycle(entrypoint, monkeypatch, outcomes=[_finished()], cost_usd=40.0)
+    assert entrypoint.main(["--cycle-dossiers", "2"]) == entrypoint.EXIT_OK
+
+    assert len(cheap) == len(expensive) == 2
+
+
+def test_a_dossier_count_below_one_is_rejected(entrypoint: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    목적: 장수가 1 보다 작으면 «시작하지 않는» 계약을 고정한다.
+
+    0 은 「한 장도 내지 말라」라 무인 실행에서 의미가 없고, 음수는 루프가 한 번도 돌지
+    않아 **내부 불변조건 위반으로 터진다.** 둘 다 인자를 받는 자리에서 막는 것이 맞다.
+
+    [중요] 그 거부가 «한도 소진»과 다른 종료 코드로 나가야 한다. argparse 의 기본값은 2 인데
+    그 자리는 「정상이며 할 일 없음」이라, 겹치면 예약 정의의 플래그가 틀렸을 때
+    **매일 밤 아무것도 안 하면서 괜찮아 보인다.**
+
+    Given: 0 또는 음수 장수 · 없는 플래그
+    When: 회차를 부른다
+    Then: 돌기 전에 거부되고, 그 코드가 한도 소진과 다르다
+    """
+    _stub_cycle(entrypoint, monkeypatch, outcomes=[_finished()], cost_usd=1.0)
+
+    for bad in (["--cycle-dossiers", "0"], ["--cycle-dossiers", "-1"], ["--cycle-budget-usd", "10"]):
+        with pytest.raises(SystemExit) as stopped:
+            entrypoint.main(bad)
+        assert stopped.value.code == entrypoint.EXIT_USAGE
+        assert stopped.value.code != entrypoint.EXIT_LIMIT
 
 
 def test_the_loop_stops_when_a_cycle_is_incomplete(entrypoint: Any, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -478,7 +529,7 @@ def test_the_loop_stops_when_a_cycle_is_incomplete(entrypoint: Any, monkeypatch:
 
     seen = _stub_cycle(entrypoint, monkeypatch, outcomes=[_failed(FailureKind.OTHER)], cost_usd=1.0)
 
-    assert entrypoint.main(["--cycle-budget-usd", "100"]) == entrypoint.EXIT_INCOMPLETE
+    assert entrypoint.main(["--cycle-dossiers", "4"]) == entrypoint.EXIT_INCOMPLETE
     assert len(seen) == 1
 
 
@@ -496,7 +547,7 @@ def test_the_loop_stops_when_nothing_was_produced(entrypoint: Any, monkeypatch: 
     """
     seen = _stub_cycle(entrypoint, monkeypatch, outcomes=[_nothing_produced()], cost_usd=0.0)
 
-    assert entrypoint.main(["--cycle-budget-usd", "100"]) == entrypoint.EXIT_OK
+    assert entrypoint.main(["--cycle-dossiers", "4"]) == entrypoint.EXIT_OK
     assert len(seen) == 1
 
 
@@ -515,31 +566,31 @@ def test_the_loop_stops_immediately_on_limit(entrypoint: Any, monkeypatch: pytes
 
     seen = _stub_cycle(entrypoint, monkeypatch, outcomes=[_failed(FailureKind.LIMIT)], cost_usd=0.0)
 
-    assert entrypoint.main(["--cycle-budget-usd", "100"]) == entrypoint.EXIT_LIMIT
+    assert entrypoint.main(["--cycle-dossiers", "4"]) == entrypoint.EXIT_LIMIT
     assert len(seen) == 1
 
 
-def test_the_loop_has_a_hard_iteration_cap(entrypoint: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_dossier_count_is_itself_the_cap(entrypoint: Any, monkeypatch: pytest.MonkeyPatch) -> None:
     """
-    목적: [중요] 예산 계산이 틀려도 한 회차가 «영원히 돌지 않는» 계약을 고정한다.
+    목적: [중요] 한 회차가 «영원히 돌지 않는» 계약을 고정한다 — 그리고 그 상한이 장수다.
 
-    상한이 없으면 한 회차 내내 같은 일을 반복하며 예산을 태우고, 나중에 보면
-    **예산은 다 썼고 산출물은 0장**이다. 그런 회차는 「실패」가 아니라 「아무 일 없음」처럼
+    상한이 없으면 한 회차 내내 같은 일을 반복하며 한도를 태우고, 나중에 보면
+    **한도는 다 썼고 산출물은 0장**이다. 그런 회차는 「실패」가 아니라 「아무 일 없음」처럼
     보여 며칠 지나서야 알아챈다.
 
-    [주의] 상한 값에 기존 재시도 상한(3)의 관용을 가져오지 않는다. 그것들은 «실패 재시도»의
-    상한이고 이것은 «정상 반복»의 폭주 감지라, 3 으로 두면 예산이 남아도 세 장에서 멈춰
-    **상한이 정책을 대신하게 된다.**
+    예전에는 예산 판정과 «별도의» 반복 상한이 그 일을 했다. 지시가 장수가 되면서
+    **둘이 같은 물건이 됐다** — 요청한 장수가 곧 반복의 상한이다. 별도 상수를 남겨 두면
+    지시보다 그 상수가 작을 때 **상한이 정책을 대신한다.**
 
-    Given: 한 장이 사실상 공짜라 남은 예산이 언제나 충분해 보이는 상황
+    Given: 한 장이 사실상 공짜라 계속 돌 수 있는 상황 · 두 장 요청
     When: 회차를 돈다
-    Then: 반복 상한만큼만 돌고 끝난다
+    Then: 두 번만 돌고, 별도의 반복 상한 상수는 남아 있지 않다
     """
     seen = _stub_cycle(entrypoint, monkeypatch, outcomes=[_finished()], cost_usd=0.001)
 
-    assert entrypoint.main(["--cycle-budget-usd", "1000"]) == entrypoint.EXIT_OK
-    assert len(seen) == entrypoint.MAX_CYCLE_ITERATIONS
-    assert entrypoint.MAX_CYCLE_ITERATIONS > 3, "재시도 상한의 관용을 그대로 쓰면 상한이 정책을 대신한다"
+    assert entrypoint.main(["--cycle-dossiers", "2"]) == entrypoint.EXIT_OK
+    assert len(seen) == 2
+    assert not hasattr(entrypoint, "MAX_CYCLE_ITERATIONS"), "장수가 곧 상한이다. 별도 상수가 남아 있으면 지시보다 작을 때 상한이 정책을 대신한다"
 
 
 def test_every_iteration_is_scanned_for_secrets(entrypoint: Any, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -559,7 +610,7 @@ def test_every_iteration_is_scanned_for_secrets(entrypoint: Any, monkeypatch: py
     seen = _stub_cycle(entrypoint, monkeypatch, outcomes=[_finished()], cost_usd=4.0)
     monkeypatch.setattr(entrypoint.secrets, "scan", lambda roots: scanned.append(tuple(roots)) or [])
 
-    entrypoint.main(["--cycle-budget-usd", "10"])
+    entrypoint.main(["--cycle-dossiers", "3"])
 
     assert len(scanned) == len(seen) > 1
     for run_dir, roots in zip(seen, scanned, strict=True):
@@ -585,7 +636,7 @@ def test_a_secret_stops_the_loop_at_that_iteration(entrypoint: Any, monkeypatch:
         lambda _roots: [Finding(path=Path("어딘가"), rule="anthropic-oauth-token", line_number=1)],
     )
 
-    assert entrypoint.main(["--cycle-budget-usd", "100"]) == entrypoint.EXIT_SECRET
+    assert entrypoint.main(["--cycle-dossiers", "4"]) == entrypoint.EXIT_SECRET
     assert len(seen) == 1
 
 
@@ -593,25 +644,25 @@ def test_the_stop_reason_is_recorded(entrypoint: Any, monkeypatch: pytest.Monkey
     """
     목적: 루프가 «왜» 멈췄는지가 로그에 남는 계약을 고정한다.
 
-    한 장에서 멈춘 것도 정상 결과다 — 원장 재고와 그 후보의 비용에 따라 한 장이 맞을 수
-    있다. 그래서 확인할 것은 「몇 장을 냈나」가 아니라 **「왜 거기서 멈췄나가 남았나」**이고,
-    「한 단위」를 몇 표본으로 쟀는지가 함께 있어야 나중에 그 값을 근거로 쓸 수 있다.
+    한 장에서 멈춘 것도 정상 결과다 — 원장 재고와 그 후보에 따라 한 장이 맞을 수 있다.
+    그래서 확인할 것은 「몇 장을 냈나」가 아니라 **「왜 거기서 멈췄나가 남았나」**이고,
+    **요청받은 장수**가 함께 있어야 그 판정이 옳았는지 나중에 되짚을 수 있다.
 
-    Given: 예산이 모자라 한 장에서 멈추는 회차
+    Given: 한 장만 요청한 회차
     When: 회차를 돈다
-    Then: 결정 로그에 멈춘 사유와 표본 수가 남는다
+    Then: 결정 로그에 멈춘 사유와 요청 장수가 남는다
     """
     from research_lab.runner import decision_log
 
     seen = _stub_cycle(entrypoint, monkeypatch, outcomes=[_finished()], cost_usd=4.0)
-    entrypoint.main(["--cycle-budget-usd", "5"])
+    entrypoint.main(["--cycle-dossiers", "1"])
 
     budget_lines = [entry for entry in decision_log.read(seen[-1]) if entry.get("event") == decision_log.EVENT_BUDGET]
 
     assert budget_lines, "루프의 판정이 결정 로그에 남아야 한다"
     last = budget_lines[-1]
     assert last.get("reason"), "왜 멈췄는지가 적혀야 한다"
-    assert last.get("unit_samples") is not None, "「한 단위」를 몇 표본으로 쟀는지가 함께 있어야 한다"
+    assert last.get("cycle_dossiers") == 1, "요청받은 장수가 함께 있어야 판정을 되짚을 수 있다"
     assert last.get("spent_usd") is not None and last.get("produced") is not None
 
 
@@ -631,7 +682,7 @@ def test_the_cycle_records_its_own_start_and_end(entrypoint: Any, monkeypatch: p
 
     seen = _stub_cycle(entrypoint, monkeypatch, outcomes=[_finished()], cost_usd=4.0)
 
-    assert entrypoint.main(["--cycle-budget-usd", "10"]) == entrypoint.EXIT_OK
+    assert entrypoint.main(["--cycle-dossiers", "3"]) == entrypoint.EXIT_OK
 
     entries = cycle_log.read(entrypoint.RUNS_DIR)
     started = [entry for entry in entries if entry["event"] == cycle_log.EVENT_STARTED]
@@ -666,7 +717,7 @@ def test_a_secret_finding_still_records_the_end(entrypoint: Any, monkeypatch: py
         lambda _roots: [Finding(path=Path("어딘가"), rule="anthropic-oauth-token", line_number=1)],
     )
 
-    assert entrypoint.main(["--cycle-budget-usd", "100"]) == entrypoint.EXIT_SECRET
+    assert entrypoint.main(["--cycle-dossiers", "4"]) == entrypoint.EXIT_SECRET
 
     finished = [e for e in cycle_log.read(entrypoint.RUNS_DIR) if e["event"] == cycle_log.EVENT_FINISHED]
     assert len(finished) == 1
@@ -690,7 +741,7 @@ def test_an_incomplete_cycle_records_its_exit_code(entrypoint: Any, monkeypatch:
 
     _stub_cycle(entrypoint, monkeypatch, outcomes=[_failed(FailureKind.OTHER)], cost_usd=1.0)
 
-    assert entrypoint.main(["--cycle-budget-usd", "100"]) == entrypoint.EXIT_INCOMPLETE
+    assert entrypoint.main(["--cycle-dossiers", "4"]) == entrypoint.EXIT_INCOMPLETE
 
     finished = [e for e in cycle_log.read(entrypoint.RUNS_DIR) if e["event"] == cycle_log.EVENT_FINISHED]
     assert finished[0]["exit_code"] == entrypoint.EXIT_INCOMPLETE
@@ -753,7 +804,7 @@ def test_the_end_line_carries_the_token_components(entrypoint: Any, monkeypatch:
     monkeypatch.setattr(cycle, "run_cycle", run_cycle)
     monkeypatch.setattr(entrypoint.secrets, "scan", lambda _roots: [])
 
-    entrypoint.main(["--cycle-budget-usd", "1"])
+    entrypoint.main(["--cycle-dossiers", "1"])
 
     finished = [e for e in cycle_log.read(entrypoint.RUNS_DIR) if e["event"] == cycle_log.EVENT_FINISHED][0]
 

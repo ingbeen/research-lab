@@ -1,0 +1,19 @@
+{
+  "settled": [
+    "explore",
+    "collect",
+    "rebut",
+    "lineage",
+    "feasibility",
+    "mechanism",
+    "measurement",
+    "verdict"
+  ],
+  "skipped": [
+    "explore"
+  ],
+  "candidate": {
+    "claim": "3인 이상 임원이 짧은 기간 내 동시에 자사주를 장내 매수(클러스터 매수)한 종목을 매수해 6~12개월 보유한다",
+    "identifier": "exec-cluster-buy"
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "claim": "3인 이상 임원이 짧은 기간 내 동시에 자사주를 장내 매수(클러스터 매수)한 종목을 매수해 6~12개월 보유한다",
+  "params": [
+    {
+      "name": "동시 매수 판정 창",
+      "unit": "거래일",
+      "candidates": [
+        5,
+        10,
+        15,
+        20
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "title": "Do Insiders Cluster Trades with Colleagues? Evidence from Daily Insider Trading (Alldredge & Blank, Journal of Financial Research 42(2), 331-360)",
+      "url": "https://ideas.repec.org/a/bla/jfnres/v42y2019i2p331-360.html",
+      "published": "2019-07",
+      "kind": "primary",
+      "says": "논문 초록: 기업 내부자들은 동료(특히 가깝게 일하는 동료)의 거래 주변에 자신의 거래를 클러스터링하며, 이런 클러스터화된 매수는 다음 달에 2% 이상의 초과수익률로 이어졌다고 밝힘. 정보 비대칭이 크고 투자자 관심이 낮을 때 클러스터링이 더 강하게 나타남"
+    },
+    {
+      "title": "Decoding Inside Information (NBER Working Paper 16454; Cohen, Malloy & Pomorski, Journal of Finance 67(3), 2012)",
+      "url": "https://www.nber.org/papers/w16454",
+      "published": "2010-10",
+      "kind": "primary",
+      "says": "루틴 거래와 기회주의적(opportunistic) 거래를 분리했을 때, 기회주의적 내부자 매수만 따로 포트폴리오를 구성하면 월 82bp(약 연 9.8%)의 가치가중 초과수익률을 냄. 여러 임원이 동시에 매수하는 클러스터 패턴은 이 '기회주의적' 유형에 해당한다고 후속 논의(2iqresearch, markettriage)에서 인용됨"
+    },
+    {
+      "title": "자사주 취득 공시와 내부자거래 관계 분석 (Korean Journal of Financial Studies, 2022;51(3):335-358)",
+      "url": "https://www.e-kjfs.org/journal/view.php?viewtype=pubreader&number=942",
+      "published": "2022-06-27",
+      "kind": "primary",
+      "says": "임원 등 내부자의 장내매수를 강매수/강매도로 나눠 자사주 취득 공시 전후 주가 반응을 비교. 전체시장 기준 내부자 강매수 표본이 강매도 표본보다 6개월 8.484%, 12개월 16.899% 더 높은 유의미한 초과수익을 보였고, 강매도 표본은 유의미한 장기 수익률이 없었음. 다만 이 연구는 '클러스터(3인 이상 동시)' 정의가 아니라 개별 내부자 매수 강도로 표본을 나눈 것"
+    },
+    {
+      "title": "Guide to Cluster Buying (2iqresearch blog)",
+      "url": "https://www.2iqresearch.com/blog/what-is-cluster-buying-and-why-is-it-such-a-powerful-insider-signal",
+      "published": "2021-01-12",
+      "kind": "secondary",
+      "says": "3명 이상의 고위 임원이 짧은 기간 내 매수하는 '클러스터 매수'가 가장 강력한 내부자 신호 중 하나라고 주장하며 Alldredge & Blank(2017/2019), Kang·Kim·Wang(2018) 연구를 인용. Kang·Kim·Wang은 클러스터 매수가 비클러스터 매수보다 21거래일 기준 초과수익이 약 2배(3.8% vs 2%)라고 보고했다고 서술"
+    },
+    {
+      "title": "Insider Cluster Buys: SEC Form 4 Tracker (MarketTriage)",
+      "url": "https://markettriage.com/insider-trading-signals",
+      "published": "2026-03-23",
+      "kind": "secondary",
+      "says": "클러스터 매수를 '3인 이상(3 or more unique corporate insiders)이 15일의 단기 윈도우 내 각 거래 최소 2만5천달러 초과로 매수'로 정의 — 이 주장의 '3인 이상·짧은 기간'과 정확히 일치. Lakonishok & Lee(2001)와 Cohen·Malloy·Pomorski(2012)를 인용해 근거로 제시"
+    },
+    {
+      "title": "Cluster Trading of Corporate Insiders (Kang, Kim & Wang, 2018) — PDF",
+      "url": "https://opis-cdn.tinkoffjournal.ru/mercury/insider-pdf-002.pdf",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "1986~2016년 미국 내부자거래 데이터를 분석해 임원의 클러스터 매수가 비클러스터 매수보다 정보성이 크고 공시 시 가격 반응이 더 강하다고 주장한 논문(파일은 열렸으나 텍스트 추출이 되지 않아 구체적 수치는 2iqresearch 등 2차 인용으로만 확인)"
+    },
+    {
+      "title": "잦아진 오너들의 자사주 매입…책임경영 일환이지만 변동성 확대 지적도 [비즈360] (헤럴드경제)",
+      "url": "https://biz.heraldcorp.com/article/10834293",
+      "published": "2026-08-08",
+      "kind": "secondary",
+      "says": "국내 사례: 현대엘리베이터 임원 30여명 전원이 약 10억원 규모로 자사주를 동시 장내 매수. 다만 이 기사는 정량적 초과수익률 데이터 없이 '반짝 효과에 그칠 수 있다'는 우려도 함께 전달 — 찬반이 섞여 있어 순수 찬성 근거로만 쓰기는 조심스러움"
+    }
+  ],
+  "unverified": [
+    "Kang, Kim & Wang (2018) 'Cluster Trading of Corporate Insiders' 논문 원문의 구체적 수치(21거래일 기준 3.8% vs 2% 등)는 PDF 텍스트 추출 실패로 1차 확인하지 못했고, 2iqresearch 블로그의 2차 인용에만 의존함",
+    "Lakonishok & Lee (2001) 원 논문(Review of Financial Studies)은 열어보지 못했고, markettriage·quantdecoded 등의 2차 인용 수치(연 4.8%~7.8%)만 확인함",
+    "Cohen, Malloy & Pomorski 논문의 저널 게재판(Wiley, Journal of Finance 67(3), 2012)은 403으로 열리지 않아 NBER 워킹페이퍼 버전(2010)으로만 확인함 — 두 버전 간 수치 차이 여부는 미확인",
+    "quantdecoded.com의 '소형주 12개월 7.4% 초과수익' 페이지는 429(요청 과다) 오류로 직접 열지 못해 검색 요약에서만 확인, 별도 열람은 하지 못함",
+    "국내(한국) 시장에서 '3인 이상 임원의 짧은 기간 내 동시 장내매수'라는 클러스터 정의를 그대로 적용한 국내 실증 논문은 찾지 못했음 — e-kjfs 논문은 개별 내부자 매수 강도 기준이지 클러스터 정의가 아님",
+    "SK하이닉스 최태원 회장 매수 사례의 주가 상한가는 같은 날 미국 반도체주 상승과 겹쳐 있어, 클러스터 매수 자체의 순수 효과인지 시장 전반의 효과인지 이 기사만으로는 분리되지 않음"
+  ]
+}

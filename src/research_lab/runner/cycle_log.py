@@ -46,7 +46,7 @@ def started(
     runs_dir: Path,
     *,
     cycle_id: str,
-    cycle_budget_usd: float,
+    cycle_dossiers: int,
     step_budget_usd: float,
     ledger_name: str,
     run_dir_name: str | None,
@@ -56,20 +56,23 @@ def started(
     Args:
         runs_dir: 실행 폴더들이 쌓이는 뿌리
         cycle_id: 이 회차의 식별값
-        cycle_budget_usd: 이 회차에 준 예산 (「시작 판정」의 기준)
-        step_budget_usd: 한 단계에 건 폭주 감지 상한
+        cycle_dossiers: 이 회차에 요청된 근거 문서 장수 (반복의 상한이기도 하다)
+        step_budget_usd: 한 단계에 건 폭주 감지 상한 (달러 — CLI 플래그의 단위다)
         ledger_name: 쓴 원장 파일의 **이름**
         run_dir_name: 사람이 지정한 실행 폴더의 **이름**. 지정이 없으면 None
 
     [중요] 과금 가드보다는 «뒤»에 부른다. 가드는 한 줄이라도 돌기 전에 막는 것이라,
     그 앞에 적으면 **돌지도 않은 회차가 「시작했다」로 남고** 짝이 없으니 중단으로 읽힌다.
+
+    [주의] 2026-09-15 이전의 줄에는 이 자리에 `cycle_budget_usd`(달러)가 들어 있다.
+    덧붙이기 전용 파일이라 **과거 줄을 고치지 않으므로** 읽는 쪽이 둘 다 만날 수 있다.
     """
     _append(
         runs_dir,
         {
             "event": EVENT_STARTED,
             KEY_CYCLE_ID: cycle_id,
-            "cycle_budget_usd": cycle_budget_usd,
+            "cycle_dossiers": cycle_dossiers,
             "step_budget_usd": step_budget_usd,
             "ledger": ledger_name,
             "run_dir_arg": run_dir_name,
@@ -119,9 +122,14 @@ def finished(
         # **비율은 비었는데 날짜만 찍히는** 줄이 나온다
         calibration = usage.calibrated()
         share = usage.window_share_percent(tokens, calibration=calibration)
-        # [중요] 합계를 함께 적는다. 보정은 이 값을 분자로 쓰므로, 없으면 사람이 성분 넷을
-        # 손으로 더해야 하고 **눈으로 읽어 다시 타이핑한 값은 근거물이 아니다**
-        entry["tokens_limit_total"] = tokens.all_total
+        # [중요] 보정의 «분자»를 함께 적는다. 없으면 사람이 성분을 손으로 더해야 하고
+        # **눈으로 읽어 다시 타이핑한 값은 근거물이 아니다.**
+        #
+        # [주의] 2026-09-15 이전의 줄에는 이 자리에 `tokens_limit_total`(네 성분의 합)이
+        # 들어 있다. 그때는 캐시 읽기도 한도를 먹는다고 보았고 **그 가정이 틀렸다** —
+        # 실측은 `docs/DESIGN.md` 에 있다. 열쇠 이름을 바꾸는 것은 **같은 이름에 다른 뜻을
+        # 담지 않기** 위해서다. 덧붙이기 전용 파일이라 과거 줄은 고치지 않는다
+        entry["tokens_new_total"] = tokens.new_total
         entry["window_share_percent"] = share
         entry["window_share_per_dossier_percent"] = usage.per_dossier_percent(share, produced=produced)
         entry["limit_calibrated_on"] = calibration.measured_on if calibration is not None else None

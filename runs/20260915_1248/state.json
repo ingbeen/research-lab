@@ -1,0 +1,13 @@
+{
+  "settled": [
+    "explore",
+    "collect"
+  ],
+  "skipped": [
+    "explore"
+  ],
+  "candidate": {
+    "claim": "모기업에서 분할 상장(spin-off)된 자회사를 상장 직후 매수해 12개월 보유한다",
+    "identifier": "spinoff-buy-listing"
+  }
+}

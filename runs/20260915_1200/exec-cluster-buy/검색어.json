@@ -1,0 +1,15 @@
+{
+  "claim": "3인 이상 임원이 짧은 기간 내 동시에 자사주를 장내 매수(클러스터 매수)한 종목을 매수해 6~12개월 보유한다",
+  "queries": [
+    "임원 자사주 매수 클러스터 동시 매수 주가 상승",
+    "임원 자사주 매입 공시 이후 주가 초과수익률 연구",
+    "임원 여러명 자사주 매입 저평가 신호 매수 타이밍",
+    "\"임원\" \"지분 매수\" 개인 장내매수 주가 예측력 국내 실증연구",
+    "한국 임원 내부자거래 매수 초과수익 KOSPI 실증 논문",
+    "cluster insider buying stock returns academic study",
+    "insider cluster buying Form 4 abnormal returns 12 months holding period",
+    "Alldredge Blank \"Do Insiders Cluster Trades with Colleagues\" journal article",
+    "Cohen Malloy Pomorski \"Decoding Inside Information\" Journal of Finance 2012",
+    "Kang Kim Wang 2018 cluster buy executive informativeness insider trading"
+  ]
+}

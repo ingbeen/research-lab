@@ -39,7 +39,12 @@ FORBIDDEN_FLAGS: Final = ("--no-session-persistence", "--disable-slash-commands"
 COUNTED_USAGE_KEYS: Final = ("input_tokens", "output_tokens", "cache_creation_input_tokens")
 
 # 성분으로 «그대로 옮기는» 필드. 위 집계와 달리 캐시에서 읽은 토큰이 들어간다 —
-# 한도는 그 토큰도 먹으므로, 빼고 남기면 한도 소비를 되짚을 방법이 사라진다
+# 응답이 준 값을 버리지 않기 위해서다. 가중치는 공개돼 있지 않아 나중에 바뀔 수 있고,
+# 그때 성분이 없으면 다시 계산할 방법이 없다.
+#
+# [주의] 한때 「한도는 그 토큰도 먹는다」는 이유를 여기 적었는데 **그 가정은 틀렸다** —
+# 실측은 `research_lab.runner.usage` 모듈 머리에 있다. 남기는 이유가 달라졌을 뿐
+# 남긴다는 결정은 그대로다
 ALL_USAGE_KEYS: Final = (*COUNTED_USAGE_KEYS, "cache_read_input_tokens")
 
 

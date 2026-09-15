@@ -1,0 +1,27 @@
+{
+  "claim": "3인 이상 임원이 짧은 기간 내 동시에 자사주를 장내 매수(클러스터 매수)한 종목을 매수해 6~12개월 보유한다",
+  "rebuttals": [
+    {
+      "title": "Most of the insider trading alpha is gone by the time you see the filing: poof!",
+      "url": "https://tommijohnsen.substack.com/p/most-of-the-insider-trading-alpha",
+      "published": "2026-05-27",
+      "kind": "secondary",
+      "says": "실시간 데이터(2026-05-19~23, n=4~10)로 클러스터 매수 3종목을 분석한 결과, 초과수익은 공시 «전날» 평균 +1.61%에 몰려 있고 공시 당일·다음날은 거의 0%였다. Ozlen-Batumoglu(2025-12-25 SSRN)를 인용해 「거래일과 공시일 사이에 전체 알파의 70~80%가 존재하며, 공시일 이후 진입 전략은 Sharpe 비율이 9.0에서 1.5로 붕괴한다」고 주장한다. 클러스터 매수 신호는 Form 4 공시로 «공개된 뒤» 매수하는 개인 투자자에게는 이미 알파가 대부분 소진된 뒤라는 것이 핵심 반증 — 이 주장이 전제하는 「클러스터가 관측되면 매수한다」는 절차 자체가 공시 이후 시점이므로 이 결과가 직접 겨눈다."
+    },
+    {
+      "title": "Testing the Insider Trading Anomaly in FTSE-350",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8886886/",
+      "published": "2022-02-15",
+      "kind": "primary",
+      "says": "Meng, Huang, Lu 저. 소형주를 제외한 FTSE-350 대상으로 내부자 매수를 따라 매수하는 전략의 초과수익을 검증한 결과, 매수 신호의 초과수익은 -0.839%로 평균 거래비용 2.9%를 전혀 보전하지 못했다. ±120거래일(약 6개월) 중기 구간에서도 유의미한 초과수익이 나타나지 않아, 「내부자 매수를 따라가면 이득」이라는 전제가 거래비용을 반영하면 성립하지 않고 보유기간을 늘려도 회복되지 않음을 보인다. 다만 이 연구는 「3인 이상 동시」라는 클러스터 조건이 아니라 일반 내부자 매수 전체를 다룬다는 점에서 주장과 범위가 완전히 일치하지는 않는다."
+    }
+  ],
+  "not_found_reason": "",
+  "unverified": [
+    "Ozlen & Batumoglu, \"The Death of Insider Trading Alpha\" (SSRN abstract_id=5966834, 발행 2025-12-25) — 원문 URL(papers.ssrn.com)이 403으로 막혀 직접 열어 확인하지 못했다. 위 tommijohnsen 글의 인용과 검색 스니펫으로만 존재를 확인했다",
+    "ScienceDirect 논문 \"Insider filings as trading signals — Does it pay to be fast?\" (S1544612324015435) — 403으로 막혀 6~12개월 보유 시 신호 감쇠 여부를 직접 확인하지 못했다",
+    "\"카카오 주가 바닥? 임원 19명 자사주 매입 '우르르'\" (biz.sbs.co.kr/article/20000222135) — 본문이 자바스크립트 렌더링이라 매입 날짜·이후 주가 추이를 확인하지 못했다",
+    "삼성중공업 임원 6명 자사주 매입 사례(2026-06-24~30, sedaily.com/article/20062637, 발행 2026-07-01) — 매입 시점 주가가 이미 월중 고점 대비 19.52% 급락한 상태였다는 것만 확인했고, 청구 대상인 6~12개월 뒤 성과는 2026-09-15 현재 경과 기간이 부족해 확인할 수 없다",
+    "\"predictability decays substantially at 6-12-month horizons\"라는 서술 — 검색 엔진이 여러 결과를 합성한 요약에서만 나왔고, 이 서술의 출처가 되는 단일 URL을 특정해 직접 열어 확인하지 못했다"
+  ]
+}

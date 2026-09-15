@@ -15,7 +15,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Final
+from typing import Final, NoReturn
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -56,33 +56,47 @@ EXIT_INCOMPLETE: Final = 1  # 그 외 실패 — 다음 회차가 이어받는�
 EXIT_LIMIT: Final = 2  # 한도 소진 — 정상이다. 재시도하지 않는다
 EXIT_AUTH: Final = 3  # 인증·과금 거부 — 사람이 손대야 한다
 EXIT_SECRET: Final = 4  # 자격증명 발견 — 그 회차를 실패로 만든다
+# 인자가 잘못됐다 — 한 줄도 돌지 않았다.
+#
+# [중요] argparse 의 기본 종료 코드가 **2** 인데 그 자리는 「한도 소진 — 정상이며 할 일
+# 없음」이다. 그대로 두면 예약 정의의 플래그 이름이 틀렸을 때 **매일 밤 아무것도 안 하면서
+# 정상으로 보인다.** 게다가 인자 검사는 회차 시작 기록보다 «앞»이라 회차 로그에 줄이
+# 하나도 안 남아, 「시작은 있는데 끝이 없다」로 중단을 잡는 쪽에도 안 걸린다
+EXIT_USAGE: Final = 5
 
-# 한 단계에 거는 폭주 감지 상한.
+# 한 단계에 거는 폭주 감지 상한. 이 값은 **과금 방지가 아니라 폭주 감지**다
+# (과금은 `billing_guard` 가 막는다).
 #
-# [미검증] 「한 단계가 정상적으로 쓸 양」을 아직 재지 못했다. 이 값은 **과금 방지가 아니라
-# 폭주 감지**이며(과금은 `billing_guard` 가 막는다), 실측 뒤에 조정한다.
-# 구독 인증에서 이 플래그가 실제로 동작하는지도 [미검증]이다
-DEFAULT_BUDGET_USD: Final = 2.0
+# [실측 2026-09-15] **구독 인증에서도 이 플래그가 실제로 동작한다** — 반증 단계가
+# $2.4330 에서 잘렸다. 예전 주석이 [미검증]으로 남겨 둔 물음의 답이다.
+#
+# [실측 2026-09-15] **그런데 그때 잘린 것이 폭주가 아니라 정상 작업이었다.** 반증 단계는
+# 후보에 따라 $0.71 → $1.45 → $2.43 으로 벌어지고, 상한이 $2 라 마지막 것이 막혀
+# **근거 문서 한 장이 통째로 날아갔다.** 그래서 실측 최대의 약 1.6배로 올려 둔다 —
+# 정상 작업을 자르지 않으면서 자릿수가 튀는 폭주는 여전히 걸리는 자리다.
+#
+# [주의] 이 값을 회차 지시와 헷갈리지 않는다. 회차가 몇 장을 낼지는 `--cycle-dossiers` 가
+# 정하고 단위가 «장»이다. 이쪽이 달러인 것은 선택이 아니라 제약이다 — 실제로 끊는 장치가
+# CLI 의 `--max-budget-usd` 이고 그 플래그의 단위가 달러다
+DEFAULT_BUDGET_USD: Final = 4.0
 
-# 한 «회차»가 쓸 예산. 위 `DEFAULT_BUDGET_USD` 와 **뜻이 다르다** —
-# 그쪽은 한 «단계»에 거는 폭주 감지 상한이고, 이쪽은 「한 장 더 시작할까」의 판정 재료다.
+# 한 «회차»가 낼 근거 문서의 장수. 위 `DEFAULT_BUDGET_USD` 와 **뜻도 단위도 다르다** —
+# 그쪽은 한 «단계»에 거는 폭주 감지 상한(달러)이고, 이쪽은 이 회차가 몇 장을 낼지다.
 #
-# [중요] **이것은 「상한」이 아니라 «시작 판정»이다.** 도는 중에 끊지 않으므로
-# 마지막 한 장이 이 값을 넘길 수 있고 그것이 정상이다. 넘지 못하게 막는 것은
-# 단계마다 걸리는 `--budget-usd` 의 일이다.
+# [중요] **지시를 「장수」로 받는다.** 예전에는 달러 예산이었고 「한 장 비용 중앙값의 절반이
+# 남았나」로 다음 장을 시작할지 정했다. 그래서 사람이 원하는 것(「네 장」)과 적는 것
+# (「$12」)이 달랐고, 그 대응은 중앙값이 바뀔 때마다 조용히 달라졌다. 게다가
+# [실측 2026-09-15] **그 중앙값 자체가 잘못 잡힌 적이 있다** — 문서를 안 낸 폴더가 표본에
+# 섞여 한 단위가 절반으로 읽혔고, 임계도 절반이 되어 루프가 한 장 더 시작했다.
 #
-# 기본값을 두는 이유는 **무인 실행이 인자 없이 불려도 루프가 돌아야** 하기 때문이다.
-# $10 은 실측 표본($1.9609 · $4.5735) 기준 2~5장에 해당한다
-DEFAULT_CYCLE_BUDGET_USD: Final = 10.0
-
-# 한 회차가 돌 수 있는 최대 반복 수 — **폭주 감지**다.
+# [중요] **이 값이 곧 반복의 상한이다.** 예전에는 별도의 반복 상한 상수를 두었는데,
+# 지시가 장수가 되면서 둘이 같은 물건이 됐다. 별도 상수를 남겨 두면 지시보다 그 상수가
+# 작을 때 **상한이 정책을 대신한다.** 영원히 도는 것을 막는 일은 이 값이 그대로 맡는다.
 #
-# [중요] 기존 상한 셋(재시도·기각·연속 실패 = 3)의 관용을 가져오지 않았다. 그것들은
-# «실패»의 상한이고 이것은 «정상 반복»의 상한이라 성질이 다르다. 3 으로 두면 예산이
-# 남아도 세 장에서 멈춰 **상한이 정책을 대신하게 된다.** 반대로 상한이 아예 없으면
-# 예산 계산이 틀린 날 한 회차가 영원히 돌고, 나중에 보면 **예산은 다 썼고 산출물은 0장**인데
-# 그런 회차는 「실패」가 아니라 「아무 일 없음」처럼 보여 며칠 지나서야 알아챈다
-MAX_CYCLE_ITERATIONS: Final = 8
+# [실측 2026-09-15] 근거 문서 한 장이 5시간 창의 약 23% 다. 네 장이면 한 창을 거의 채운다 —
+# **남는 구독 토큰을 쓰는 것이 이 프로젝트의 목적**이므로 그 자리를 기본값으로 둔다.
+# 넘치면 한도 소진으로 깨끗이 멈추고 다음 회차가 이어받는다(과금되지 않는다)
+DEFAULT_CYCLE_DOSSIERS: Final = 4
 
 # 예산 판정을 결정 로그에 적을 때 쓰는 «단계» 이름.
 #
@@ -90,13 +104,13 @@ MAX_CYCLE_ITERATIONS: Final = 8
 # 몇 회차 막혔나」를 세는 쪽이 이 줄을 함께 세지 않는다
 LOOP_STEP: Final = "cycle"
 
-CONTINUE_REASON: Final = "예산이 남아 다음 후보로 갑니다"
+CONTINUE_REASON: Final = "요청한 장수가 남아 다음 후보로 갑니다"
 
-# 회차 예산 플래그의 도움말. 문장을 «한 리터럴»로 둔다 —
+# 회차 장수 플래그의 도움말. 문장을 «한 리터럴»로 둔다 —
 # 이 저장소의 자동 포맷은 인접한 두 문자열을 길이와 무관하게 한 줄로 붙이므로,
 # 나눠 적으면 「두 리터럴이 한 줄에 붙은」 모양만 남고 길이는 그대로다
-CYCLE_BUDGET_HELP: Final = (
-    "한 «회차»의 예산. 이만큼 남지 않으면 다음 근거 문서를 시작하지 않습니다. 상한이 아니라 «시작 판정»이라 마지막 한 장이 넘길 수 있습니다 (기본값: %(default)s)"
+CYCLE_DOSSIERS_HELP: Final = (
+    "한 «회차»가 낼 근거 문서의 장수. 이 값이 곧 반복의 상한입니다. 한도가 먼저 소진되면 그 자리에서 깨끗이 멈추고 다음 회차가 이어받습니다 (기본값: %(default)s)"
 )
 
 # 응답 모양을 스키마로 강제할 단계들.
@@ -155,7 +169,7 @@ def main(argv: list[str] | None = None) -> int:
     cycle_log.started(
         RUNS_DIR,
         cycle_id=cycle_id,
-        cycle_budget_usd=args.cycle_budget_usd,
+        cycle_dossiers=args.cycle_dossiers,
         step_budget_usd=args.budget_usd,
         ledger_name=args.ledger.name,
         run_dir_name=args.run_dir.name if args.run_dir is not None else None,
@@ -180,7 +194,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _run_cycles(args: argparse.Namespace) -> CycleOutcome:
-    """예산이 남는 한 실행 폴더를 만들어 돈다.
+    """요청한 장수만큼 실행 폴더를 만들어 돈다.
 
     [중요] **종료 코드를 «돌려준다».** 여기서 `return` 하는 모든 갈래가 위 함수의
     기록을 지나가므로, 갈래를 새로 더해도 종료 기록이 빠질 수 없다.
@@ -209,7 +223,7 @@ def _run_cycles(args: argparse.Namespace) -> CycleOutcome:
     def execute(step: str, current_run_dir: Path) -> None:
         dispatch(step, current_run_dir, ledger_path=args.ledger, ask=ask_for(step))
 
-    # 「한 장 만들고 끝」이 아니라 예산이 남는 한 «돈다». 남는 구독 토큰을 쓰는 것이
+    # 「한 장 만들고 끝」이 아니라 요청한 장수만큼 «돈다». 남는 구독 토큰을 쓰는 것이
     # 이 프로젝트의 목적이라, 일찍 끝났다고 멈추면 목적과 어긋난다
     run_dir = _resolve_run_dir(args.run_dir)
     result: cycle.CycleResult | None = None
@@ -218,7 +232,7 @@ def _run_cycles(args: argparse.Namespace) -> CycleOutcome:
     produced = 0
     stop_reason = CONTINUE_REASON
 
-    for iteration in range(1, MAX_CYCLE_ITERATIONS + 1):
+    for iteration in range(1, args.cycle_dossiers + 1):
         if iteration > 1:
             # 지정된 폴더는 «첫» 반복의 것이다. 계속 쓰면 두 번째 장이 첫 장 위에 덮인다
             run_dir = _resolve_run_dir(None)
@@ -265,8 +279,7 @@ def _run_cycles(args: argparse.Namespace) -> CycleOutcome:
         if result.produced:
             produced += 1
 
-        unit = budget.unit_cost(RUNS_DIR)
-        halt = _loop_stop_reason(result, unit, remaining_usd=args.cycle_budget_usd - spent_usd, iteration=iteration)
+        halt = _loop_stop_reason(result, produced=produced, requested=args.cycle_dossiers)
         decision_log.record(
             run_dir,
             LOOP_STEP,
@@ -274,10 +287,9 @@ def _run_cycles(args: argparse.Namespace) -> CycleOutcome:
             iteration=iteration,
             produced=produced,
             spent_usd=round(spent_usd, budget.COST_DIGITS),
-            cycle_budget_usd=args.cycle_budget_usd,
+            cycle_dossiers=args.cycle_dossiers,
             # 「멈췄다」만 남으면 다음에 왜 한 장에서 끝났는지 되짚을 수 없다
             reason=halt or CONTINUE_REASON,
-            **unit.as_log_fields(),
         )
 
         if halt is not None:
@@ -285,7 +297,7 @@ def _run_cycles(args: argparse.Namespace) -> CycleOutcome:
             break
 
     if result is None:
-        raise RuntimeError(f"내부 불변조건 위반: 회차가 한 번도 돌지 않았습니다 — 반복 상한={MAX_CYCLE_ITERATIONS}")
+        raise RuntimeError(f"내부 불변조건 위반: 회차가 한 번도 돌지 않았습니다 — 요청 장수={args.cycle_dossiers}")
 
     return CycleOutcome(
         exit_code=_report(
@@ -299,16 +311,13 @@ def _run_cycles(args: argparse.Namespace) -> CycleOutcome:
     )
 
 
-def _loop_stop_reason(
-    result: cycle.CycleResult, unit: budget.Unit, *, remaining_usd: float, iteration: int
-) -> str | None:
+def _loop_stop_reason(result: cycle.CycleResult, *, produced: int, requested: int) -> str | None:
     """루프를 멈출 이유가 있으면 그 이유를, 계속해도 되면 None 을 돌려준다.
 
     Args:
         result: 방금 끝난 실행 폴더의 결과
-        unit: 지난 회차들에서 잰 한 장의 비용
-        remaining_usd: 이 회차에 남은 예산
-        iteration: 지금이 몇 번째 반복인가
+        produced: 이 회차가 «지금까지» 낸 근거 문서의 장수
+        requested: 이 회차에 요청된 장수
 
     Returns:
         멈출 이유, 계속해도 되면 None
@@ -325,12 +334,8 @@ def _loop_stop_reason(
         # 반복 상한까지 돈다
         return "이 반복이 근거 문서를 내지 못했습니다 — 다음 반복도 같은 자리에 섭니다"
 
-    shortfall = budget.shortfall_reason(unit, remaining_usd)
-    if shortfall is not None:
-        return shortfall
-
-    if iteration >= MAX_CYCLE_ITERATIONS:
-        return f"반복 상한 {MAX_CYCLE_ITERATIONS}회에 닿았습니다 — 예산은 남았으나 여기서 끊습니다"
+    if produced >= requested:
+        return f"요청한 {requested}장을 냈습니다"
 
     return None
 
@@ -480,7 +485,9 @@ def _print_cycle_summary(outcome: CycleOutcome) -> None:
     """
     tokens = outcome.tokens
     print(f"이번 회차: 근거 문서 {outcome.produced}장 · ${outcome.spent_usd:.{budget.COST_DIGITS}f} 사용")
-    print(f"토큰: 새로 {tokens.new_total:,} · 캐시 읽기 {tokens.cache_read:,} · 한도 기준 합 {tokens.all_total:,}")
+    # [주의] 「한도 기준」이 붙는 쪽은 **새 토큰**이다. 캐시 읽기는 한도를 먹지 않는다
+    # (`usage` 모듈 머리의 실측). 둘을 나란히 두되 어느 쪽이 비율의 분자인지를 label 로 가른다
+    print(f"토큰: 한도 기준 {tokens.new_total:,} · 캐시 읽기 {tokens.cache_read:,} (한도에 안 셈)")
     print(f"5시간 한도 대비: {_share_text(tokens, produced=outcome.produced)}")
     print(f"멈춘 이유: {outcome.stop_reason}")
 
@@ -493,8 +500,13 @@ def _share_text(tokens: usage.Tokens, *, produced: int) -> str:
     """
     calibration = usage.calibrated()
     share = usage.window_share_percent(tokens, calibration=calibration)
-    if share is None or calibration is None:
+    if calibration is None:
         return "잴 수 없음 — 한 창의 한도를 아직 보정하지 않았습니다 (회차 전후의 사용량을 비교해 넣습니다)"
+    if share is None:
+        # [중요] 보정값이 있는데도 못 재는 길은 **분자가 0** 하나뿐이다. 그때 위 문구를 내면
+        # 이미 들어 있는 보정값을 다시 재라고 사람을 보낸다. 분자가 0 이 되는 길도 둘이고
+        # 하나는 고장이라(응답에 `usage` 가 안 실림) 여기서 0% 라고 말하지 않는다
+        return "잴 수 없음 — 이 회차의 토큰이 0 입니다 (전부 건너뛴 회차이거나, 계측이 빠졌습니다)"
 
     per_dossier = usage.per_dossier_percent(share, produced=produced)
     tail = f" · 근거 문서 한 장당 약 {per_dossier:.1f}%" if per_dossier is not None else ""
@@ -609,8 +621,47 @@ def _agent_env(source: Mapping[str, str]) -> dict[str, str]:
     return {name: source[name] for name in PASSED_ENV_VARS if name in source}
 
 
+def _dossier_count(raw: str) -> int:
+    """장수 인자를 읽는다 — **1 보다 작으면 돌기 전에 거부한다.**
+
+    Args:
+        raw: 명령줄에 적힌 값
+
+    Returns:
+        1 이상의 장수
+
+    Raises:
+        argparse.ArgumentTypeError: 정수가 아니거나 1 보다 작을 때
+
+    [중요] 0 은 「한 장도 내지 말라」라 무인 실행에서 의미가 없고, 음수는 루프가 한 번도
+    돌지 않아 **내부 불변조건 위반으로 터진다.** 둘 다 인자를 받는 자리에서 막는 것이 맞다 —
+    이 값이 곧 반복의 상한이라, 여기가 「한 회차가 영원히 돌지 않는다」를 지키는 자리다.
+    """
+    try:
+        count = int(raw)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"장수는 정수여야 합니다: {raw}") from None
+    if count < 1:
+        raise argparse.ArgumentTypeError(f"장수는 1 이상이어야 합니다: {count}")
+    return count
+
+
+class _Parser(argparse.ArgumentParser):
+    """인자가 틀렸을 때 «한도 소진»과 «다른» 코드로 끝나는 파서.
+
+    [중요] argparse 의 기본값이 2 인데 그것은 이 파이프라인에서 「정상이며 할 일 없음」이다.
+    무인 실행에서 사람이 받는 신호가 종료 코드뿐이라, 겹치면 **고쳐야 할 상태가
+    괜찮은 상태로 보인다.**
+    """
+
+    def error(self, message: str) -> NoReturn:
+        self.print_usage(sys.stderr)
+        print(f"[중지] 인자가 잘못됐습니다 — {message}", file=sys.stderr)
+        raise SystemExit(EXIT_USAGE)
+
+
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="회차 하나를 돌린다")
+    parser = _Parser(description="회차 하나를 돌린다")
     parser.add_argument(
         "--budget-usd",
         type=float,
@@ -618,10 +669,10 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         help="한 «단계»의 폭주 감지 상한. 과금 방지가 아닙니다 (기본값: %(default)s)",
     )
     parser.add_argument(
-        "--cycle-budget-usd",
-        type=float,
-        default=DEFAULT_CYCLE_BUDGET_USD,
-        help=CYCLE_BUDGET_HELP,
+        "--cycle-dossiers",
+        type=_dossier_count,
+        default=DEFAULT_CYCLE_DOSSIERS,
+        help=CYCLE_DOSSIERS_HELP,
     )
     parser.add_argument("--ledger", type=Path, default=LEDGER_PATH, help="원장 경로 (기본값: %(default)s)")
     parser.add_argument(
