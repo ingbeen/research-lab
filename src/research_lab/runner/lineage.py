@@ -36,7 +36,7 @@ from research_lab.runner.steps import StepQualityFailed
 
 AgentCaller = Callable[[str], AgentResult]
 
-PROMPT: Final = """이 저장소의 `.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 그 규율을 그대로 따르세요.
+PROMPT: Final = """`.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 그 규율을 그대로 따르세요.
 
 ## 할 일 — 출처 계보
 

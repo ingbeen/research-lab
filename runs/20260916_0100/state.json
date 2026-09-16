@@ -3,7 +3,11 @@
     "explore",
     "collect",
     "rebut",
-    "lineage"
+    "lineage",
+    "feasibility",
+    "mechanism",
+    "measurement",
+    "verdict"
   ],
   "skipped": [
     "explore"

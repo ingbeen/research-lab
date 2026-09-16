@@ -49,7 +49,7 @@ STEP_NAME: Final = "feasibility"
 # 규칙이 갈리면 「카탈로그에는 있는데 못 찾는」 상태가 조용히 생긴다
 CATALOG_ID_PATTERN: Final = re.compile(r"^#{2,}\s+`([a-z0-9][a-z0-9-]*)`", re.MULTILINE)
 
-PROMPT: Final = """이 저장소의 `.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 그 규율을 그대로 따르세요.
+PROMPT: Final = """`.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 그 규율을 그대로 따르세요.
 
 ## 할 일 — 실현가능성
 

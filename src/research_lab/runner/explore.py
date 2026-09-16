@@ -27,7 +27,7 @@ AgentCaller = Callable[[str], AgentResult]
 # 한 번에 너무 많이 담으면 오래된 후보가 계속 뒤로 밀린다
 MAX_CANDIDATES: Final = 15
 
-PROMPT: Final = """이 저장소의 `.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 그 규율을 그대로 따르세요.
+PROMPT: Final = """`.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 그 규율을 그대로 따르세요.
 
 ## 할 일 — 탐색
 

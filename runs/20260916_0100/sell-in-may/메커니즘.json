@@ -1,0 +1,29 @@
+{
+  "claim": "11월~4월에만 주식을 보유하고 5월~10월에는 현금(또는 채권)으로 이동한다(Sell in May)",
+  "edge": {
+    "risk_premium": "우위를 순수 위험 프리미엄으로 설명하는 정설은 없다. Sell-in-May 문헌(Bouman & Jacobsen 2002 등)은 5~10월이 11~4월보다 펀더멘털 위험(실적 불확실성·거시 리스크)이 더 크다는 증거를 대지 않는다. 다만 Kamstra·Kramer·Levi(2003, American Economic Review 93(1), 324-343, 'Winter Blues: A SAD Stock Market Cycle')의 SAD(계절성 정서장애) 가설을 위험프리미엄 형태로 재해석할 수는 있다 — 일조시간이 줄어드는 가을~겨울에 투자자가 임상적으로 확인된 우울-위험회피 경로를 거쳐 더 위험회피적이 되고, 그 기간에 더 높은 할인율(요구수익률)을 매긴다면 가격이 가을에 눌리고 그 뒤 겨울~봄을 버텨낸 투자자가 높은 실현수익률을 받는 구조가 된다. 다만 이것은 외생적 펀더멘털 위험이 아니라 투자자 심리가 만든 내생적 할인율 변화이므로 전통적 의미의 위험 프리미엄과는 다르고, 사실상 아래 행동편향과 같은 현상을 다른 각도에서 본 것이다.",
+    "behavioral": "두 갈래 행동 메커니즘이 제시된다. ① SAD 가설 — 일조시간 감소가 우울을 유발하고 우울이 위험회피를 높인다는 점이 임상적으로 확인돼 있고(Kamstra, Kramer & Levi, American Economic Review 93(1), 2003, 324-343 — https://utoronto.scholaris.ca/handle/1807/99444 에서 실재 확인), 이것이 가을~겨울 수익률 계절성의 국제적 패턴을 설명한다고 주장한다. ② 휴가 효과 — Bouman & Jacobsen 본인들이 원 논문에서 제시한 설명으로, 여름 휴가철에 기관·개인 투자자의 주의와 위험선호가 낮아지고 거래가 위축돼 5~10월 수익률이 눌린다는 것이다(이미 모은 찬성 출처 중 CFA Institute 블로그가 재확인). 두 설명 모두 '사람이 계절에 따라 반복적으로 위험 태도를 바꾼다'는 동일 축의 편향이다.",
+    "structural": "여름철 거래량·유동성 저하가 미시구조 채널로 꼽힌다 — 펀드매니저·기관 트레이더가 여름휴가로 자리를 비우면서 거래량이 줄고, 얇아진 시장에서는 가격발견이 둔화돼 상승 모멘텀이 약해진다는 것이다(Bouman & Jacobsen 이 제시, 앞 단계의 CFA Institute 출처가 재인용). 다만 이 유동성 채널의 원인(사람이 여름에 덜 거래한다)은 행동적이고 결과(시장이 얇아진다)만 미시구조적이라, 순수하게 구조적이라 부를 수 있는 것은 '거래 참여자 밀도가 계절에 따라 규칙적으로 변한다'는 사실 자체다. 세제·결제제도 같은 순수 제도 요인이 Sell-in-May 를 만든다는 근거는 찾지 못해 이 부분은 [미검증] 으로 남긴다."
+  },
+  "decay": {
+    "post_publication": "직접 증거가 있다. 반증 출처인 Degenhardt & Auer(2018, North American Journal of Economics and Finance)는 효과의 존재를 재확인하면서도 '공개된 이후 약해졌고... 이에 기반한 표준 투자전략의 효과성과 설득력은 제한적'이라고 명시한다. 더 일반적으로 McLean & Pontiff(2016, Journal of Finance, 'Does Academic Research Destroy Stock Return Predictability?')는 97개 학술 발표 수익률 예측변수를 조사해 발표 후 수익률이 평균 58% 낮아진다고 보고한다(PDF 원문 실재를 https://www.hec.ca/finance/Fichier/McLean.pdf 에서 310KB PDF 로 직접 확인했으나 본문 텍스트 자동추출은 되지 않았다). Sell-in-May 가 그 97개 표본에 실제로 포함됐는지는 원문을 못 읽어 [미검증]이지만, 같은 메커니즘(발표→차익거래 학습→효과 축소)이 Degenhardt & Auer 의 직접 진술과 정확히 일치한다. 찬성 근거로 인용된 Bouman & Jacobsen(2002, AER) 원 논문 자체가 이 전략을 전 세계에 알린 계기이므로, 그 논문이 소멸의 방아쇠일 가능성이 높다.",
+    "regulatory": "해당 없음. Sell-in-May 소멸을 세제·규제 변화로 설명하는 근거를 찾지 못했다 — 이 패턴은 108개국(Jacobsen & Zhang, 이미 모은 찬성 출처)에서 동시에 관측·동시에 약화되는 국제적 현상이라 단일 국가의 법 개정 하나로 일괄 설명하기 어렵다는 것이 정황상의 이유이지만, 직접 검증한 것은 아니어서 [미검증] 으로도 남긴다.",
+    "market_structure": "두 갈래 증거가 있다. ① 원 연구(1970~1998 표본)가 관측한 여름철 유동성 공백이 온라인·알고리즘 매매와 ETF 상시 유입이 자리잡은 지금 시장에서는 예전만큼 크지 않을 수 있다는 추정 — 다만 이 인과관계는 직접 검증하지 못해 [미검증]. ② 개별 연도 관측 — 이미 모은 반증 출처 두 건이 실제 사례를 보여준다: 2026년 5월 코스피가 반도체·AI 실적 기대와 개인 순매수(44.2조원, 월간 역대 최대)에 힘입어 24.04% 급등해 계절적 약세 패턴이 그 해에는 완전히 무력화됐다(fnnews 2026-05-29, 다음뉴스 2026-05-04). 이는 시장구조 자체의 변화라기보다 한 해의 강한 펀더멘털·수급 요인이 계절성을 압도한 사례에 가깝고, 이것이 매년 반복될 구조 변화인지 그 해만의 예외인지는 구분되지 않는다 — 그 구분 자체가 [미검증] 이다."
+  },
+  "sources": [
+    {
+      "title": "Winter Blues: A SAD Stock Market Cycle (Kamstra, Kramer & Levi, American Economic Review 93(1), 2003)",
+      "url": "https://utoronto.scholaris.ca/handle/1807/99444"
+    },
+    {
+      "title": "Does Academic Research Destroy Stock Return Predictability? (McLean & Pontiff, Journal of Finance 2016) — PDF",
+      "url": "https://www.hec.ca/finance/Fichier/McLean.pdf"
+    }
+  ],
+  "unverified": [
+    "Sell-in-May 가 McLean & Pontiff(2016)의 97개 예측변수 표본에 실제로 포함돼 발표 후 수익률 하락폭이 정확히 몇 %였는지",
+    "SAD 가설(Kamstra et al. 2003)이 코스피 등 한국 시장에도 동일한 크기로 적용되는지 — 확인한 연구는 주로 미국·국제 지수 중심",
+    "세제·규제 변화가 Sell-in-May 소멸에 기여했는지 여부",
+    "2026년 5월 코스피 급등이 계절성 효과의 구조적 소멸을 뜻하는지, 그 해만의 반도체 실적·개인 수급 요인인지"
+  ]
+}

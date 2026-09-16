@@ -70,7 +70,7 @@ class NoCandidateError(RuntimeError):
     """원장에 팔 후보가 없을 때."""
 
 
-PROMPT: Final = """이 저장소의 `.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 그 규율을 그대로 따르세요.
+PROMPT: Final = """`.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 그 규율을 그대로 따르세요.
 
 ## 할 일 — 수집
 
@@ -211,8 +211,7 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
             # 그래도 계속 막히면 회차 사이의 상한이 그 후보를 원장에서 걷어낸다 —
             # 없애려던 무한 반복을 막는 장치가 이미 거기 있다
             raise StepQualityFailed(
-                f"출처를 갖춘 후보를 찾지 못했습니다 — {len(deferred)}개 후보가 실재하는 URL 을 내지 못했습니다. "
-                "다음 회차가 이어받습니다."
+                f"출처를 갖춘 후보를 찾지 못했습니다 — {len(deferred)}개 후보가 실재하는 URL 을 내지 못했습니다. " "다음 회차가 이어받습니다."
             )
 
         candidate = ledger.next_unexplored(ledger_path, skip=deferred)

@@ -80,7 +80,7 @@ JSON_SCHEMA: Final = json.dumps(
     ensure_ascii=False,
 )
 
-PROMPT: Final = """이 저장소의 `.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 그 규율을 그대로 따르세요.
+PROMPT: Final = """`.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 그 규율을 그대로 따르세요.
 
 ## 할 일 — 왜 우위가 있을 수 있나 · 왜 사라졌을 수 있나
 
