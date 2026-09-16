@@ -577,6 +577,9 @@ def test_collect_never_stores_evidence_with_a_dead_url(tmp_path: Path, probing: 
     Given: 무엇을 물어도 실재하지 않는 URL 만 내놓는 에이전트
     When: 수집을 돈다
     Then: 찬성근거 파일이 하나도 안 쓰이고, 그 회차의 후보도 박히지 않는다
+
+    [주의] 원장의 후보가 그것 하나라면 **남은 후보를 전부 미룬 상태**라 단계가 실패로
+    끝난다 — 조용히 돌아가면 그 폴더가 완주로 닫혀 계속 막히는 후보를 걷어낼 길이 사라진다
     """
     run_dir = tmp_path / "run"
     ledger_path = tmp_path / "원장.md"
@@ -591,7 +594,8 @@ def test_collect_never_stores_evidence_with_a_dead_url(tmp_path: Path, probing: 
         }
     )
 
-    collect.run(run_dir, ledger_path, lambda _: answer)
+    with pytest.raises(StepQualityFailed):
+        collect.run(run_dir, ledger_path, lambda _: answer)
 
     assert list(run_dir.glob("**/찬성근거.json")) == []
     assert state.pinned_candidate(run_dir) is None
@@ -756,9 +760,238 @@ def test_collect_leaves_the_ledger_alone_when_sources_stay_dead(tmp_path: Path, 
         }
     )
 
-    collect.run(run_dir, ledger_path, lambda _: answer)
+    with pytest.raises(StepQualityFailed):
+        collect.run(run_dir, ledger_path, lambda _: answer)
 
     assert ledger.status_of(ledger_path, "출처를 못 찾는 후보") is ledger.Status.UNEXPLORED
+
+
+def test_a_retried_answer_with_broken_axes_falls_back(tmp_path: Path, probing: Any) -> None:
+    """
+    목적: [중요] 다시 물어 받은 답의 축이 **반쯤 적혔어도** 첫 답 것으로 되돌아가는 계약을
+    고정한다.
+
+    가르는 것은 «모양»이 아니라 **「이 답만으로 격자를 짤 수 있나」**다. 빈 목록만 되돌리고
+    후보값이 하나로 줄어든 축은 그대로 쓰면, 그 후보는 **거짓 사유로 영구 기각된다** —
+    첫 답이 이미 성한 격자를 냈는데도 그렇다. 덧붙이는 말은 「그 주소를 고치라」이지
+    「축을 다시 내라」가 아니므로 **반쯤 적는 것은 누락이지 판정이 아니다.**
+
+    Given: 첫 답은 성한 축을 냈지만 출처가 죽었고, 둘째 답이 후보값을 하나로 줄인 에이전트
+    When: 수집을 돈다
+    Then: 기각되지 않고, 저장된 산출물에 **첫 답의 성한 축**이 남는다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    claim = "전저점 대비 10% 빠지면 산다"
+    ledger.append(ledger_path, claim)
+    dead_url = "https://example.com/지어낸-논문"
+    probing(dead={dead_url})
+    answers = iter(
+        [
+            _answer(
+                {
+                    "claim": claim,
+                    "queries": ["ㄱ", "ㄴ", "a"],
+                    "params": [{"name": "전저점 산정 일수", "unit": "거래일", "candidates": [20, 60]}],
+                    "evidence": [{"title": "없는 논문", "url": dead_url, "kind": "primary"}],
+                }
+            ),
+            _answer(
+                {
+                    "claim": claim,
+                    "queries": ["ㄱ", "ㄴ", "a"],
+                    # 축을 «빠뜨린» 것이 아니라 «망가뜨렸다» — 값이 하나면 격자가 안 된다
+                    "params": [{"name": "전저점 산정 일수", "unit": "거래일", "candidates": [20]}],
+                    "evidence": [{"title": "실제 논문", "url": "https://example.com/진짜", "kind": "primary"}],
+                }
+            ),
+        ]
+    )
+
+    collect.run(run_dir, ledger_path, lambda _: next(answers))
+
+    assert ledger.status_of(ledger_path, claim) is ledger.Status.UNEXPLORED
+    stored = json.loads(next(run_dir.glob("**/찬성근거.json")).read_text(encoding="utf-8"))
+    assert stored["params"] == [{"name": "전저점 산정 일수", "unit": "거래일", "candidates": [20, 60]}]
+
+
+def test_axes_proved_by_the_first_answer_survive_the_retry(tmp_path: Path, probing: Any) -> None:
+    """
+    목적: [중요] 첫 답이 «증명한» 축을 둘째 답이 부정하지 못하게 하는 계약을 고정한다.
+
+    덧붙이는 말은 「그 주소를 고치라」이지 「축을 다시 내라」가 아니다. 그런데 다시 물은
+    답이 축을 빠뜨렸다고 「잴 수 없다」로 읽으면, **첫 답이 이미 낸 격자를 두 번째 답이
+    부정하게 된다.** 그 후보는 **거짓 사유로 원장에 영구 기각**되고 — 기각은 다시 안 파므로 —
+    사람이 손으로 고치기 전까지 살아나지 않는다.
+
+    축은 **한 후보에서 한 번 정해지면 바뀌지 않는다.** 빠뜨린 것은 누락이지 판정이 아니다.
+
+    Given: 첫 답이 성한 축을 냈고, 둘째 답은 출처만 고치며 축을 안 적은 에이전트
+    When: 수집을 돈다
+    Then: 기각되지 않고, 저장된 산출물에 **첫 답의 축**이 남아 있다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    claim = "전저점 대비 10% 빠지면 산다"
+    ledger.append(ledger_path, claim)
+    dead_url = "https://example.com/지어낸-논문"
+    probing(dead={dead_url})
+    answers = iter(
+        [
+            _answer(
+                {
+                    "claim": claim,
+                    "queries": ["ㄱ", "ㄴ", "a"],
+                    "params": [{"name": "전저점 산정 일수", "unit": "거래일", "candidates": [20, 60]}],
+                    "evidence": [{"title": "없는 논문", "url": dead_url, "kind": "primary"}],
+                }
+            ),
+            _answer(
+                {
+                    "claim": claim,
+                    "queries": ["ㄱ", "ㄴ", "a"],
+                    "params": [],
+                    "evidence": [{"title": "실제 논문", "url": "https://example.com/진짜", "kind": "primary"}],
+                }
+            ),
+        ]
+    )
+
+    collect.run(run_dir, ledger_path, lambda _: next(answers))
+
+    assert ledger.status_of(ledger_path, claim) is ledger.Status.UNEXPLORED
+    stored = json.loads(next(run_dir.glob("**/찬성근거.json")).read_text(encoding="utf-8"))
+    assert stored["params"] == [{"name": "전저점 산정 일수", "unit": "거래일", "candidates": [20, 60]}]
+
+
+def test_unverified_from_both_attempts_survives(tmp_path: Path, probing: Any) -> None:
+    """
+    목적: 다시 물어도 **미검증 칸이 짧아지지 않는** 계약을 고정한다.
+
+    11번 칸은 **「비는 게 오히려 의심스럽다」**고 못박힌 자리다. 다시 물으면 답이 통째로
+    교체되므로, 그냥 두면 첫 시도가 밝힌 미검증이 **파일에서 사라지고** 그 칸이 거짓으로
+    짧아진다 — 덧붙이는 말이 「못 찾으면 미검증에 적으라」이므로 이 경로는 **다시 물을
+    때마다 지난다.**
+
+    Given: 두 시도가 각각 다른 미검증을 밝힌 회차
+    When: 수집을 돈다
+    Then: 저장된 미검증에 둘 다 들어 있다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    ledger.append(ledger_path, "첫 후보")
+    dead_url = "https://example.com/지어낸-논문"
+    probing(dead={dead_url})
+    answers = iter(
+        [
+            _answer(
+                {
+                    "claim": "첫 후보",
+                    "queries": ["ㄱ", "ㄴ", "a"],
+                    "unverified": ["첫 시도가 못 찾은 것"],
+                    "evidence": [{"title": "없는 논문", "url": dead_url, "kind": "primary"}],
+                }
+            ),
+            _answer(
+                {
+                    "claim": "첫 후보",
+                    "queries": ["ㄱ", "ㄴ", "a"],
+                    "unverified": ["다시 물었을 때 드러난 것"],
+                    "evidence": [{"title": "실제 논문", "url": "https://example.com/진짜", "kind": "primary"}],
+                }
+            ),
+        ]
+    )
+
+    collect.run(run_dir, ledger_path, lambda _: next(answers))
+
+    stored = json.loads((run_dir / naming.slug("첫 후보") / "찬성근거.json").read_text(encoding="utf-8"))
+    assert "첫 시도가 못 찾은 것" in stored["unverified"], "첫 시도가 밝힌 미검증이 사라지면 안 된다"
+    assert "다시 물었을 때 드러난 것" in stored["unverified"]
+
+
+def test_a_retried_answer_is_not_asked_for_three_queries_again(tmp_path: Path, probing: Any) -> None:
+    """
+    목적: [중요] 다시 물을 때 **검색어 하한이 부당하게 다시 걸리지 않는** 계약을 고정한다.
+
+    덧붙이는 말은 「그 주소를 고치라」이지 「처음부터 다시 조사하라」가 아니다. 그런데
+    검색어 3개 하한이 또 걸리면, 에이전트가 이번에 새로 던진 한둘만 적었을 때
+    **단계 전체가 죽는다** — 미룸과 후보 전환 장치를 통째로 비켜 가는 경로가 된다.
+
+    Given: 재요청 답의 검색어가 하한보다 적은 에이전트
+    When: 수집을 돈다
+    Then: 막히지 않고 그 후보가 저장된다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    ledger.append(ledger_path, "첫 후보")
+    dead_url = "https://example.com/지어낸-논문"
+    probing(dead={dead_url})
+    answers = iter(
+        [
+            _answer(
+                {
+                    "claim": "첫 후보",
+                    "queries": ["처음ㄱ", "처음ㄴ", "first-c"],
+                    "evidence": [{"title": "없는 논문", "url": dead_url, "kind": "primary"}],
+                }
+            ),
+            _answer(
+                {
+                    "claim": "첫 후보",
+                    "queries": ["다시던진하나"],
+                    "evidence": [{"title": "실제 논문", "url": "https://example.com/진짜", "kind": "primary"}],
+                }
+            ),
+        ]
+    )
+
+    collect.run(run_dir, ledger_path, lambda _: next(answers))
+
+    assert (run_dir / naming.slug("첫 후보") / "찬성근거.json").is_file()
+
+
+def test_the_stored_queries_keep_both_attempts(tmp_path: Path, probing: Any) -> None:
+    """
+    목적: [중요] 그 회차가 던진 검색어를 **잃지 않는** 계약을 고정한다.
+
+    다시 물으면 산출물이 통째로 교체되므로, 그냥 두면 **첫 시도에 던진 검색어가
+    파일에서 사라진다.** 「검색어를 전부 파일로 남긴다」는 규율이 그 자리에서 깨지고,
+    나중에 「이 결론이 어디서 왔나」를 되짚을 때 절반이 없다.
+
+    Given: 두 번 물어 각각 다른 검색어를 던진 회차
+    When: 수집을 돈다
+    Then: 저장된 검색어에 두 시도의 것이 모두 들어 있다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    ledger.append(ledger_path, "첫 후보")
+    dead_url = "https://example.com/지어낸-논문"
+    probing(dead={dead_url})
+    answers = iter(
+        [
+            _answer(
+                {
+                    "claim": "첫 후보",
+                    "queries": ["처음ㄱ", "처음ㄴ", "first-c"],
+                    "evidence": [{"title": "없는 논문", "url": dead_url, "kind": "primary"}],
+                }
+            ),
+            _answer(
+                {
+                    "claim": "첫 후보",
+                    "queries": ["다시던진하나"],
+                    "evidence": [{"title": "실제 논문", "url": "https://example.com/진짜", "kind": "primary"}],
+                }
+            ),
+        ]
+    )
+
+    collect.run(run_dir, ledger_path, lambda _: next(answers))
+
+    stored = json.loads((run_dir / naming.slug("첫 후보") / "검색어.json").read_text(encoding="utf-8"))
+    assert "처음ㄱ" in stored["queries"], "첫 시도의 검색어가 사라지면 안 된다"
+    assert "다시던진하나" in stored["queries"]
 
 
 def test_collect_fails_once_the_deferral_cap_is_reached(tmp_path: Path, probing: Any) -> None:

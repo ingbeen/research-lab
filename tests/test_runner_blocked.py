@@ -169,6 +169,47 @@ def test_a_deferred_candidate_is_not_the_one_that_gets_blocked(tmp_path: Path) -
     assert ledger.status_of(ledger_path, "실제로 막힌 뒤 후보") is ledger.Status.BLOCKED
 
 
+def test_the_deferred_candidate_is_the_one_that_gets_blocked(tmp_path: Path) -> None:
+    """
+    목적: [중요] 미룸 상한으로 막힌 폴더에서 **실제로 막힌 후보**를 걷는 계약을 고정한다.
+
+    수집이 A·B 를 미루고 상한에 닿으면 그 뒤 회차는 **에이전트를 한 번도 안 부르고**
+    즉시 실패하므로 3회차에 닿는다. 그때 되짚기가 미룬 것을 빼고 고르면 **C** 를 집는데,
+    C 는 **물어본 적조차 없는 후보**다 — 원장에 「3회차 연속 막혔다」는 사유와 함께 박히지만
+    그 사유는 C 에 대해 거짓이고, 정작 막힌 A·B 는 멀쩡히 남아 다음 폴더에서 또 막힌다.
+
+    Given: A·B 를 미뤄 둔 기록이 있고 수집이 매번 막히는 실행 폴더 (원장은 A·B·C)
+    When: 세 회차를 돈다
+    Then: 걷히는 것이 C 가 아니라 미뤄 둔 것 중 하나다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    for claim in ("미뤄 둔 A", "미뤄 둔 B", "물어본 적 없는 C"):
+        ledger.append(ledger_path, claim)
+    for claim in ("미뤄 둔 A", "미뤄 둔 B"):
+        decision_log.record(
+            run_dir,
+            "collect",
+            decision_log.EVENT_DEFERRED,
+            claim=claim,
+            reason="출처가 실재하지 않는다",
+        )
+    # 상한에 닿아 «에이전트를 한 번도 안 부르고» 끝난 상태다 — 그 사실이 가르는 조건이다
+    decision_log.record(
+        run_dir,
+        "collect",
+        decision_log.EVENT_FAILED,
+        gate=decision_log.GATE_DEFERRED_STUCK,
+        reason="출처를 갖춘 후보를 찾지 못했습니다",
+    )
+
+    result = _run_cycles(3, run_dir=run_dir, ledger_path=ledger_path, execute=_executor("collect"))
+
+    assert result is not None
+    assert result.blocked_claim in {"미뤄 둔 A", "미뤄 둔 B"}, "막힌 것은 미룬 후보다"
+    assert ledger.status_of(ledger_path, "물어본 적 없는 C") is ledger.Status.UNEXPLORED
+
+
 def test_hitting_the_subscription_limit_never_blocks_a_candidate(tmp_path: Path) -> None:
     """
     목적: [중요] 한도 소진을 상한에 «세지 않는» 계약을 고정한다.

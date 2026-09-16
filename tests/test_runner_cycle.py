@@ -118,6 +118,40 @@ def test_a_deferred_candidate_is_not_counted_as_stock(tmp_path: Path) -> None:
     assert "explore" in calls, "재고가 미룬 후보뿐이면 새 후보를 찾아야 한다"
 
 
+def test_collect_still_runs_when_the_only_stock_is_deferred(tmp_path: Path) -> None:
+    """
+    목적: [중요] 남은 후보가 미룬 것뿐이어도 **수집이 도는** 계약을 고정한다.
+
+    여기서 건너뛰면 그 폴더가 **완주로 닫히고 실패 카운트가 안 올라간다.** 그러면 계속
+    막히는 후보를 걷어내는 장치가 영영 안 불리고, 다음 회차는 새 폴더에서 미룬 사실을
+    모른 채 같은 후보를 다시 집어 **회차마다 호출만 태우며 0장을 낸다** —
+    이 저장소가 가장 경계하는 「실패가 아니라 아무 일 없음」 상태다.
+
+    [중요] **그래서 탐색과 수집의 재고 판정이 갈린다.** 탐색에게 미룬 후보는 「새 후보가
+    필요하다」이지만(그래서 빼고 센다), 수집에게는 **「돌아서 실패해야 한다」**이다.
+
+    Given: 원장의 유일한 후보를 미뤄 두었고 탐색이 새 후보를 못 찾는 회차
+    When: 회차를 돈다
+    Then: 수집이 건너뛰어지지 않고 실제로 불린다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    ledger.append(ledger_path, "출처를 못 갖춘 후보")
+    decision_log.record(
+        run_dir,
+        steps.COLLECT,
+        decision_log.EVENT_DEFERRED,
+        claim="출처를 못 갖춘 후보",
+        reason="출처가 실재하지 않는다",
+    )
+    calls: list[str] = []
+
+    # 원장을 안 넘겨 탐색이 새 후보를 만들지 못하게 둔다 — 그래야 이 갈래에 선다
+    cycle.run_cycle(run_dir=run_dir, ledger_path=ledger_path, execute=_executor(calls))
+
+    assert steps.COLLECT in calls, "미룬 후보뿐이어도 수집이 돌아야 실패 카운트가 올라간다"
+
+
 def test_skipped_step_still_counts_as_settled(tmp_path: Path) -> None:
     """
     목적: 건너뛴 단계를 다음 회차가 다시 잡지 않는 계약을 고정한다.

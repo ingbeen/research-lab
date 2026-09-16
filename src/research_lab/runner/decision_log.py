@@ -80,6 +80,16 @@ EVENT_DEFERRED: Final = "deferred"
 # 이름을 고정해 두는 이유가 바로 이런 자리다
 EVENT_BLOCKED: Final = "blocked"
 
+# «미룸 때문에» 그 단계를 더 못 갔다는 표시. 게이트 이름 자리에 적는다.
+#
+# [중요] 이 표시가 말하는 것은 **「막힌 것이 미뤄 둔 후보들이다」**이지 「상한에 닿았다」가
+# 아니다. 상한에 닿아 끝나는 경우와, 남은 후보를 전부 미뤄 더 꺼낼 것이 없는 경우가
+# 모두 여기 오며 **둘 다 막힌 것은 미룬 후보들**이다.
+#
+# 이 표시가 없으면 계속 막히는 폴더를 접을 때 그 사정이, 「다음 후보를 집어 거기서
+# 막힌」 경우와 구별되지 않아 **물어본 적조차 없는 후보가 걷힌다.**
+GATE_DEFERRED_STUCK: Final = "deferred-stuck"
+
 
 def record(run_dir: Path, step: str, event: str, **fields: Any) -> None:
     """결정 한 건을 덧붙인다.
@@ -128,7 +138,37 @@ def record_cost(run_dir: Path, step: str, result: AgentResult) -> None:
     )
 
 
-def deferred_claims(run_dir: Path, step: str) -> set[str]:
+def deferral_state(run_dir: Path, step: str) -> tuple[list[str], bool]:
+    """미뤄 둔 후보들과 «상한에 닿았는지»를 로그 한 번으로 함께 읽는다.
+
+    [중요] 둘을 따로 물으면 같은 파일을 두 번 판다. 이 로그는 폴더를 이어받을 때마다
+    길어지고, 두 값이 필요한 자리는 **계속 막히는 폴더를 접는 경로** — 이미 느려진 자리다.
+
+    Args:
+        run_dir: 그 실행 폴더
+        step: 미룬 단계의 이름
+
+    Returns:
+        `(미뤄 둔 후보들, 미룸 때문에 막혔나)`. 후보 목록은 **미룬 순서를 지킨다** —
+        뒤에 그중 하나를 골라야 하는 자리가 있고, 집합으로 돌려주면 그 선택이
+        **글자 정렬에 좌우되어** 「왜 이것이 걷혔나」를 설명할 수 없다
+    """
+    claims: list[str] = []
+    capped = False
+    for entry in read(run_dir):
+        if entry.get("step") != step:
+            continue
+        event = entry.get("event")
+        if event == EVENT_DEFERRED:
+            claim = payload.as_text(entry.get("claim"))
+            if claim and claim not in claims:
+                claims.append(claim)
+        elif event == EVENT_FAILED and entry.get("gate") == GATE_DEFERRED_STUCK:
+            capped = True
+    return claims, capped
+
+
+def deferred_claims(run_dir: Path, step: str) -> list[str]:
     """그 단계가 그 실행 폴더에서 «미뤄 둔» 후보들의 한 줄 주장.
 
     [중요] 미룸은 **원장에 아무 표시도 남기지 않으므로 이 로그가 그 사실의 유일한 주인**이다.
@@ -147,16 +187,10 @@ def deferred_claims(run_dir: Path, step: str) -> set[str]:
         step: 미룬 단계의 이름
 
     Returns:
-        미뤄 둔 후보들. 로그가 없거나 깨졌으면 빈 집합 — 그때는 한 번 더 시도할 뿐이고,
-        **판정을 못 했다고 파이프라인을 멈추지는 않는다**
+        미뤄 둔 후보들, **미룬 순서 그대로**. 로그가 없거나 깨졌으면 빈 목록 —
+        그때는 한 번 더 시도할 뿐이고, **판정을 못 했다고 파이프라인을 멈추지는 않는다**
     """
-    claims: set[str] = set()
-    for entry in read(run_dir):
-        if entry.get("step") != step or entry.get("event") != EVENT_DEFERRED:
-            continue
-        claim = payload.as_text(entry.get("claim"))
-        if claim:
-            claims.add(claim)
+    claims, _ = deferral_state(run_dir, step)
     return claims
 
 

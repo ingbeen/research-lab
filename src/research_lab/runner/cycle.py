@@ -183,25 +183,28 @@ def _skip_reason(step: str, ledger_path: Path, run_dir: Path) -> str | None:
     # [주의] 재고 판정은 탐색·수집에서만 쓴다. 뒤 단계에서도 계산하면 그 단계마다
     # 원장을 한 번 더 읽는데 쓰이지는 않는다.
     #
-    # [중요] **미뤄 둔 후보는 재고가 아니다.** 수집이 출처를 못 갖춘 후보를 원장에 표시 없이
-    # 지나치므로, 그것을 재고로 세면 **탐색이 「아직 팔 후보가 있다」며 영영 안 돌고**
-    # 수집은 그 후보들을 쓸 수 없다 — 새 후보가 들어올 길이 막혀 회차마다 호출만 태운다.
-    # 여기와 `_block_candidate` 가 **같은 목록**을 봐야 하는 이유가 이것이다
-    has_stock = (
-        step in (EXPLORE, COLLECT)
-        and ledger.next_unexplored(ledger_path, skip=decision_log.deferred_claims(run_dir, COLLECT)) is not None
-    )
+    # [중요] **탐색과 수집이 미룬 후보를 다르게 센다.** 그 이유는 각 갈래에 적는다
+    if step == EXPLORE:
+        # [중요] **탐색에게 미룬 후보는 재고가 아니다.** 수집이 쓸 수 없는 후보라,
+        # 그것을 재고로 세면 탐색이 「아직 팔 후보가 있다」며 영영 안 돌고
+        # **새 후보가 들어올 길이 막힌다**
+        deferred = decision_log.deferred_claims(run_dir, COLLECT)
+        if ledger.next_unexplored(ledger_path, skip=deferred) is not None:
+            # 재고가 있는데도 회차마다 탐색을 돌리면 팔 후보를 쌓아 두고 예산만 쓴다
+            return "원장에 아직 안 판 후보가 있어 탐색이 필요 없다"
 
-    if step == EXPLORE and has_stock:
-        # 재고가 있는데도 회차마다 탐색을 돌리면 팔 후보를 쌓아 두고 예산만 쓴다
-        return "원장에 아직 안 판 후보가 있어 탐색이 필요 없다"
-
-    if step == COLLECT and not has_stock:
+    if step == COLLECT and ledger.next_unexplored(ledger_path) is None:
         # [중요] 이 갈래가 없으면 «끝나지 않는 실패»가 된다.
         # 탐색이 새 후보를 하나도 못 찾는 것은 정상 결과인데(원장이 포화됐거나 그 회차의 검색이
         # 허탕이거나), 그 상태로 수집에 들어가면 후보가 없어 예외가 나고 상한까지 재시도한 뒤
         # 「다음 회차가 이어받습니다」로 보고된다. 다음 회차도 같은 자리에서 같은 일을 반복하고,
-        # 나중에는 아무 일도 없었던 것처럼 보인다
+        # 나중에는 아무 일도 없었던 것처럼 보인다.
+        #
+        # [중요] **여기서는 미룬 후보를 «빼지 않는다».** 남은 것이 미룬 후보뿐일 때
+        # 수집을 건너뛰면 그 폴더가 **완주로 닫혀 실패 카운트가 안 올라가고**, 계속 막히는
+        # 후보를 걷어내는 장치가 영영 안 불린다 — 다음 회차는 새 폴더에서 미룬 사실을 모른 채
+        # 같은 후보를 다시 집어 **회차마다 호출만 태운다.** 수집이 «돌아서 실패해야»
+        # 3회차에 접힌다. 탐색과 판정이 갈리는 이유가 이것이다
         return "원장에 팔 후보가 없다 — 탐색이 새 후보를 찾지 못했다"
 
     if step in steps.CANDIDATE_STEPS:
@@ -334,17 +337,28 @@ def _block_candidate(run_dir: Path, ledger_path: Path, step: str, reason: str) -
     되짚기를 «수집에 한정»하는 이유는 탐색이 원장에서 후보를 꺼내지 않기 때문이다.
     거기서 되짚으면 탐색이 막힌 회차에 **애먼 후보가 걷어내진다.**
 
-    [중요] **미뤄 둔 후보는 되짚기에서 빼야 한다.** 수집은 출처를 못 갖춘 후보를 원장에
-    아무 표시 없이 미루므로, 그 후보는 여전히 「다음에 팔 후보」의 첫 번째다. 그대로 집으면
-    **미뤄 둔 앞 후보가 막힘으로 걷히고 정작 막힌 뒤 후보는 멀쩡히 남는다** — 붙는 사유는
-    사실이지만 대상이 틀려, 한도 소진을 상한에 세지 않기로 한 것과 같은 이유로
-    **사람을 엉뚱한 곳으로 보낸다.**
+    [중요] **미룸이 «상한에 닿았는가»로 갈린다.** 두 경우는 막힌 것이 서로 다르다.
+
+    - 상한 «미만»에서 끝난 수집은 **다음 후보를 집어 거기서 막혔다.** 미룬 것은 지나쳤으므로
+      되짚기에서 빼야 한다 — 안 빼면 미뤄 둔 앞 후보가 대신 걷힌다
+    - 상한에 «닿아» 끝난 수집은 **에이전트를 한 번도 안 불렀다.** 막힌 것은 미뤄 둔 그
+      후보들이고, 그때 원장의 다음 후보를 집으면 **물어본 적조차 없는 후보**가
+      「3회차 연속 막혔다」는 사유와 함께 걷힌다
+
+    둘 다 **사유는 사실인데 대상이 틀린** 자리라, 한도 소진을 상한에 세지 않기로 한 것과
+    같은 이유로 사람을 엉뚱한 곳으로 보낸다.
     """
     candidate = state.pinned_candidate(run_dir)
     claim = candidate.claim if candidate is not None else None
     if claim is None and step == COLLECT:
-        stuck = ledger.next_unexplored(ledger_path, skip=decision_log.deferred_claims(run_dir, COLLECT))
-        claim = stuck.claim if stuck is not None else None
+        deferred, stuck_on_deferred = decision_log.deferral_state(run_dir, COLLECT)
+        if deferred and stuck_on_deferred:
+            # 미룬 순서를 지키므로 **가장 먼저 막힌 것**이 걷힌다 — 정렬로 고르면
+            # 「왜 이것이 걷혔나」를 글자 순서 말고는 설명할 수 없다
+            claim = deferred[0]
+        else:
+            stuck = ledger.next_unexplored(ledger_path, skip=deferred)
+            claim = stuck.claim if stuck is not None else None
 
     if claim is None:
         return None

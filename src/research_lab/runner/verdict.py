@@ -214,13 +214,18 @@ def _unverified_urls(run_dir: Path) -> list[str]:
         확인하지 못한 주소들. 같은 주소가 두 단계에서 나올 수 있으므로 중복은 접되
         **처음 나온 순서를 지킨다**
     """
-    # 단계마다 «마지막» 판정으로 덮어쓴다. dict 가 넣은 순서를 지키므로 단계 순서도 남는다
+    # 단계마다 «마지막» 판정으로 덮어쓴다. dict 가 넣은 순서를 지키므로 단계 순서도 남는다.
+    #
+    # [주의] 단계 이름이 없는 줄은 다루지 않는다. 이 로그를 쓰는 곳은 `decision_log.record`
+    # 하나이고 그것이 **언제나 단계를 박으므로**, 그런 줄을 위한 갈래를 두면 «만들어질 수
+    # 없는 상태»를 위한 코드와 테스트가 남는다
     latest: dict[str, list[str]] = {}
     for entry in decision_log.read(run_dir):
         if entry.get("gate") != url_check.GATE_NAME or entry.get("event") != decision_log.EVENT_READ:
             continue
-        step = payload_helpers.as_text(entry.get("step"))
-        latest[step] = payload_helpers.as_strings(entry.get(url_gate.KEY_UNKNOWN_URLS))
+        latest[payload_helpers.as_text(entry.get("step"))] = payload_helpers.as_strings(
+            entry.get(url_gate.KEY_UNKNOWN_URLS)
+        )
 
     seen: set[str] = set()
     return [url for urls in latest.values() for url in urls if not (url in seen or seen.add(url))]

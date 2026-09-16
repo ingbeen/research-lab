@@ -13,9 +13,9 @@
 """
 
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, NoReturn
 
 from research_lab.agent import invoke
 from research_lab.agent.invoke import AgentResult
@@ -195,30 +195,30 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
     deferred = decision_log.deferred_claims(run_dir, steps.COLLECT)
     while True:
         if rejections >= MAX_REJECTIONS:
+            if deferred:
+                # [중요] 기각 상한으로 끝나더라도 **미룬 것이 남아 있으면 조용히 못 돌아간다.**
+                # 기각은 원장에 남아 다음 회차가 이어가지만 미룸은 이 폴더에만 있어,
+                # 여기서 완주로 닫히면 그 기록이 폴더와 함께 사라진다 — 다음 회차가
+                # 새 폴더에서 같은 후보를 다시 집어 **두 번의 호출을 다시 치른다**
+                _give_up_on_deferred(run_dir, deferred)
             # 상한에 닿았다. 그 회차의 수집은 여기서 끝나고 기각은 원장에 남으므로
             # 다음 회차가 그 뒤부터 이어간다. **부르기 «전»에 본다** — 뒤에서 보면
             # 이 단계가 다시 불릴 때마다 한 번씩 더 부르게 된다
             return
 
         if len(deferred) >= MAX_DEFERRALS:
-            # [중요] 여기서만은 «정상 종료»가 아니라 실패로 끝낸다. 미룸은 원장에 아무
-            # 표시도 남기지 않으므로, 조용히 끝내면 그 폴더가 완주로 닫히고 **결정 로그가
-            # 폴더와 함께 사라진다** — 다음 회차는 새 폴더에서 미룬 사실을 모른 채 같은
-            # 후보를 다시 집고, 회차마다 호출만 태우며 0장을 낸다. 그 상태는 「실패」가
-            # 아니라 「아무 일 없음」처럼 보여 며칠 지나서야 드러난다.
-            #
-            # 실패로 끝내면 그 폴더가 미완성으로 남아 **다음 회차가 이어받아 로그를 물려받고**,
-            # 그래도 계속 막히면 회차 사이의 상한이 그 후보를 원장에서 걷어낸다 —
-            # 없애려던 무한 반복을 막는 장치가 이미 거기 있다
-            raise StepQualityFailed(
-                f"출처를 갖춘 후보를 찾지 못했습니다 — {len(deferred)}개 후보가 실재하는 URL 을 내지 못했습니다. " "다음 회차가 이어받습니다."
-            )
+            _give_up_on_deferred(run_dir, deferred)
 
         candidate = ledger.next_unexplored(ledger_path, skip=deferred)
         if candidate is None:
-            if rejections == 0 and not deferred:
+            if deferred:
+                # 남은 후보를 «전부» 미뤘다. 상한에 닿은 것과 같은 자리이므로 같게 끝낸다 —
+                # 조용히 돌아가면 그 폴더가 완주로 닫혀 **실패 카운트가 안 올라가고**,
+                # 계속 막히는 후보를 걷어내는 장치가 영영 안 불린다
+                _give_up_on_deferred(run_dir, deferred)
+            if rejections == 0:
                 raise NoCandidateError("원장에 아직 안 판 후보가 없습니다. 탐색이 먼저 돌아야 합니다.")
-            # 꺼낼 수 있던 후보를 모두 기각했거나 미뤄 두었다. 그 회차의 수집은 여기서 끝나고
+            # 꺼낼 수 있던 후보를 모두 기각했다. 그 회차의 수집은 여기서 끝나고
             # 뒤따르는 단계는 「그 회차의 후보 없음」으로 건너뛰어진다 — 정상 결과다
             return
 
@@ -226,14 +226,7 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
 
         shortfall = quantified.shortfall_reason(candidate.claim, payload.get("params"))
         if shortfall is not None:
-            ledger.mark_rejected(ledger_path, candidate.claim, shortfall)
-            decision_log.record(
-                run_dir,
-                steps.COLLECT,
-                decision_log.EVENT_DISCARDED,
-                claim=candidate.claim,
-                reason=shortfall,
-            )
+            _reject(run_dir, ledger_path, candidate.claim, shortfall)
             rejections += 1
             continue
 
@@ -252,7 +245,7 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
             claim=candidate.claim,
             reason="출처가 실재하지 않습니다 — 다시 물어도 고쳐지지 않았습니다",
         )
-        deferred.add(candidate.claim)
+        deferred.append(candidate.claim)
 
 
 def _settle_sources(run_dir: Path, claim: str, payload: dict[str, Any], ask: AgentCaller) -> dict[str, Any] | None:
@@ -260,6 +253,12 @@ def _settle_sources(run_dir: Path, claim: str, payload: dict[str, Any], ask: Age
 
     [중요] 자리가 «정성 표현 게이트 뒤 · 저장 앞»이다. 앞에 두면 곧 기각될 후보의
     URL 까지 찌르고, 뒤에 두면 **죽은 URL 이 든 파일이 이미 쓰인 뒤**다.
+
+    [중요] **다시 물어 받은 답이 「기각」을 만들지는 않는다.** 여기 들어온 후보는 첫 답이
+    이미 정성 표현 게이트를 지난 것이라 **잴 수 있다는 것이 증명된 상태**다. 둘째 답이
+    축을 빠뜨리거나 반쯤 적었다고 기각하면 그 증명을 뒤집는 셈이고, 기각은 다시 안 파므로
+    **멀쩡한 후보가 거짓 사유로 영영 닫힌다.** 그래서 축은 `_carry_forward` 가
+    유효한 쪽으로 되돌리고, 이 함수가 가르는 것은 **출처뿐**이다.
 
     Args:
         run_dir: 그 회차의 실행 폴더
@@ -285,11 +284,102 @@ def _settle_sources(run_dir: Path, claim: str, payload: dict[str, Any], ask: Age
 
         # 사유를 그대로 실어 다시 묻는다. 어느 주소가 문제였는지 짚어 주지 않으면
         # **다음 답도 같은 것을 낸다** — 게이트가 미완성을 돌려줄 때 무엇이 왜 비었는지를
-        # 함께 돌려주는 이유와 같다
-        payload = _ask_about(run_dir, claim, ask, source_problem=problem)
+        # 함께 돌려주는 이유와 같다. 앞선 답에서 무엇을 이어받는지는 `_carry_forward` 가 정한다
+        payload = _ask_about(run_dir, claim, ask, source_problem=problem, previous=payload)
 
     # 위 루프는 언제나 `return` 으로 끝난다 — 마지막 회차에서 상한 가지가 잡기 때문이다
     raise RuntimeError(f"내부 불변조건 위반: 출처 확인 루프가 값 없이 끝났습니다 — 상한={MAX_SOURCE_RETRIES}")
+
+
+# 다시 물어 받은 답이 앞선 답에서 «누적으로» 이어받을 칸.
+#
+# 그 회차가 쌓은 것 전부여야 하는 자리다. 검색어는 「던진 것을 전부 남긴다」가 규율이고,
+# 미검증은 **「비는 게 오히려 의심스럽다」**고 못박힌 자리라 앞선 시도가 밝힌 것이
+# 사라지면 그 칸이 거짓으로 짧아진다
+MERGED_KEYS: Final = ("queries", "unverified")
+
+# 다시 물어 받은 답이 비었을 때 앞선 답에서 «되돌려» 채울 칸.
+#
+# 짧은 이름은 그 후보의 «정체»라 한 번 정해지면 바뀌지 않는다. 다시 물 때 빠뜨리면
+# 원장의 그 줄은 **영영 이름을 못 얻고**(마지막 단계가 후보를 닫으면 다시 안 파진다)
+# 산출물 폴더도 한 줄 주장을 통째로 옮긴 긴 이름이 된다
+FALLBACK_KEYS: Final = ("identifier",)
+
+
+def _carry_forward(payload: dict[str, Any], previous: dict[str, Any], *, claim: str) -> None:
+    """다시 물어 받은 답에 앞선 답의 «잃으면 안 되는 것»을 이어 붙인다.
+
+    [중요] 이 함수가 없으면 **다시 묻는 것이 곧 잃는 것**이 된다. 답이 통째로 교체되는데
+    어느 칸이 누적이고 어느 칸이 정의인지는 부르는 쪽이 매번 판단할 일이 아니다.
+
+    [중요] **축은 «유효한 쪽»을 남긴다.** 덧붙이는 말은 「그 주소를 고치라」이지
+    「축을 다시 내라」가 아니라서, 다시 물은 답이 축을 빠뜨리거나 반쯤 적는 것은
+    **누락이지 판정이 아니다.** 그것을 「잴 수 없다」로 읽으면 첫 답이 이미 증명한 것을
+    둘째 답이 부정하게 되고, 그 후보는 «거짓 사유»로 원장에 영구 기각된다 —
+    기각은 다시 안 파므로 사람이 손으로 고치기 전까지 살아나지 않는다.
+
+    Args:
+        payload: 방금 받은 산출물. **제자리에서 고친다**
+        previous: 앞선 시도의 산출물
+        claim: 그 후보의 한 줄 주장. 축이 유효한지 보는 데 쓴다
+    """
+    for key in MERGED_KEYS:
+        earlier = payload_helpers.as_list(previous.get(key))
+        # 앞선 것을 앞에 두고 새것만 덧붙인다 — 순서가 곧 「무엇을 먼저 했나」다
+        payload[key] = [*earlier, *(item for item in payload_helpers.as_list(payload.get(key)) if item not in earlier)]
+
+    for key in FALLBACK_KEYS:
+        if not payload_helpers.as_text(payload.get(key)):
+            payload[key] = payload_helpers.as_text(previous.get(key))
+
+    # 빈 목록도 반쯤 적은 축도 여기서 같게 다뤄진다 — 가르는 것은 «모양»이 아니라
+    # 「이 답만으로 격자를 짤 수 있나」이고, 그 판정은 게이트가 이미 안다
+    if quantified.shortfall_reason(claim, payload.get("params")) is not None:
+        payload["params"] = payload_helpers.as_list(previous.get("params"))
+
+
+def _give_up_on_deferred(run_dir: Path, deferred: Sequence[str]) -> NoReturn:
+    """미룸 때문에 더 갈 수 없다는 것을 남기고 «실패로» 끝낸다.
+
+    [중요] 여기서만은 정상 종료가 아니다. 미룸은 원장에 아무 표시도 남기지 않으므로,
+    조용히 돌아가면 그 폴더가 **완주로 닫히고 결정 로그가 폴더와 함께 사라진다** —
+    다음 회차는 새 폴더에서 미룬 사실을 모른 채 같은 후보를 다시 집고, 회차마다 호출만
+    태우며 0장을 낸다. 그 상태는 「실패」가 아니라 **「아무 일 없음」처럼 보여**
+    며칠 지나서야 드러난다.
+
+    실패로 끝내면 그 폴더가 미완성으로 남아 **다음 회차가 이어받아 로그를 물려받고**,
+    그래도 계속 막히면 회차 사이의 상한이 그 후보를 원장에서 걷어낸다 —
+    없애려던 무한 반복을 막는 장치가 이미 거기 있다.
+
+    [중요] **상한에 닿았다는 사실을 게이트 이름으로 남긴다.** 계속 막히는 폴더를 접을 때
+    「무엇이 막혔나」가 여기서 갈린다 — 상한 «미만»에서 끝난 단계는 다음 후보를 집어
+    거기서 막힌 것이지만, 여기까지 온 단계는 **에이전트를 한 번도 안 불렀으므로**
+    막힌 것은 미뤄 둔 후보들이다. 이 줄이 없으면 그 둘이 구별되지 않아
+    **물어본 적조차 없는 후보가 걷힌다.**
+
+    Raises:
+        StepQualityFailed: 언제나. 이 함수는 돌아오지 않는다
+    """
+    reason = f"출처를 갖춘 후보를 찾지 못했습니다 — {len(deferred)}개 후보가 실재하는 URL 을 내지 못했습니다. " f"다음 회차가 이어받습니다."
+    decision_log.record(
+        run_dir,
+        steps.COLLECT,
+        decision_log.EVENT_FAILED,
+        gate=decision_log.GATE_DEFERRED_STUCK,
+        reason=reason,
+    )
+    raise StepQualityFailed(reason)
+
+
+def _reject(run_dir: Path, ledger_path: Path, claim: str, reason: str) -> None:
+    """잴 수 없다고 판정된 후보를 원장에 기각으로 적고 사유를 남긴다.
+
+    [중요] 부르는 자리가 둘이다 — 첫 답이 축을 못 냈을 때와, **다시 물어 받은 답이
+    축을 빠뜨렸을 때.** 두 곳에 같은 코드를 두면 한쪽만 고쳐질 수 있고, 그 갈림은
+    「원장에는 적혔는데 로그에는 없다」처럼 **한쪽에만 남는 모양**으로 나타난다.
+    """
+    ledger.mark_rejected(ledger_path, claim, reason)
+    decision_log.record(run_dir, steps.COLLECT, decision_log.EVENT_DISCARDED, claim=claim, reason=reason)
 
 
 def _rejections_so_far(run_dir: Path) -> int:
@@ -301,25 +391,53 @@ def _rejections_so_far(run_dir: Path) -> int:
     )
 
 
-def _ask_about(run_dir: Path, claim: str, ask: AgentCaller, *, source_problem: str | None = None) -> dict[str, Any]:
+def _ask_about(
+    run_dir: Path,
+    claim: str,
+    ask: AgentCaller,
+    *,
+    source_problem: str | None = None,
+    previous: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """후보 하나를 두고 에이전트를 부르고, 무엇을 읽고 얼마를 썼는지 남긴다.
 
     기록을 «게이트 앞»에서 남긴다. 막혀서 끝나도 그 회차가 무엇을 했고 얼마를 태웠는지는
     남아야 한다 — 없으면 회차 예산을 정할 때 그만큼이 통째로 빠진 값으로 계산된다.
     **다시 묻는 호출도 같다** — 두 번째 호출의 비용이 빠지면 그 회차의 합이 조용히 작아진다.
 
+    Args:
+        run_dir: 그 회차의 실행 폴더
+        claim: 팔 후보의 한 줄 주장
+        ask: 프롬프트를 받아 에이전트를 부르는 쪽
+        source_problem: 앞선 시도에서 출처가 막힌 사유. 주면 그것을 짚어 다시 내라고 한다
+        previous: **앞선 시도의 산출물.** 다시 물으면 답이 통째로 교체되므로 그냥 두면
+            앞선 시도가 쌓아 둔 것이 **파일에서 사라진다** — 무엇을 어떻게 이어받는지는
+            `_carry_forward` 가 정한다
+
+    Returns:
+        그 단계의 산출물. 다시 물은 것이면 **앞선 시도의 값이 이어져** 담긴다
+
     Raises:
-        StepQualityFailed: 검색어가 모자랄 때
+        StepQualityFailed: 그 회차가 던진 것을 다 합쳐도 검색어가 모자랄 때
     """
     result = ask(build_prompt(claim, source_problem=source_problem))
     payload = invoke.parse_json_answer(result, what="수집")
 
-    queries = payload_helpers.as_strings(payload.get("queries"))
-
-    decision_log.record(run_dir, steps.COLLECT, decision_log.EVENT_READ, queries=queries, query_count=len(queries))
+    # [중요] 로그에는 **이번 호출이 던진 것**을 남긴다. 로그는 과정이라 「이 호출에서 무엇을
+    # 읽었나」가 맞고, 합친 값은 산출물의 몫이다 — 여기에 합친 값을 적으면 같은 검색어가
+    # 두 번 세어져 「몇 번 갈아 끼웠나」를 되짚을 수 없다
+    fresh = payload_helpers.as_strings(payload.get("queries"))
+    decision_log.record(run_dir, steps.COLLECT, decision_log.EVENT_READ, queries=fresh, query_count=len(fresh))
     decision_log.record_cost(run_dir, steps.COLLECT, result)
 
-    shortfall = query_gate.shortfall_reason(queries)
+    if previous is not None:
+        _carry_forward(payload, previous, claim=claim)
+
+    # [중요] 게이트는 **합친 것**으로 본다. 덧붙이는 말은 「그 주소를 고치라」이지
+    # 「처음부터 다시 조사하라」가 아니라서, 다시 물은 답에 하한을 따로 요구하면
+    # **에이전트가 이번에 새로 던진 한둘만 적었을 때 단계 전체가 죽는다** —
+    # 이 단계가 갖춘 미룸·후보 전환 장치를 통째로 비켜 가는 경로가 된다
+    shortfall = query_gate.shortfall_reason(payload_helpers.as_strings(payload.get("queries")))
     if shortfall is not None:
         decision_log.record(run_dir, steps.COLLECT, decision_log.EVENT_FAILED, gate="queries", reason=shortfall)
         raise StepQualityFailed(f"수집 검색어 부족 — {shortfall}")
