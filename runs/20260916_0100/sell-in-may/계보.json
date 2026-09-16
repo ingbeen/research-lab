@@ -1,0 +1,113 @@
+{
+  "claim": "11월~4월에만 주식을 보유하고 5월~10월에는 현금(또는 채권)으로 이동한다(Sell in May)",
+  "groups": [
+    {
+      "origin": {
+        "title": "Sell in May (Wikipedia)",
+        "url": "https://en.wikipedia.org/wiki/Sell_in_May",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "여러 학술 논문(Bouman & Jacobsen 2002, Maberly & Pierce 2004, Andrade et al. 2012, Mebane Faber)을 폭넓게 종합한 백과사전 항목으로, 목록의 다른 어느 출처와도 동일한 문장·숫자를 반복하지 않는다. 다만 AEA·bnains 와 같은 1차 논문을 인용 대상으로 겹치게 다루므로 완전히 무관하지는 않다"
+    },
+    {
+      "origin": {
+        "title": "The Halloween Indicator, 'Sell in May and Go Away': Another Puzzle (Bouman & Jacobsen, American Economic Review, 2002)",
+        "url": "https://www.aeaweb.org/articles?id=10.1257%2F000282802762024683",
+        "published": "2002-12"
+      },
+      "copies": [],
+      "why": "이 저널이 원 논문(2002)의 공식 서지 페이지 자체이며, 목록 안에서 이 논문의 구체 수치(초록·표)를 그대로 옮겨 적은 다른 출처가 없다. Wikipedia 가 같은 저자·논문을 언급하지만 같은 문장·숫자를 반복하지는 않는다"
+    },
+    {
+      "origin": {
+        "title": "The Halloween Indicator, everywhere and all the time (working paper, Jacobsen & Zhang)",
+        "url": "https://www.bnains.org/backtest/periode/The_Halloween_Indicator_everywhere_and_all_the_time_-_Ben_Jacobsen_&_Cherry_Y._Zhang.pdf",
+        "published": "unknown"
+      },
+      "copies": [
+        {
+          "title": "The Halloween Indicator: A Stock Market Anomaly That Is Stronger than Ever (CFA Institute Enterprising Investor)",
+          "url": "https://rpc.cfainstitute.org/blogs/enterprising-investor/2012/the-halloween-indicator-a-stock-market-anomaly-that-is-stronger-than-ever"
+        }
+      ],
+      "why": "CFA Institute 글이 인용하는 '108개 시장·81개국·55,425개 월간 관측치·겨울-여름 초과수익률 4.52%(최근 50년 6.25%)·5년 기준 80%·10년 기준 90% 성공률'이라는 수치 세트가 정확히 이 Jacobsen & Zhang 워킹페이퍼의 결과를 그대로 옮긴 것으로, 같은 숫자의 반복이다"
+    },
+    {
+      "origin": {
+        "title": "\"5월에는 주식 팔라\"는 격언, 사실일까⋯2010년 이후 데이터로 본 증시 전망 (이투데이, Daum 게재)",
+        "url": "https://v.daum.net/v/20260430060111863",
+        "published": "2026-04-30"
+      },
+      "copies": [
+        {
+          "title": "\"5월, 주식 무조건 팔아라\" 16년 데이터 까보니 나온 '충격적인 결과' (나남뉴스)",
+          "url": "https://www.nanamcom.co.kr/news/articleView.html?idxno=29396"
+        }
+      ],
+      "why": "발행일이 같은 날(2026-04-30)이고, 둘 다 '2010년 이후(16년간)' 코스피 데이터로 5월 약세 통념을 검증한다는 동일한 프레임을 쓴다. 나남뉴스 쪽은 하나증권 이경수·IBK투자증권 변준호 연구원 등 구체적 인용이나 -0.31%·6.30% 같은 수치 없이 같은 결론만 되풀이해, 더 상세한 이투데이 기사를 뒤따라 요약 재구성한 것으로 판단된다"
+    },
+    {
+      "origin": {
+        "title": "The 'sell in May' effect: A review and new empirical evidence (Degenhardt & Auer, North American Journal of Economics and Finance, 2018)",
+        "url": "https://ideas.repec.org/a/eee/ecofin/v43y2018icp169-205.html",
+        "published": "2018-01-01"
+      },
+      "copies": [],
+      "why": "독자적인 학술 리뷰 논문으로 목록 내 다른 출처와 동일한 수치·예시를 공유하지 않는다"
+    },
+    {
+      "origin": {
+        "title": "Debunking the 'sell in May' myth: why historical data tells a different story (IG)",
+        "url": "https://www.ig.com/en/news-and-trade-ideas/sell-in-may-250528",
+        "published": "2025-05-28"
+      },
+      "copies": [],
+      "why": "Bloomberg·LSEG·Investing.com·Yahoo Finance 원자료를 직접 인용해 항셍지수·S&P500 에 대한 고유 통계(2005~2024년 5월 양수 비율 35%/75%, 2025년 수익률 등)를 제시하며, 목록의 다른 어느 출처와도 겹치지 않는다"
+    },
+    {
+      "origin": {
+        "title": "Why You Shouldn't Use the Best Six Months Strategy (Cabot Wealth)",
+        "url": "https://www.cabotwealth.com/daily/stock-market/best-six-months-strategy",
+        "published": "2023-06-27"
+      },
+      "copies": [],
+      "why": "LPL Financial(Ryan Detrick)·Cabot 자체 지표(Trend Lines, Tides)를 인용한 고유 분석이며 목록의 다른 출처와 수치·예시가 겹치지 않는다"
+    },
+    {
+      "origin": {
+        "title": "\"Sell in May and Go Away\" is Dead (Greenbush Financial Group)",
+        "url": "https://www.greenbushfinancial.com/all-blogs/sell-in-may-and-go-away-dead",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "저자(Michael Ruger)가 S&P500 2020~2025년 6~8월 수익률을 자체 계산해 제시하며 외부 연구나 다른 출처를 인용하지 않아 목록 내 다른 항목과 겹치지 않는다"
+    },
+    {
+      "origin": {
+        "title": "\"5월에 팔고 떠나라?\"…코스피 신고가 랠리에 '셀 인 메이' 공식 깨져 (Daum 게재)",
+        "url": "https://v.daum.net/v/20260504095703529",
+        "published": "2026-05-04"
+      },
+      "copies": [],
+      "why": "4월 코스피 +30.61%(1998년 이후 최대) 및 IBK·삼성증권·KB증권·대신증권의 5월 전망을 다루며, 같은 셀인메이 반증 계열의 다른 기사(fnnews, 2026-05-29)와는 시점·수치·인용 전문가가 달라 별개의 사건 보도로 판단된다"
+    },
+    {
+      "origin": {
+        "title": "'5월에 팔아라'는 없었다…코스피, 이달 '역대급 랠리' 24%↑ (fnnews)",
+        "url": "https://www.fnnews.com/news/202605291053127551",
+        "published": "2026-05-29"
+      },
+      "copies": [],
+      "why": "5월 코스피 +24.04%, 개인 순매수 44조원, 삼성증권·현대차증권의 하반기 목표치 등 앞선 5월 4일자 기사와는 다른 시점·다른 수치·다른 인용 전문가를 담고 있어 독립된 후속 보도로 판단된다"
+    }
+  ],
+  "independent_source_count": 10,
+  "unverified": [
+    "bnains.org PDF 의 정확한 발행연도(워킹페이퍼 버전 날짜) — PDF 에서 텍스트 추출이 되지 않아 저자 이메일만 확인했고 본문 수치는 CFA Institute 글을 통해 간접 확인함",
+    "Greenbush Financial 글의 발행 연도 — '9월 19일'만 확인되고 연도가 명시되지 않음",
+    "나남뉴스 기사(29396)가 이투데이/Daum 기사(20260430060111863)를 실제로 참고했는지 여부 — 같은 날짜·같은 프레임이라는 정황 증거만 있고 상호 인용 표기는 없음",
+    "Wikipedia 가 인용하는 Maberly & Pierce(2004)·Andrade, Chhaochharia & Fuerst(2012)·Mebane Faber 원문의 실제 URL과 원 수치 — Wikipedia 요약으로만 확인했고 1차 출처까지 내려가지 못함",
+    "Daum 기사 두 건(20260504095703529, 202605291053127551)이 서로 다른 언론사(이투데이 계열 vs 뉴시스/fnnews)의 독립 취재인지, 같은 증권사 리포트를 각기 다른 시점에 재인용한 것인지"
+  ]
+}

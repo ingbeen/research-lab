@@ -1,8 +1,15 @@
 {
   "settled": [
-    "explore"
+    "explore",
+    "collect",
+    "rebut",
+    "lineage"
   ],
   "skipped": [
     "explore"
-  ]
+  ],
+  "candidate": {
+    "claim": "11월~4월에만 주식을 보유하고 5월~10월에는 현금(또는 채권)으로 이동한다(Sell in May)",
+    "identifier": "sell-in-may"
+  }
 }

@@ -1,0 +1,55 @@
+{
+  "claim": "11월~4월에만 주식을 보유하고 5월~10월에는 현금(또는 채권)으로 이동한다(Sell in May)",
+  "rebuttals": [
+    {
+      "title": "The 'sell in May' effect: A review and new empirical evidence",
+      "url": "https://ideas.repec.org/a/eee/ecofin/v43y2018icp169-205.html",
+      "published": "2018-01-01",
+      "kind": "primary",
+      "says": "저자(Degenhardt & Auer)는 North American Journal of Economics and Finance 게재 논문에서 SIM 효과가 존재하고 산업 부문에 집중돼 있음을 확인하면서도, '이 효과는 공개 정보로 알려진 이후 주식시장에서는 약해졌고... 이를 기반한 표준 투자 전략의 효과성과 설득력은 제한적(the effectiveness and persuasiveness of standard investment strategies based on the effect are limited)'이라고 결론짓는다 — 알려진 이후 실전 수익화 가치가 줄었다는 주장."
+    },
+    {
+      "title": "Debunking the 'sell in May' myth: why historical data tells a different story",
+      "url": "https://www.ig.com/en/news-and-trade-ideas/sell-in-may-250528",
+      "published": "2025-05-28",
+      "kind": "secondary",
+      "says": "S&P500 기준 5월이 실제로는 75%의 확률로 양의 수익률을 기록했고, 6월도 비슷하게 신뢰할 만한 성과를 보였으며 거래량·변동성도 다른 달과 특별히 다르지 않다며 격언 자체를 통계로 반박한다."
+    },
+    {
+      "title": "Why You Shouldn't Use the Best Six Months Strategy",
+      "url": "https://www.cabotwealth.com/daily/stock-market/best-six-months-strategy",
+      "published": "2023-06-27",
+      "kind": "secondary",
+      "says": "11월~4월 매수, 5월~10월 회피 전략이 최근 5년 중 2년만 수익을 냈고 2018년 말~2019년 초, 2020년 코로나 급락기에 손실을 봤다며 달력 기반 전략의 불안정성을 지적하고 다른 시장 타이밍 지표를 대안으로 제시한다."
+    },
+    {
+      "title": "\"Sell in May and Go Away\" is Dead",
+      "url": "https://www.greenbushfinancial.com/all-blogs/sell-in-may-and-go-away-dead",
+      "published": "unknown (9월 19일, 연도 미상)",
+      "kind": "secondary",
+      "says": "S&P500 지수의 최근 6개년 6~8월 수익률을 분석한 결과 5개년이 양(+)의 수익률(평균 6.91%)이었고, 이 전략을 따랐다면 매년 약 7%의 수익을 놓쳤을 것이라고 주장한다."
+    },
+    {
+      "title": "\"5월에 팔고 떠나라?\"…코스피 신고가 랠리에 '셀 인 메이' 공식 깨져",
+      "url": "https://v.daum.net/v/20260504095703529",
+      "published": "2026-05-04",
+      "kind": "secondary",
+      "says": "2026년 5월 코스피가 반도체·AI 관련 실적 기대와 개인 순매수에 힘입어 신고가를 경신하며, 통상적인 5월 약세 계절성 패턴이 그 해에는 통하지 않았음을 실제 사례로 보여준다."
+    },
+    {
+      "title": "'5월에 팔아라'는 없었다…코스피, 이달 '역대급 랠리' 24%↑",
+      "url": "https://www.fnnews.com/news/202605291053127551",
+      "published": "2026-05-29",
+      "kind": "secondary",
+      "says": "2026년 5월 한 달간 코스피가 24.04% 상승(개인 순매수 44조2718억원, 월간 역대 최대)했다며, 반도체 강세와 대규모 개인 매수세가 계절적 약세론을 완전히 무력화했다고 보도한다."
+    }
+  ],
+  "not_found_reason": "",
+  "unverified": [
+    "Seeking Alpha 기사 'Does sell in May strategy actually work?'(https://seekingalpha.com/news/4582975-does-sell-in-may-strategy-actually-work) — 봇 차단(403)으로 실제 열람 못함. 검색 요약에는 'Deutsche Bank 전략가들이 이 전략이 실전보다 사후적으로 더 좋아 보인다고 비판했다'는 내용이 있었으나 1차 확인 불가",
+    "ScienceDirect 'Are stock markets really so inefficient? The case of the Halloween Indicator'(https://www.sciencedirect.com/science/article/abs/pii/S1544612313000524) — 봇 차단(403)으로 열람 못함. 검색 요약상 '할로윈 효과가 최근 강하게 약화되거나 사라졌다'는 결론이 있다고 하나 본문 미확인",
+    "ScienceDirect 'Calendar anomalies: Real patterns or data-mining artifacts?'(https://www.sciencedirect.com/science/article/pii/S1062940826000756) — 검색 결과에만 등장, URL을 직접 열어 확인하지 않음",
+    "'Disappearing anomalies: A dynamic analysis of the persistence of anomalies' (ResearchGate) — 검색 결과에만 등장, 미검색어 '많은 달력 이상현상이 1990년대 초 이후 사라졌다'는 요약만 있고 원문 미확인",
+    "Carson Group 수석전략가 라이언 데트릭의 '지난 10년간 전혀 효과 없었다'는 발언 — 나테뉴스 검색 요약에서만 확인, 1차 기사 URL을 직접 열어 검증하지 않음"
+  ]
+}

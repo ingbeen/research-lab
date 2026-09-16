@@ -1,0 +1,61 @@
+{
+  "claim": "11월~4월에만 주식을 보유하고 5월~10월에는 현금(또는 채권)으로 이동한다(Sell in May)",
+  "params": [],
+  "evidence": [
+    {
+      "title": "Sell in May",
+      "url": "https://en.wikipedia.org/wiki/Sell_in_May",
+      "published": "2026-05-15",
+      "kind": "secondary",
+      "says": "Bouman & Jacobsen(2002, AER), Maberly & Pierce(2004, Econ Journal Watch), Andrade·Chhaochharia·Fuerst(2012, SSRN, 1998~2012년 37개 시장에서 11~4월이 5~10월보다 약 10%p 높음), Mebane Faber(1950년 이후 추적) 등 복수 연구를 정리해 11월~4월 보유·5월~10월 이탈 전략이 다수 연구에서 관측됨을 서술한다.",
+      "unverified": false
+    },
+    {
+      "title": "The Halloween Indicator, 'Sell in May and Go Away': Another Puzzle (American Economic Association 공식 서지 페이지)",
+      "url": "https://www.aeaweb.org/articles?id=10.1257%2F000282802762024683",
+      "published": "2002-12",
+      "kind": "primary",
+      "says": "Bouman과 Jacobsen 이 쓴 원 논문의 공식 발행 기록(American Economic Review, Vol. 92, No. 5, 1618-1635쪽)으로, 이 논문이 1970~1998년 37개국 중 36개국에서 겨울(11~4월) 수익률이 여름(5~10월)보다 유의하게 높음을 처음 보고했다는 사실 자체를 확인해 준다(초록 본문은 페이월 뒤라 직접 못 읽음).",
+      "unverified": false
+    },
+    {
+      "title": "The Halloween Indicator: A Stock Market Anomaly That Is Stronger than Ever",
+      "url": "https://rpc.cfainstitute.org/blogs/enterprising-investor/2012/the-halloween-indicator-a-stock-market-anomaly-that-is-stronger-than-ever",
+      "published": "2012-10-30",
+      "kind": "secondary",
+      "says": "Jacobsen & Zhang 의 108개국·55,425개월 관측 연구를 인용해 겨울(11~4월) 수익률이 여름보다 평균 4.52%p 높고 81/108개국에서 효과가 나타났으며, 최근 50년으로 좁히면 격차가 6.25%p로 커졌다고 전한다. Bouman & Jacobsen 의 36/37개국 결과도 함께 재확인한다.",
+      "unverified": false
+    },
+    {
+      "title": "The Halloween Indicator, everywhere and all the time (working paper, Jacobsen & Zhang)",
+      "url": "https://www.bnains.org/backtest/periode/The_Halloween_Indicator_everywhere_and_all_the_time_-_Ben_Jacobsen_&_Cherry_Y._Zhang.pdf",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "실제로 열리는 55쪽짜리 PDF로, 메타데이터의 저자 이메일(B.Jacobsen@Massey.ac.nz, Y.Zhang6@Massey.ac.nz)이 위 CFA Institute 글이 인용한 Jacobsen & Zhang 논문의 저자와 일치해 그 연구의 원문 소재를 확인해 준다. 본문 수치는 압축 형식이라 직접 추출하지 못했다.",
+      "unverified": false
+    },
+    {
+      "title": "\"5월에는 주식 팔라\"는 격언, 사실일까⋯2010년 이후 데이터로 본 증시 전망",
+      "url": "https://v.daum.net/v/20260430060111863",
+      "published": "2026-04-30",
+      "kind": "secondary",
+      "says": "코스피 기준 5~10월 평균 상승률 1.22% vs 11~다음해 4월 평균 수익률 6.30%, 5월 평균 등락률 -0.31%(연중 두 번째로 낮음)라는 구체적 수치를 들어 한국 시장에서도 같은 계절성 패턴이 통계적으로 나타난다고 서술한다.",
+      "unverified": false
+    },
+    {
+      "title": "\"5월, 주식 무조건 팔아라\" 16년 데이터 까보니 나온 '충격적인 결과'",
+      "url": "https://www.nanamcom.co.kr/news/articleView.html?idxno=29396",
+      "published": "2026-04-30",
+      "kind": "secondary",
+      "says": "2010년 이후 코스피 월별 수익률을 비교해 4월은 강세, 5월은 상승폭 축소·하락 전환 사례가 적지 않았다고 분석해 계절성 패턴 자체는 조건부로 지지하되, 일괄 매도보다 업종별 대응을 권한다고 덧붙인다.",
+      "unverified": false
+    }
+  ],
+  "unverified": [
+    "ScienceDirect 게재 Jacobsen & Zhang 'Everywhere and all the time' 논문의 초록 원문 — 403 Forbidden 으로 직접 열람 못 함, CFA Institute 재인용 수치로만 확인",
+    "SSRN 게재 Bouman & Jacobsen 원 논문 초록(papers.ssrn.com abstract_id=300700) — 403 Forbidden 으로 직접 열람 못 함",
+    "Bouman & Jacobsen(2002) AER 본문의 정확한 수익률 수치 — 저널 페이월 뒤라 원문 확인 못 하고 2차 인용(CFA Institute 블로그)으로만 확인",
+    "미국 S&P500 1950년 이후 11~4월 평균 7.2% vs 5~10월 2.1% — 검색 엔진 요약에만 등장했고 원문 URL 을 직접 열어 확인하지 못함",
+    "bnains.org PDF 본문의 구체적 수치(할로윈 효과 %p, 통계적 유의성 등) — 파일은 실재하나 텍스트 추출 실패로 본문 수치는 CFA Institute 재인용으로만 대체 확인"
+  ]
+}
