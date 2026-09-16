@@ -1,0 +1,16 @@
+{
+  "quality_check": "poetry run python validate_project.py",
+  "auto_format": "poetry run black .",
+  "evidence_promotion": {
+    "설계 결정 · 탈락안과 그 이유 · 실측 기록": "docs/DESIGN.md",
+    "계층 간 계약": "src/research_lab/CLAUDE.md",
+    "실행 명령어": "docs/COMMANDS.md"
+  },
+  "commit_scopes": {
+    "src/research_lab/runner/": "러너 / ",
+    "src/research_lab/agent/": "에이전트 / ",
+    "src/research_lab/gate/": "게이트 / ",
+    ".claude/ · Dockerfile · docker/ · 설정 파일": "하네스 / ",
+    "문서": "문서 / "
+  }
+}
