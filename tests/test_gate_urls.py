@@ -420,6 +420,139 @@ def test_head_refusal_falls_back_to_get(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 @pytest.mark.real_prober
+def test_head_404_is_confirmed_with_get(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    목적: [중요] HEAD 의 404 를 «GET 으로 확인한 뒤에» 판정하는 계약을 고정한다.
+
+    국내 언론사가 널리 쓰는 `articleView.html` CMS 는 **HEAD 에 404 를 주면서 GET 에는
+    200 을 준다** [실측 2026-09-16]. 확인 없이 확정하면 살아 있는 1차 출처가
+    「지어낸 것」으로 몰리고, **그 한 건이 회차를 통째로 끝낸다** — 실제로 두 회차가
+    그렇게 죽었고 그때까지 잡힌 죽음은 전부 이 오탐이었다.
+
+    Given: HEAD 에 404 를 내고 GET 에 200 을 내는 서버
+    When: 찔러 본다
+    Then: 둘 다 보냈고 살아 있음으로 판정된다
+    """
+    seen: list[str] = []
+
+    def fake_urlopen(request: Any, timeout: float | None = None) -> _FakeResponse:
+        seen.append(request.get_method())
+        if request.get_method() == "HEAD":
+            raise urllib.error.HTTPError(request.full_url, 404, "Not Found", {}, None)  # type: ignore[arg-type]
+        return _FakeResponse(200)
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+
+    probed = urls.probe_url("https://news.example/news/articleView.html?idxno=1")
+
+    assert seen == ["HEAD", "GET"]
+    assert probed.liveness is urls.Liveness.ALIVE
+
+
+@pytest.mark.real_prober
+def test_head_404_stays_dead_when_get_agrees(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    목적: 진짜로 없는 문서는 **여전히 죽음**임을 고정한다.
+
+    GET 확인을 붙이는 것이 게이트를 무르게 만들어서는 안 된다. 지어낸 출처를 막는 것이
+    이 검사의 존재 이유이고, 백테스트가 없는 이 저장소에 **남는 위조 위험이 그것뿐**이다.
+
+    Given: HEAD 와 GET 이 모두 404 를 내는 서버
+    When: 찔러 본다
+    Then: 죽음으로 판정되고 상태코드가 남는다
+    """
+
+    def fake_urlopen(request: Any, timeout: float | None = None) -> _FakeResponse:
+        raise urllib.error.HTTPError(request.full_url, 404, "Not Found", {}, None)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+
+    probed = urls.probe_url("https://example.com/정말-없음")
+
+    assert probed.liveness is urls.Liveness.DEAD
+    assert probed.status == 404
+
+
+@pytest.mark.real_prober
+def test_head_404_becomes_unknown_when_get_cannot_answer(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    목적: 확인하러 간 GET 이 «대답을 못 하면» 죽음으로 확정하지 않는 계약을 고정한다.
+
+    HEAD 는 404 였는데 GET 이 타임아웃·차단으로 막히면 **가른 것이 없다.** 그때 죽음으로
+    떨어뜨리면 네트워크가 나쁜 회차가 멀쩡한 출처를 지어낸 것으로 만든다 —
+    판정을 «못 하는 것»과 «실패로 판정하는 것»은 다르다.
+
+    Given: HEAD 에 404 를 내고 GET 에서 끊기는 서버
+    When: 찔러 본다
+    Then: 판정 못 함이 된다
+    """
+
+    def fake_urlopen(request: Any, timeout: float | None = None) -> _FakeResponse:
+        if request.get_method() == "HEAD":
+            raise urllib.error.HTTPError(request.full_url, 404, "Not Found", {}, None)  # type: ignore[arg-type]
+        raise TimeoutError("끊김")
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+
+    probed = urls.probe_url("https://example.com/못-가른다")
+
+    assert probed.liveness is urls.Liveness.UNKNOWN
+
+
+@pytest.mark.real_prober
+def test_the_head_verdict_survives_in_the_detail(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    목적: 확인을 거친 판정의 사유에 **HEAD 쪽도 남는** 계약을 고정한다.
+
+    [중요] HEAD 를 버리면 「HEAD 는 404 였는데 GET 이 막혔다」가 「HEAD 가 아무 말도
+    안 했다」와 구별되지 않는다. 그러면 **이 왕복을 넣게 만든 오탐을 로그에서 다시 잴 수
+    없다** — 그 실측 자체가 HEAD 와 GET 의 «불일치»가 보였기에 가능했고,
+    판정 못 한 사유의 분포가 그 가정을 다시 볼 유일한 재료다.
+
+    Given: HEAD 에 404 를 내고 GET 에서 막히는 서버
+    When: 찔러 본다
+    Then: 사유에 두 메서드의 답이 함께 남는다
+    """
+
+    def fake_urlopen(request: Any, timeout: float | None = None) -> _FakeResponse:
+        if request.get_method() == "HEAD":
+            raise urllib.error.HTTPError(request.full_url, 404, "Not Found", {}, None)  # type: ignore[arg-type]
+        raise TimeoutError("끊김")
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+
+    probed = urls.probe_url("https://example.com/못-가른다")
+
+    assert "404" in probed.detail
+    assert "TimeoutError" in probed.detail
+
+
+@pytest.mark.real_prober
+def test_a_living_url_is_asked_only_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    목적: [중요] 살아 있는 URL 에 GET 을 «덧붙이지 않는» 계약을 고정한다.
+
+    이 게이트는 한 회차가 내는 모든 출처를 지난다. 확인 요청이 모든 URL 에 붙으면
+    **트래픽이 통째로 두 배가 되고** 남의 서버를 그만큼 더 두드린다.
+    확인은 죽음 후보에만 붙어야 한다.
+
+    Given: HEAD 에 200 을 내는 서버
+    When: 찔러 본다
+    Then: HEAD 한 번으로 끝난다
+    """
+    seen: list[str] = []
+
+    def fake_urlopen(request: Any, timeout: float | None = None) -> _FakeResponse:
+        seen.append(request.get_method())
+        return _FakeResponse(200)
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+
+    assert urls.probe_url("https://example.com/멀쩡").liveness is urls.Liveness.ALIVE
+    assert seen == ["HEAD"]
+
+
+@pytest.mark.real_prober
 def test_http_error_becomes_a_verdict(monkeypatch: pytest.MonkeyPatch) -> None:
     """
     목적: 4xx 가 «예외»로 오는 것을 판정으로 옮기는 계약을 고정한다.

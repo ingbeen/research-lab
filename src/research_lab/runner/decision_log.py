@@ -15,7 +15,7 @@ from typing import Any, Final
 
 from research_lab.agent.invoke import AgentResult
 from research_lab.common_constants import DECISION_LOG_FILENAME
-from research_lab.runner import jsonl
+from research_lab.runner import jsonl, payload
 
 # 이벤트 종류. 「무엇을 읽었나 · 무엇을 기준으로 판단했나 · 무엇을 버렸고 왜」를
 # 나중에 기계가 골라낼 수 있도록 이름을 고정한다 — 자유 문자열이면 훑을 때 매번 추측해야 한다
@@ -61,6 +61,17 @@ KEY_DOSSIER: Final = "dossier"
 # 판정이라 나중에 「판정이 어떻게 갈렸나」를 셀 때 쓰이는데, 같은 이름으로 적으면
 # 예산 판정이 그 집계에 섞여 들어간다 — 이름을 고정해 두는 이유가 이런 자리다
 EVENT_BUDGET: Final = "budget"
+
+# 출처를 끝내 못 갖춘 후보를 그 실행 폴더에서 «미뤄 두었다» — 원장에는 아무 표시도 안 한다.
+#
+# [중요] 「버렸다」(`EVENT_DISCARDED`)와 갈라 둔다. 수집이 **기각 수를 그 이름으로 세므로**,
+# 미룸을 같은 이름으로 적으면 그 회차의 기각 상한이 조용히 앞당겨진다.
+#
+# [중요] 「건너뛰었다」(`EVENT_SKIPPED`)와도 갈라 둔다. 그쪽은 **단계가 통째로 안 돈 것**이고
+# 이것은 그 단계 «안»에서 후보 하나를 지나친 것이다. 같은 이름으로 적으면 둘 다 못 세는데,
+# 미룬 후보를 세는 일이 무한 반복을 막는 유일한 장치라 그 손실이 곧 고장이 된다 —
+# 원장에 표시를 안 남기기로 했으므로 **이 로그가 그 사실의 유일한 주인**이다
+EVENT_DEFERRED: Final = "deferred"
 
 # 같은 자리에서 회차마다 실패해 그 후보와 실행 폴더를 접었다.
 #
@@ -115,6 +126,38 @@ def record_cost(run_dir: Path, step: str, result: AgentResult) -> None:
         session_id=result.session_id,
         **components,
     )
+
+
+def deferred_claims(run_dir: Path, step: str) -> set[str]:
+    """그 단계가 그 실행 폴더에서 «미뤄 둔» 후보들의 한 줄 주장.
+
+    [중요] 미룸은 **원장에 아무 표시도 남기지 않으므로 이 로그가 그 사실의 유일한 주인**이다.
+    이 목록이 없으면 미룬 후보가 여전히 「다음에 팔 후보」의 첫 번째라
+    **같은 후보를 영원히 다시 꺼낸다.** 기각 수를 이 로그로 세는 것과 같은 방식이며,
+    새 누적 상태를 만들지 않는 이유도 같다.
+
+    [중요] **읽는 쪽이 둘이라 여기에 둔다.** 후보를 꺼내는 쪽(수집)과 계속 막히는 후보를
+    걷어내는 쪽(회차)이 **같은 목록**을 봐야 한다. 걷어내는 쪽이 이것을 모르면 미룬 후보가
+    원장에서 여전히 첫 번째라, **막힌 후보 대신 미뤄 둔 후보를 걷어낸다** —
+    사유는 사실인데 대상이 틀려 사람을 엉뚱한 곳으로 보낸다. 한쪽에 두고 다른 쪽이
+    자기 것을 따로 세면 그 둘이 갈릴 수 있고, 갈렸다는 사실은 아무 신호도 내지 않는다.
+
+    Args:
+        run_dir: 그 실행 폴더
+        step: 미룬 단계의 이름
+
+    Returns:
+        미뤄 둔 후보들. 로그가 없거나 깨졌으면 빈 집합 — 그때는 한 번 더 시도할 뿐이고,
+        **판정을 못 했다고 파이프라인을 멈추지는 않는다**
+    """
+    claims: set[str] = set()
+    for entry in read(run_dir):
+        if entry.get("step") != step or entry.get("event") != EVENT_DEFERRED:
+            continue
+        claim = payload.as_text(entry.get("claim"))
+        if claim:
+            claims.add(claim)
+    return claims
 
 
 def read(run_dir: Path) -> list[dict[str, Any]]:

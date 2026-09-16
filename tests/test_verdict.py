@@ -244,6 +244,32 @@ def test_unjudged_urls_from_every_step_reach_the_document(prepared: Any) -> None
     assert OTHER_BLOCKED_URL in written
 
 
+def test_urls_from_a_discarded_answer_do_not_reach_the_document(prepared: Any) -> None:
+    """
+    목적: [중요] **버린 답**의 주소가 근거 문서에 실리지 않는 계약을 고정한다.
+
+    수집은 출처가 죽으면 그 주소를 짚어 다시 묻고, 그래도 안 되면 후보까지 바꾼다.
+    그래서 한 단계가 URL 판정을 여러 번 남기는데 **앞의 것들은 버린 답**이다.
+    전부 모으면 **그 문서 어디에도 없는 주소**가 미검증 칸에 실리고, 받는 쪽은 본문에서
+    그 주소를 찾지 못한다 — 문서는 머리말에서 자기 URL 을 실제로 호출했다고 보증하므로
+    **틀린 목록은 없는 목록보다 나쁘다.**
+
+    Given: 수집이 판정을 두 번 남긴 회차 (앞의 것은 버린 답)
+    When: 판정 단계를 돈다
+    Then: 마지막 판정의 주소만 문서에 실린다
+    """
+    ready = prepared()
+    _record_url_check(ready.run_dir, "collect", unknown=[BLOCKED_URL])
+    _record_url_check(ready.run_dir, "collect", unknown=[OTHER_BLOCKED_URL])
+
+    verdict.run(ready.run_dir, ready.ledger_path, lambda _: _answer(_payload()), dossier_dir=ready.dossier_dir)
+
+    written = next(ready.dossier_dir.glob("*.md")).read_text(encoding="utf-8")
+
+    assert OTHER_BLOCKED_URL in written
+    assert BLOCKED_URL not in written, "버린 답의 주소는 그 문서 어디에도 없다"
+
+
 def test_a_cycle_without_unjudged_urls_says_nothing_about_them(prepared: Any) -> None:
     """
     목적: 판정 못 한 주소가 없으면 문서가 그 이야기를 «안 하는» 계약을 고정한다.

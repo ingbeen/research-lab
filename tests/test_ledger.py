@@ -173,6 +173,98 @@ def test_next_unexplored_returns_none_when_exhausted(tmp_path: Path) -> None:
     assert ledger.next_unexplored(path) is None
 
 
+def test_next_unexplored_can_be_told_to_pass_over_a_candidate(tmp_path: Path) -> None:
+    """
+    목적: 부르는 쪽이 「이번엔 이 후보 말고」를 말할 수 있는 계약을 고정한다.
+
+    수집은 출처를 못 갖춘 후보를 **원장에 표시하지 않고** 미룬다 — 기각도 막힘도 그
+    상황의 뜻이 아니기 때문이다. 표시가 없으니 그 후보는 여전히 첫 번째이고,
+    건너뛸 길이 없으면 **같은 후보를 영원히 다시 꺼낸다.**
+
+    Given: 후보가 둘 든 원장
+    When: 첫 후보를 건너뛰라고 말하며 묻는다
+    Then: 둘째 후보가 돌아오고, 원장의 표시는 «하나도» 바뀌지 않는다
+    """
+    path = tmp_path / "원장.md"
+    ledger.append(path, "첫 후보")
+    ledger.append(path, "둘째 후보")
+
+    candidate = ledger.next_unexplored(path, skip={"첫 후보"})
+
+    assert candidate is not None
+    assert candidate.claim == "둘째 후보"
+    assert ledger.status_of(path, "첫 후보") is ledger.Status.UNEXPLORED
+
+
+def test_next_unexplored_passes_over_by_the_canonical_claim(tmp_path: Path) -> None:
+    """
+    목적: 건너뛸 후보를 «정규 형태»로 맞춰 보는 계약을 고정한다.
+
+    [중요] 원장은 사람이 손으로 고치는 파일이고 한 줄 주장은 에이전트가 낸 값이다.
+    앞뒤 공백이나 앞머리 백틱 하나로 같은 후보가 다르게 보이면, 건너뛰라고 말해도
+    **에러 없이 그냥 안 건너뛰어진다** — 그 고장은 무한 반복으로만 드러난다.
+
+    Given: 후보가 둘 든 원장
+    When: 앞뒤 공백이 붙은 주장으로 건너뛰라고 말한다
+    Then: 그래도 건너뛰어진다
+    """
+    path = tmp_path / "원장.md"
+    ledger.append(path, "첫 후보")
+    ledger.append(path, "둘째 후보")
+
+    candidate = ledger.next_unexplored(path, skip={"  첫 후보  "})
+
+    assert candidate is not None
+    assert candidate.claim == "둘째 후보"
+
+
+def test_next_unexplored_passes_over_a_row_that_carries_a_backtick(tmp_path: Path) -> None:
+    """
+    목적: [중요] 원장 «쪽»에 백틱이 붙어 있어도 지나쳐지는 계약을 고정한다.
+
+    원장을 읽는 쪽은 앞뒤 공백만 떼고, 정규 형태는 앞머리 백틱까지 뗀다. 한쪽만
+    정규화하면 백틱이 붙은 줄에서 비교가 어긋나는데, 그 고장은 예외가 아니라
+    **지나치라고 말한 후보를 그대로 다시 집는** 모양으로 나타난다 — 사람이 손으로
+    고치는 파일이라 이런 줄이 실제로 들어온다.
+
+    Given: 앞머리에 백틱이 붙은 줄이 든 원장
+    When: 그 후보를 지나치라고 말한다
+    Then: 다음 후보가 돌아온다
+    """
+    path = tmp_path / "원장.md"
+    path.write_text(
+        "- [ ] `Halloween` 11월 첫 거래일에 사서 4월 말에 판다\n- [ ] 둘째 후보\n",
+        encoding="utf-8",
+    )
+    first = ledger.load(path)[0]
+
+    candidate = ledger.next_unexplored(path, skip={first.claim})
+
+    assert candidate is not None
+    assert candidate.claim == "둘째 후보"
+
+
+def test_next_unexplored_without_skip_behaves_as_before(tmp_path: Path) -> None:
+    """
+    목적: 건너뛸 후보를 «안 넘기는» 기존 호출이 그대로인 계약을 고정한다.
+
+    이 함수의 호출처는 수집 말고도 둘 더 있다(회차가 재고를 묻는 자리 · 막힌 후보를
+    되짚는 자리). 기본값이 없으면 그 자리들이 조용히 달라진다.
+
+    Given: 후보가 둘 든 원장
+    When: 건너뛸 후보 없이 묻는다
+    Then: 먼저 담긴 것이 돌아온다
+    """
+    path = tmp_path / "원장.md"
+    ledger.append(path, "첫 후보")
+    ledger.append(path, "둘째 후보")
+
+    candidate = ledger.next_unexplored(path)
+
+    assert candidate is not None
+    assert candidate.claim == "첫 후보"
+
+
 def test_marking_unknown_candidate_is_rejected(tmp_path: Path) -> None:
     """
     목적: 원장에 없는 후보를 표시하려는 시도가 «조용히» 넘어가지 않는 계약을 고정한다.

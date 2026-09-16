@@ -22,7 +22,7 @@ from research_lab.agent.invoke import AgentResult
 from research_lab.common_constants import PRO_EVIDENCE_FILENAME, SEARCH_QUERIES_FILENAME
 from research_lab.gate import quantified
 from research_lab.gate import queries as query_gate
-from research_lab.runner import decision_log, ledger, naming, prose_check, state, url_check
+from research_lab.runner import decision_log, ledger, naming, prose_check, state, steps, url_check
 from research_lab.runner import payload as payload_helpers
 from research_lab.runner.atomic import atomic_write
 from research_lab.runner.steps import StepQualityFailed
@@ -37,6 +37,33 @@ AgentCaller = Callable[[str], AgentResult]
 #
 # 상한에 닿으면 그 회차의 수집을 끝낸다. 기각은 원장에 남으므로 다음 회차가 그 뒤부터 이어간다
 MAX_REJECTIONS: Final = 3
+
+# 출처가 실재하지 않을 때 «다시 물어보는» 횟수.
+#
+# [중요] 이 저장소의 다른 상한은 모두 3인데 여기만 1인 이유는 **상한이 곱셈으로 걸리기**
+# 때문이다 — 다시 묻기는 후보를 바꾸는 루프 «안»에 있어 한 단계의 호출 수가
+# `(이 값 + 1) x 지나친 후보 수` 가 되고, 그 위에 **회차의 재시도가 한 겹 더 곱해진다**
+# (「그 외」 실패로 이 단계가 다시 불리면 아직 기록되지 않은 후보를 처음부터 다시 판다).
+# [실측 2026-09-16] 수집 한 번이 $0.79 라 3 으로 두면 한 회차 예산을 통째로 태운다.
+#
+# 그리고 **한 번 짚어 줬는데도 또 죽은 URL 을 내면 그것은 그 시도의 실수가 아니다** —
+# 그 후보의 출처를 실제로 못 찾고 있는 것이고, 그때는 다음 후보로 가는 편이 낫다
+MAX_SOURCE_RETRIES: Final = 1
+
+# 출처를 못 갖춰 «미뤄 두는» 후보의 수 상한.
+#
+# [중요] 기각과 «따로» 센다. 미룸은 후보 하나당 호출이 두 번이라 더 비싸고, 무엇보다
+# 상한이 없으면 **원장에 든 후보를 전부 훑으며 호출을 태운다** — 기각에 상한을 둔 것과
+# 같은 이유이고, 그렇게 끝난 회차는 「실패」가 아니라 「아무 일 없음」처럼 보인다.
+#
+# [중요] **1 이 아니라 2 인 이유가 이 장치의 목적 자체다.** 1 이면 첫 후보를 미룬 순간
+# 상한에 닿아 **다음 후보를 시도조차 못 하고**, 그러면 「출처를 못 갖추면 다른 주제로
+# 넘어간다」가 성립하지 않는다 — 미루기만 하고 끝나는 것은 고치기 전과 다를 바 없다.
+# 2 면 미룬 뒤 다른 후보를 «반드시 한 번은» 시도한다.
+#
+# 거기서 멈추는 것은 **연달아 두 후보가 출처를 못 갖추면 그것이 후보의 문제가 아닐**
+# 가능성이 높기 때문이다 — 네트워크·게이트·에이전트 쪽 사정이면 후보를 바꿔도 같은 자리에 선다
+MAX_DEFERRALS: Final = 2
 
 
 class NoCandidateError(RuntimeError):
@@ -81,8 +108,29 @@ PROMPT: Final = """이 저장소의 `.claude/skills/dossier-research/SKILL.md` �
 {{"claim": "받은 한 줄 주장 그대로", "identifier": "짧은-영문-이름", "queries": ["던진 검색어 전부"], "params": [{{"name": "축 이름", "unit": "단위", "candidates": [숫자, 숫자]}}], "evidence": [{{"title": "", "url": "", "published": "YYYY-MM-DD 또는 unknown", "kind": "primary|secondary", "says": "이 출처가 주장을 어떻게 뒷받침하나"}}], "unverified": ["확인하지 못한 것"]}}
 """
 
+# 출처가 실재하지 않아 «다시» 물을 때 지시문 뒤에 붙이는 말.
+#
+# [중요] 원래 지시문을 복제하지 않고 **덧붙인다.** 두 벌로 쓰면 규율을 고치는 날
+# 한쪽만 고쳐지고, 그 갈림은 에러를 내지 않는다.
+#
+# [중요] 「다른 출처를 찾아라」만 적지 않는다. 그렇게만 말하면 **빈자리를 메우려고
+# 주소를 지어내는** 유인이 생긴다 — 이 게이트가 막으려던 바로 그 행동이다.
+# 그래서 「못 찾으면 빼고 미검증에 적으라」를 «같은 무게로» 함께 준다
+RETRY_SUFFIX: Final = """
 
-def build_prompt(claim: str) -> str:
+## 다시 냅니다 — 앞서 낸 출처에 문제가 있었습니다
+
+{problem}
+
+- **그 주소를 그대로 다시 내지 마세요.** 실제로 열어 본 다른 출처를 찾습니다
+- **못 찾으면 그 근거를 빼세요.** 무엇을 확인하지 못했는지는 `unverified` 에 적습니다.
+  빈자리를 메우려고 주소를 지어내면 같은 자리에서 또 막힙니다 — **근거가 줄어드는 것은
+  정상 결과이고, 없는 출처를 적는 것은 아닙니다**
+- 나머지 규율은 위와 같습니다. 다른 말 없이 **JSON 하나만** 출력하세요
+"""
+
+
+def build_prompt(claim: str, *, source_problem: str | None = None) -> str:
     """수집 지시문을 만든다.
 
     [중요] 걸린 표현을 **이름으로 짚어** 요구한다. 「값이 비어 있으면 적으라」고만 하면
@@ -92,6 +140,8 @@ def build_prompt(claim: str) -> str:
 
     Args:
         claim: 팔 후보의 한 줄 주장
+        source_problem: 앞선 시도에서 출처가 막힌 사유. 주면 그것을 짚어 다시 내라는
+            말이 뒤에 붙는다. **어느 주소가 문제였는지 이름으로 실려 있어야** 고칠 수 있다
 
     Returns:
         에이전트에게 줄 지시문
@@ -105,7 +155,10 @@ def build_prompt(claim: str) -> str:
         )
     else:
         demand = "이 주장은 값이 다 정해져 있습니다. 그래도 잴 때 갈릴 축이 있으면 적고, 없으면 `params` 는 빈 목록입니다."
-    return PROMPT.format(claim=claim, axis_demand=demand)
+    prompt = PROMPT.format(claim=claim, axis_demand=demand)
+    if source_problem is None:
+        return prompt
+    return prompt + RETRY_SUFFIX.format(problem=source_problem)
 
 
 def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
@@ -113,6 +166,10 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
 
     잴 수 없다고 판정된 후보는 사유와 함께 기각하고 **다음 후보로 넘어간다.**
     기각은 실패가 아니라 판정의 결과이므로 그 회차가 멈추지 않는다.
+
+    출처가 실재하지 않으면 그 주소를 짚어 **한 번 다시 묻고**, 그래도 안 되면 그 후보를
+    미뤄 두고 다음 후보로 간다. 미룸은 원장에 표시하지 않는다 — 기각도 막힘도 그 사정이
+    아니기 때문이며, 그 사실은 결정 로그가 소유한다.
 
     Args:
         run_dir: 그 회차의 실행 폴더
@@ -122,7 +179,9 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
     Raises:
         NoCandidateError: 원장에 팔 후보가 처음부터 없을 때. 탐색이 먼저 돌아야 한다
         StepFailed: 응답이 약속한 모양이 아닐 때
-        StepQualityFailed: 검색어 규율을 못 지켰을 때
+        StepQualityFailed: 검색어 규율을 못 지켰을 때 · 자립성 게이트에 막혔을 때 ·
+            **미룸이 상한에 닿았을 때**. 마지막 것은 그 폴더를 미완성으로 남겨
+            다음 회차가 로그를 물려받게 하려는 것이다
     """
     # 단계가 자기 산출물 폴더를 만든다. 부르는 쪽이 만들어 줬을 것이라 가정하면
     # 호출 경로가 늘 때마다 같은 실수를 되풀이한다
@@ -133,6 +192,7 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
     # 불리므로 상한이 세 배가 되고, 그만큼 후보와 예산이 함께 탄다.
     # 그 회차의 결정 로그가 이미 기각을 기록하므로 새 상태를 만들지 않고 그것을 센다
     rejections = _rejections_so_far(run_dir)
+    deferred = decision_log.deferred_claims(run_dir, steps.COLLECT)
     while True:
         if rejections >= MAX_REJECTIONS:
             # 상한에 닿았다. 그 회차의 수집은 여기서 끝나고 기각은 원장에 남으므로
@@ -140,34 +200,97 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
             # 이 단계가 다시 불릴 때마다 한 번씩 더 부르게 된다
             return
 
-        candidate = ledger.next_unexplored(ledger_path)
+        if len(deferred) >= MAX_DEFERRALS:
+            # [중요] 여기서만은 «정상 종료»가 아니라 실패로 끝낸다. 미룸은 원장에 아무
+            # 표시도 남기지 않으므로, 조용히 끝내면 그 폴더가 완주로 닫히고 **결정 로그가
+            # 폴더와 함께 사라진다** — 다음 회차는 새 폴더에서 미룬 사실을 모른 채 같은
+            # 후보를 다시 집고, 회차마다 호출만 태우며 0장을 낸다. 그 상태는 「실패」가
+            # 아니라 「아무 일 없음」처럼 보여 며칠 지나서야 드러난다.
+            #
+            # 실패로 끝내면 그 폴더가 미완성으로 남아 **다음 회차가 이어받아 로그를 물려받고**,
+            # 그래도 계속 막히면 회차 사이의 상한이 그 후보를 원장에서 걷어낸다 —
+            # 없애려던 무한 반복을 막는 장치가 이미 거기 있다
+            raise StepQualityFailed(
+                f"출처를 갖춘 후보를 찾지 못했습니다 — {len(deferred)}개 후보가 실재하는 URL 을 내지 못했습니다. "
+                "다음 회차가 이어받습니다."
+            )
+
+        candidate = ledger.next_unexplored(ledger_path, skip=deferred)
         if candidate is None:
-            if rejections == 0:
+            if rejections == 0 and not deferred:
                 raise NoCandidateError("원장에 아직 안 판 후보가 없습니다. 탐색이 먼저 돌아야 합니다.")
-            # 꺼낼 수 있던 후보를 모두 기각했다. 그 회차의 수집은 여기서 끝나고
+            # 꺼낼 수 있던 후보를 모두 기각했거나 미뤄 두었다. 그 회차의 수집은 여기서 끝나고
             # 뒤따르는 단계는 「그 회차의 후보 없음」으로 건너뛰어진다 — 정상 결과다
             return
 
         payload = _ask_about(run_dir, candidate.claim, ask)
 
         shortfall = quantified.shortfall_reason(candidate.claim, payload.get("params"))
-        if shortfall is None:
-            # [중요] 자리가 «정성 표현 게이트 뒤 · 저장 앞»이다. 앞에 두면 곧 기각될 후보의
-            # URL 까지 찌르고, 뒤에 두면 **죽은 URL 이 든 파일이 이미 쓰인 뒤**다
-            prose_check.assert_self_contained(run_dir, "collect", payload, what="수집 산출물")
-            url_check.assert_sources_exist(run_dir, "collect", payload.get("evidence"), what="수집 출처")
-            _store(run_dir, ledger_path, candidate, payload)
+        if shortfall is not None:
+            ledger.mark_rejected(ledger_path, candidate.claim, shortfall)
+            decision_log.record(
+                run_dir,
+                steps.COLLECT,
+                decision_log.EVENT_DISCARDED,
+                claim=candidate.claim,
+                reason=shortfall,
+            )
+            rejections += 1
+            continue
+
+        settled = _settle_sources(run_dir, candidate.claim, payload, ask)
+        if settled is not None:
+            _store(run_dir, ledger_path, candidate, settled)
             return
 
-        ledger.mark_rejected(ledger_path, candidate.claim, shortfall)
+        # 출처를 끝내 못 갖췄다. **원장은 건드리지 않는다** — 기각은 「잴 수 없다」는
+        # 판정이고 막힘은 「회차마다 같은 자리에서 실패해 접었다」는 뜻이라, 둘 중 어느 것도
+        # 이 사정이 아니다. 적어 버리면 멀쩡한 후보가 사람이 손대기 전까지 영영 다시 안 파진다
         decision_log.record(
             run_dir,
-            "collect",
-            decision_log.EVENT_DISCARDED,
+            steps.COLLECT,
+            decision_log.EVENT_DEFERRED,
             claim=candidate.claim,
-            reason=shortfall,
+            reason="출처가 실재하지 않습니다 — 다시 물어도 고쳐지지 않았습니다",
         )
-        rejections += 1
+        deferred.add(candidate.claim)
+
+
+def _settle_sources(run_dir: Path, claim: str, payload: dict[str, Any], ask: AgentCaller) -> dict[str, Any] | None:
+    """출처가 실재할 때까지 상한만큼 다시 묻는다.
+
+    [중요] 자리가 «정성 표현 게이트 뒤 · 저장 앞»이다. 앞에 두면 곧 기각될 후보의
+    URL 까지 찌르고, 뒤에 두면 **죽은 URL 이 든 파일이 이미 쓰인 뒤**다.
+
+    Args:
+        run_dir: 그 회차의 실행 폴더
+        claim: 팔 후보의 한 줄 주장
+        payload: 방금 받은 산출물
+        ask: 프롬프트를 받아 에이전트를 부르는 쪽
+
+    Returns:
+        출처가 실재하는 산출물. 상한까지 물어도 안 고쳐졌으면 None —
+        **그때 그 후보를 미루는 것은 부르는 쪽의 판단이다**
+
+    Raises:
+        StepQualityFailed: 자립성 게이트에 막혔을 때. 그쪽은 다시 묻는 대상이 아니다
+    """
+    for attempt in range(MAX_SOURCE_RETRIES + 1):
+        prose_check.assert_self_contained(run_dir, steps.COLLECT, payload, what="수집 산출물")
+
+        problem = url_check.check_sources(run_dir, steps.COLLECT, payload.get("evidence"), what="수집 출처")
+        if problem is None:
+            return payload
+        if attempt == MAX_SOURCE_RETRIES:
+            return None
+
+        # 사유를 그대로 실어 다시 묻는다. 어느 주소가 문제였는지 짚어 주지 않으면
+        # **다음 답도 같은 것을 낸다** — 게이트가 미완성을 돌려줄 때 무엇이 왜 비었는지를
+        # 함께 돌려주는 이유와 같다
+        payload = _ask_about(run_dir, claim, ask, source_problem=problem)
+
+    # 위 루프는 언제나 `return` 으로 끝난다 — 마지막 회차에서 상한 가지가 잡기 때문이다
+    raise RuntimeError(f"내부 불변조건 위반: 출처 확인 루프가 값 없이 끝났습니다 — 상한={MAX_SOURCE_RETRIES}")
 
 
 def _rejections_so_far(run_dir: Path) -> int:
@@ -175,30 +298,31 @@ def _rejections_so_far(run_dir: Path) -> int:
     return sum(
         1
         for entry in decision_log.read(run_dir)
-        if entry.get("step") == "collect" and entry.get("event") == decision_log.EVENT_DISCARDED
+        if entry.get("step") == steps.COLLECT and entry.get("event") == decision_log.EVENT_DISCARDED
     )
 
 
-def _ask_about(run_dir: Path, claim: str, ask: AgentCaller) -> dict[str, Any]:
+def _ask_about(run_dir: Path, claim: str, ask: AgentCaller, *, source_problem: str | None = None) -> dict[str, Any]:
     """후보 하나를 두고 에이전트를 부르고, 무엇을 읽고 얼마를 썼는지 남긴다.
 
     기록을 «게이트 앞»에서 남긴다. 막혀서 끝나도 그 회차가 무엇을 했고 얼마를 태웠는지는
     남아야 한다 — 없으면 회차 예산을 정할 때 그만큼이 통째로 빠진 값으로 계산된다.
+    **다시 묻는 호출도 같다** — 두 번째 호출의 비용이 빠지면 그 회차의 합이 조용히 작아진다.
 
     Raises:
         StepQualityFailed: 검색어가 모자랄 때
     """
-    result = ask(build_prompt(claim))
+    result = ask(build_prompt(claim, source_problem=source_problem))
     payload = invoke.parse_json_answer(result, what="수집")
 
     queries = payload_helpers.as_strings(payload.get("queries"))
 
-    decision_log.record(run_dir, "collect", decision_log.EVENT_READ, queries=queries, query_count=len(queries))
-    decision_log.record_cost(run_dir, "collect", result)
+    decision_log.record(run_dir, steps.COLLECT, decision_log.EVENT_READ, queries=queries, query_count=len(queries))
+    decision_log.record_cost(run_dir, steps.COLLECT, result)
 
     shortfall = query_gate.shortfall_reason(queries)
     if shortfall is not None:
-        decision_log.record(run_dir, "collect", decision_log.EVENT_FAILED, gate="queries", reason=shortfall)
+        decision_log.record(run_dir, steps.COLLECT, decision_log.EVENT_FAILED, gate="queries", reason=shortfall)
         raise StepQualityFailed(f"수집 검색어 부족 — {shortfall}")
 
     return payload
@@ -238,7 +362,7 @@ def _store(run_dir: Path, ledger_path: Path, candidate: ledger.Entry, payload: d
 
     decision_log.record(
         run_dir,
-        "collect",
+        steps.COLLECT,
         decision_log.EVENT_JUDGED,
         claim=candidate.claim,
         identifier=identifier,

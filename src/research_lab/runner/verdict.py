@@ -198,6 +198,11 @@ def _unverified_urls(run_dir: Path) -> list[str]:
     흩어져 있는데, 한 단계만 보면 나머지가 조용히 빠지고 **빠졌다는 사실은 아무 에러도
     내지 않는다** — 문서를 받는 쪽은 그 주소가 확인된 것이라고 읽게 된다.
 
+    [중요] 다만 한 단계 안에서는 **마지막 판정만** 본다. 수집은 출처가 죽으면 다시 묻고
+    후보까지 바꾸므로, 한 단계가 판정을 여러 번 남긴다 — 앞의 것들은 **버린 답**이다.
+    전부 모으면 그 문서 어디에도 없는 주소가 미검증 칸에 실리고, 받는 쪽은 본문에서
+    그 주소를 찾지 못한다. **틀린 목록은 없는 목록보다 나쁘다.**
+
     [중요] 이 값은 **문서에 덧붙이는 말**이지 판정의 입력이 아니다. 그래서 모양이 어긋나도
     예외를 올리지 않는다 — 여기서 터지면 앞 단계 비용을 다 치른 회차가 마지막에 깨지고
     근거 문서가 안 나온다.
@@ -209,14 +214,16 @@ def _unverified_urls(run_dir: Path) -> list[str]:
         확인하지 못한 주소들. 같은 주소가 두 단계에서 나올 수 있으므로 중복은 접되
         **처음 나온 순서를 지킨다**
     """
-    gathered: list[str] = []
+    # 단계마다 «마지막» 판정으로 덮어쓴다. dict 가 넣은 순서를 지키므로 단계 순서도 남는다
+    latest: dict[str, list[str]] = {}
     for entry in decision_log.read(run_dir):
-        if entry.get("gate") != url_check.GATE_NAME:
+        if entry.get("gate") != url_check.GATE_NAME or entry.get("event") != decision_log.EVENT_READ:
             continue
-        gathered.extend(payload_helpers.as_strings(entry.get(url_gate.KEY_UNKNOWN_URLS)))
+        step = payload_helpers.as_text(entry.get("step"))
+        latest[step] = payload_helpers.as_strings(entry.get(url_gate.KEY_UNKNOWN_URLS))
 
     seen: set[str] = set()
-    return [url for url in gathered if not (url in seen or seen.add(url))]
+    return [url for urls in latest.values() for url in urls if not (url in seen or seen.add(url))]
 
 
 def _store(

@@ -88,6 +88,36 @@ def test_explore_is_skipped_when_stock_exists(tmp_path: Path) -> None:
     assert result.skipped == ("explore",)
 
 
+def test_a_deferred_candidate_is_not_counted_as_stock(tmp_path: Path) -> None:
+    """
+    목적: [중요] 미뤄 둔 후보를 «재고로 세지 않는» 계약을 고정한다.
+
+    수집은 출처를 못 갖춘 후보를 원장에 표시 없이 지나친다. 그것을 재고로 세면
+    **탐색이 「아직 팔 후보가 있다」며 영영 안 돌고**, 수집은 그 후보를 쓸 수 없다 —
+    새 후보가 들어올 길이 막혀 **회차마다 호출만 태우며 0장을 낸다.**
+    그 상태는 「실패」가 아니라 「아무 일 없음」처럼 보인다.
+
+    Given: 원장의 유일한 후보를 미뤄 둔 실행 폴더
+    When: 회차를 돈다
+    Then: 탐색이 돈다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    ledger.append(ledger_path, "출처를 못 갖춘 후보")
+    decision_log.record(
+        run_dir,
+        steps.COLLECT,
+        decision_log.EVENT_DEFERRED,
+        claim="출처를 못 갖춘 후보",
+        reason="출처가 실재하지 않는다",
+    )
+    calls: list[str] = []
+
+    cycle.run_cycle(run_dir=run_dir, ledger_path=ledger_path, execute=_executor(calls, ledger_path))
+
+    assert "explore" in calls, "재고가 미룬 후보뿐이면 새 후보를 찾아야 한다"
+
+
 def test_skipped_step_still_counts_as_settled(tmp_path: Path) -> None:
     """
     목적: 건너뛴 단계를 다음 회차가 다시 잡지 않는 계약을 고정한다.

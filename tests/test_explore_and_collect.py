@@ -564,16 +564,19 @@ def test_collect_records_the_parameter_grid(tmp_path: Path) -> None:
 # --------------------------------------------------------------------------
 
 
-def test_collect_is_blocked_when_a_url_does_not_exist(tmp_path: Path, probing: Any) -> None:
+def test_collect_never_stores_evidence_with_a_dead_url(tmp_path: Path, probing: Any) -> None:
     """
     목적: 지어낸 URL 이 든 찬성 근거가 «파일로 남지 않는» 계약을 고정한다.
 
     백테스트가 없어 부풀릴 점수가 없는 대신 유일하게 남는 위조 위험이 「없는 출처」이고,
     **읽어서는 구별되지 않는다.** 그래서 기계가 막는다.
 
-    Given: 실재하지 않는 URL 이 든 찬성 근거
+    [중요] 막는 방식은 바뀌었어도(예외로 회차를 끝내는 대신 다시 묻고 후보를 바꾼다)
+    **이 계약은 그대로다.** 여기가 무너지면 게이트 전체가 장식이 된다.
+
+    Given: 무엇을 물어도 실재하지 않는 URL 만 내놓는 에이전트
     When: 수집을 돈다
-    Then: 막히고 찬성근거 파일이 안 쓰인다
+    Then: 찬성근거 파일이 하나도 안 쓰이고, 그 회차의 후보도 박히지 않는다
     """
     run_dir = tmp_path / "run"
     ledger_path = tmp_path / "원장.md"
@@ -588,10 +591,259 @@ def test_collect_is_blocked_when_a_url_does_not_exist(tmp_path: Path, probing: A
         }
     )
 
-    with pytest.raises(StepQualityFailed):
-        collect.run(run_dir, ledger_path, lambda _: answer)
+    collect.run(run_dir, ledger_path, lambda _: answer)
 
     assert list(run_dir.glob("**/찬성근거.json")) == []
+    assert state.pinned_candidate(run_dir) is None
+
+
+def test_collect_asks_again_naming_the_dead_url(tmp_path: Path, probing: Any) -> None:
+    """
+    목적: 죽은 URL 을 «짚어» 다시 묻는 계약을 고정한다.
+
+    지금까지는 다시 묻는 경로가 아예 없어, 「실제로 연 URL 만 적으라」는 지시를 어겼다는
+    판정만 하고 회차가 끝났다. **무엇이 잘못됐는지 알려 주지 않으면 다음 회차도 같은 것을
+    낸다** — 게이트가 미완성을 돌려줄 때 무엇이 왜 비었는지를 함께 돌려주는 이유와 같다.
+
+    Given: 첫 응답에 죽은 URL 이 들었고 둘째 응답은 멀쩡한 에이전트
+    When: 수집을 돈다
+    Then: 두 번 불렸고, 둘째 지시문에 그 죽은 URL 이 이름으로 들어 있다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    ledger.append(ledger_path, "첫 후보")
+    dead_url = "https://example.com/지어낸-논문"
+    probing(dead={dead_url})
+
+    prompts: list[str] = []
+    answers = iter(
+        [
+            _answer(
+                {
+                    "claim": "첫 후보",
+                    "queries": ["ㄱ", "ㄴ", "a"],
+                    "evidence": [{"title": "없는 논문", "url": dead_url, "kind": "primary"}],
+                }
+            ),
+            _answer(
+                {
+                    "claim": "첫 후보",
+                    "queries": ["ㄱ", "ㄴ", "a"],
+                    "evidence": [{"title": "실제 논문", "url": "https://example.com/진짜", "kind": "primary"}],
+                }
+            ),
+        ]
+    )
+
+    def answering(prompt: str) -> AgentResult:
+        prompts.append(prompt)
+        return next(answers)
+
+    collect.run(run_dir, ledger_path, answering)
+
+    assert len(prompts) == 2, "죽은 URL 을 발견하면 한 번 더 묻는다"
+    assert dead_url in prompts[1], "어느 URL 이 문제였는지 짚어야 고칠 수 있다"
+
+
+def test_collect_stores_the_second_answer_when_it_is_clean(tmp_path: Path, probing: Any) -> None:
+    """
+    목적: 다시 물어 고쳐진 답이 «그대로 쓰이는» 계약을 고정한다.
+
+    다시 묻기만 하고 결과를 버리면 호출만 태우는 것이다.
+
+    Given: 둘째 응답에서 출처를 고친 에이전트
+    When: 수집을 돈다
+    Then: 그 후보가 박히고 찬성근거가 «고쳐진 출처»로 남는다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    ledger.append(ledger_path, "첫 후보")
+    dead_url = "https://example.com/지어낸-논문"
+    probing(dead={dead_url})
+    answers = iter(
+        [
+            _answer(
+                {
+                    "claim": "첫 후보",
+                    "queries": ["ㄱ", "ㄴ", "a"],
+                    "evidence": [{"title": "없는 논문", "url": dead_url, "kind": "primary"}],
+                }
+            ),
+            _answer(
+                {
+                    "claim": "첫 후보",
+                    "queries": ["ㄱ", "ㄴ", "a"],
+                    "evidence": [{"title": "실제 논문", "url": "https://example.com/진짜", "kind": "primary"}],
+                }
+            ),
+        ]
+    )
+
+    collect.run(run_dir, ledger_path, lambda _: next(answers))
+
+    pinned = state.pinned_candidate(run_dir)
+    assert pinned is not None
+    assert pinned.claim == "첫 후보"
+    stored = json.loads((run_dir / naming.slug("첫 후보") / "찬성근거.json").read_text(encoding="utf-8"))
+    assert [item["url"] for item in stored["evidence"]] == ["https://example.com/진짜"]
+
+
+def test_collect_moves_on_when_the_sources_stay_dead(tmp_path: Path, probing: Any) -> None:
+    """
+    목적: 다시 물어도 출처가 죽어 있으면 «다음 후보로» 넘어가는 계약을 고정한다.
+
+    한 번 짚어 줬는데도 또 죽은 URL 을 내면 그것은 그 시도의 실수가 아니라 **그 후보의
+    출처를 실제로 못 찾고 있는 것**이다. 회차가 거기서 끝나면 하루치가 통째로 날아간다 —
+    [실측 2026-09-16] 한 회차가 2분 41초 만에 0장으로 끝나고 한 창의 3.5% 만 썼다.
+
+    Given: 첫 후보의 출처는 계속 죽고 둘째 후보는 멀쩡한 에이전트
+    When: 수집을 돈다
+    Then: 둘째 후보가 그 회차의 후보가 된다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    ledger.append(ledger_path, "출처를 못 찾는 후보")
+    ledger.append(ledger_path, "출처가 멀쩡한 후보")
+    dead_url = "https://example.com/지어낸-논문"
+    probing(dead={dead_url})
+
+    def answering(prompt: str) -> AgentResult:
+        if "출처를 못 찾는 후보" in prompt:
+            return _answer(
+                {
+                    "claim": "출처를 못 찾는 후보",
+                    "queries": ["ㄱ", "ㄴ", "a"],
+                    "evidence": [{"title": "없는 논문", "url": dead_url, "kind": "primary"}],
+                }
+            )
+        return _answer(
+            {
+                "claim": "출처가 멀쩡한 후보",
+                "queries": ["ㄱ", "ㄴ", "a"],
+                "evidence": [{"title": "실제 논문", "url": "https://example.com/진짜", "kind": "primary"}],
+            }
+        )
+
+    collect.run(run_dir, ledger_path, answering)
+
+    pinned = state.pinned_candidate(run_dir)
+    assert pinned is not None
+    assert pinned.claim == "출처가 멀쩡한 후보"
+
+
+def test_collect_leaves_the_ledger_alone_when_sources_stay_dead(tmp_path: Path, probing: Any) -> None:
+    """
+    목적: [중요] 출처를 못 갖춘 후보를 원장에 «기각·막힘으로 적지 않는» 계약을 고정한다.
+
+    기각(`- [-]`)은 「잴 수 없다」는 판정이고 막힘(`- [!]`)은 「회차마다 같은 자리에서
+    실패해 접었다」는 뜻이다. **URL 을 잘못 적은 것은 둘 중 어느 것도 아니다.**
+    적어 버리면 멀쩡한 후보가 사람이 손대기 전까지 영영 다시 안 파진다.
+
+    Given: 출처가 계속 죽는 후보
+    When: 수집을 돈다
+    Then: 원장의 그 줄이 「아직 안 판 후보」 그대로다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    ledger.append(ledger_path, "출처를 못 찾는 후보")
+    dead_url = "https://example.com/지어낸-논문"
+    probing(dead={dead_url})
+    answer = _answer(
+        {
+            "claim": "출처를 못 찾는 후보",
+            "queries": ["ㄱ", "ㄴ", "a"],
+            "evidence": [{"title": "없는 논문", "url": dead_url, "kind": "primary"}],
+        }
+    )
+
+    collect.run(run_dir, ledger_path, lambda _: answer)
+
+    assert ledger.status_of(ledger_path, "출처를 못 찾는 후보") is ledger.Status.UNEXPLORED
+
+
+def test_collect_fails_once_the_deferral_cap_is_reached(tmp_path: Path, probing: Any) -> None:
+    """
+    목적: [중요] 미룸이 상한에 닿으면 «실패로» 끝나는 계약을 고정한다.
+
+    조용히 끝내면 그 폴더가 완주로 닫히고 **결정 로그가 폴더와 함께 사라진다** —
+    미룸은 원장에 아무 표시도 남기지 않으므로, 다음 회차는 새 폴더에서 그 사실을 모른 채
+    같은 후보를 다시 집는다. 회차마다 호출만 태우며 0장을 내고, 그 상태는 「실패」가 아니라
+    **「아무 일 없음」처럼 보여 며칠 지나서야 드러난다.**
+
+    실패로 끝내면 폴더가 미완성으로 남아 다음 회차가 로그를 물려받고, 계속 막히면
+    회차 사이의 상한이 그 후보를 원장에서 걷어낸다 — 그 장치가 이미 있다.
+
+    Given: 상한만큼의 후보가 모두 출처를 못 갖추는 원장
+    When: 수집을 돈다
+    Then: 막히고, 그때까지의 미룸이 결정 로그에 남는다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    for index in range(collect.MAX_DEFERRALS):
+        ledger.append(ledger_path, f"출처를 못 찾는 후보 {index}")
+    dead_url = "https://example.com/지어낸-논문"
+    probing(dead={dead_url})
+
+    def answering(prompt: str) -> AgentResult:
+        return _answer(
+            {
+                "claim": "출처를 못 찾는 후보",
+                "queries": ["ㄱ", "ㄴ", "a"],
+                "evidence": [{"title": "없는 논문", "url": dead_url, "kind": "primary"}],
+            }
+        )
+
+    with pytest.raises(StepQualityFailed):
+        collect.run(run_dir, ledger_path, answering)
+
+    deferred = decision_log.deferred_claims(run_dir, "collect")
+    assert len(deferred) == collect.MAX_DEFERRALS
+
+
+def test_collect_does_not_pick_a_deferred_candidate_again(tmp_path: Path, probing: Any) -> None:
+    """
+    목적: 미뤄 둔 후보를 «같은 실행 폴더에서» 다시 꺼내지 않는 계약을 고정한다.
+
+    [중요] 원장에 아무 표시도 하지 않기로 했으므로, 이 보장이 없으면 그 후보가 여전히
+    「다음에 팔 후보」의 첫 번째다 — **같은 후보를 영원히 다시 꺼내는 무한 루프가 된다.**
+    기각 수를 결정 로그에서 세는 것과 같은 방식으로, 미룬 기록도 로그가 소유한다.
+
+    Given: 이미 미뤄 둔 기록이 있는 실행 폴더
+    When: 수집을 다시 돈다
+    Then: 그 후보를 묻지 않고 다음 후보를 묻는다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    ledger.append(ledger_path, "이미 미뤄 둔 후보")
+    ledger.append(ledger_path, "그 다음 후보")
+    decision_log.record(
+        run_dir,
+        "collect",
+        decision_log.EVENT_DEFERRED,
+        claim="이미 미뤄 둔 후보",
+        reason="출처가 실재하지 않는다",
+    )
+    probing()
+
+    prompts: list[str] = []
+
+    def answering(prompt: str) -> AgentResult:
+        prompts.append(prompt)
+        return _answer(
+            {
+                "claim": "그 다음 후보",
+                "queries": ["ㄱ", "ㄴ", "a"],
+                "evidence": [{"title": "실제 논문", "url": "https://example.com/진짜", "kind": "primary"}],
+            }
+        )
+
+    collect.run(run_dir, ledger_path, answering)
+
+    assert len(prompts) == 1
+    assert "이미 미뤄 둔 후보" not in prompts[0]
+    pinned = state.pinned_candidate(run_dir)
+    assert pinned is not None
+    assert pinned.claim == "그 다음 후보"
 
 
 def test_collect_is_not_blocked_when_a_url_cannot_be_judged(tmp_path: Path, probing: Any) -> None:

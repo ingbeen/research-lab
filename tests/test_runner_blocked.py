@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 
 from research_lab.common_constants import STATE_FILENAME
-from research_lab.runner import cycle, ledger, state
+from research_lab.runner import cycle, decision_log, ledger, state
 from research_lab.runner.steps import StepFailed, StepQualityFailed
 
 PINNED_CLAIM = "그 회차가 판 후보"
@@ -133,6 +133,40 @@ def test_a_stuck_collect_blocks_the_candidate_it_kept_picking(tmp_path: Path) ->
     assert result is not None
     assert result.blocked_claim == PINNED_CLAIM
     assert ledger.load(ledger_path)[0].status is ledger.Status.BLOCKED
+
+
+def test_a_deferred_candidate_is_not_the_one_that_gets_blocked(tmp_path: Path) -> None:
+    """
+    목적: [중요] 미뤄 둔 후보가 «막힌 후보 대신» 걷어내지지 않는 계약을 고정한다.
+
+    수집은 출처를 못 갖춘 후보를 원장에 **아무 표시도 하지 않고** 미뤄 둔다. 그래서 그
+    후보는 여전히 「다음에 팔 후보」의 첫 번째이고, 되짚기가 그것을 그대로 집으면
+    **미뤄 둔 앞 후보가 막힘으로 걷히고 정작 막힌 뒤 후보는 멀쩡히 남는다.**
+    붙는 사유는 사실이지만 대상이 틀려, 한도 소진을 상한에 세지 않기로 한 것과 같은
+    이유로 **사람을 엉뚱한 곳으로 보낸다.**
+
+    Given: 앞 후보를 미뤄 둔 기록이 있고, 수집이 매번 게이트에 막히는 실행 폴더
+    When: 세 회차를 돈다
+    Then: 걷어내지는 것은 미뤄 둔 앞 후보가 아니라 그 다음 후보다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    ledger.append(ledger_path, "미뤄 둔 앞 후보")
+    ledger.append(ledger_path, "실제로 막힌 뒤 후보")
+    decision_log.record(
+        run_dir,
+        "collect",
+        decision_log.EVENT_DEFERRED,
+        claim="미뤄 둔 앞 후보",
+        reason="출처가 실재하지 않는다",
+    )
+
+    result = _run_cycles(3, run_dir=run_dir, ledger_path=ledger_path, execute=_executor("collect"))
+
+    assert result is not None
+    assert result.blocked_claim == "실제로 막힌 뒤 후보"
+    assert ledger.status_of(ledger_path, "미뤄 둔 앞 후보") is ledger.Status.UNEXPLORED
+    assert ledger.status_of(ledger_path, "실제로 막힌 뒤 후보") is ledger.Status.BLOCKED
 
 
 def test_hitting_the_subscription_limit_never_blocks_a_candidate(tmp_path: Path) -> None:

@@ -13,6 +13,7 @@
 """
 
 import re
+from collections.abc import Collection
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -268,7 +269,7 @@ def assign_identifier(path: Path, claim: str, identifier: str) -> str:
     return resolved
 
 
-def next_unexplored(path: Path) -> Entry | None:
+def next_unexplored(path: Path, *, skip: Collection[str] = ()) -> Entry | None:
     """다음에 팔 후보를 고른다.
 
     고르는 규칙은 **「쌓인 순서대로」** 하나다. 「그럴듯함 순」은 아직 판 적 없는 후보를
@@ -276,13 +277,24 @@ def next_unexplored(path: Path) -> Entry | None:
 
     Args:
         path: 원장 파일 경로
+        skip: 이번엔 지나칠 후보들의 한 줄 주장. **원장을 고치지 않고** 넘어가는 길이며,
+              기각도 막힘도 아닌 사정(출처를 끝내 못 갖췄다)으로 미룬 후보가 여기 온다.
+              **정규 형태로 맞춰 보므로** 앞뒤 공백이나 앞머리 백틱이 붙어 있어도 된다 —
+              부르는 쪽이 넘기는 값은 에이전트가 낸 것이거나 로그에서 읽은 것이라
+              원장의 표기와 글자 그대로 같다고 보장할 수 없고, 어긋나면 **에러 없이
+              그냥 안 지나쳐져** 같은 후보를 영원히 다시 꺼낸다
 
     Returns:
         아직 안 판 후보 중 가장 먼저 담긴 것. 재고가 떨어졌으면 None —
         그 신호를 받으면 회차는 수집 대신 **탐색으로 전환**한다
     """
+    # [중요] **양쪽을 같은 함수로 통과시킨다.** `load` 는 앞뒤 공백만 떼는데
+    # `canonical_claim` 은 앞머리 백틱까지 뗀다 — 한쪽만 정규화하면 백틱이 붙은 줄에서
+    # 비교가 어긋나고, 그 고장은 예외가 아니라 **지나치라고 말한 후보를 그대로 다시
+    # 집는** 모양으로 나타난다
+    passed_over = {canonical_claim(claim) for claim in skip}
     for entry in load(path):
-        if entry.status is Status.UNEXPLORED:
+        if entry.status is Status.UNEXPLORED and canonical_claim(entry.claim) not in passed_over:
             return entry
     return None
 

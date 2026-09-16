@@ -26,8 +26,8 @@ from research_lab.runner.failures import Failure, FailureKind
 # 그래서 「탐색」과 「수집」이 같은 호출 계층을 쓰는지가 이 경계에서 검사된다
 StepExecutor = Callable[[str, Path], None]
 
-EXPLORE: Final = steps.STEPS[0]
-COLLECT: Final = steps.STEPS[1]
+EXPLORE: Final = steps.EXPLORE
+COLLECT: Final = steps.COLLECT
 
 # 재시도 사이에 쉬는 시간. 일시적인 고장이 풀릴 틈을 준다 —
 # 쉬지 않으면 상한 세 번이 몇 밀리초 안에 소진된다
@@ -181,8 +181,16 @@ def _skip_reason(step: str, ledger_path: Path, run_dir: Path) -> str | None:
     「건너뛰었다」만 남으면 나중에 왜 그랬는지 되짚을 수 없다.
     """
     # [주의] 재고 판정은 탐색·수집에서만 쓴다. 뒤 단계에서도 계산하면 그 단계마다
-    # 원장을 한 번 더 읽는데 쓰이지는 않는다
-    has_stock = step in (EXPLORE, COLLECT) and ledger.next_unexplored(ledger_path) is not None
+    # 원장을 한 번 더 읽는데 쓰이지는 않는다.
+    #
+    # [중요] **미뤄 둔 후보는 재고가 아니다.** 수집이 출처를 못 갖춘 후보를 원장에 표시 없이
+    # 지나치므로, 그것을 재고로 세면 **탐색이 「아직 팔 후보가 있다」며 영영 안 돌고**
+    # 수집은 그 후보들을 쓸 수 없다 — 새 후보가 들어올 길이 막혀 회차마다 호출만 태운다.
+    # 여기와 `_block_candidate` 가 **같은 목록**을 봐야 하는 이유가 이것이다
+    has_stock = (
+        step in (EXPLORE, COLLECT)
+        and ledger.next_unexplored(ledger_path, skip=decision_log.deferred_claims(run_dir, COLLECT)) is not None
+    )
 
     if step == EXPLORE and has_stock:
         # 재고가 있는데도 회차마다 탐색을 돌리면 팔 후보를 쌓아 두고 예산만 쓴다
@@ -325,11 +333,17 @@ def _block_candidate(run_dir: Path, ledger_path: Path, step: str, reason: str) -
 
     되짚기를 «수집에 한정»하는 이유는 탐색이 원장에서 후보를 꺼내지 않기 때문이다.
     거기서 되짚으면 탐색이 막힌 회차에 **애먼 후보가 걷어내진다.**
+
+    [중요] **미뤄 둔 후보는 되짚기에서 빼야 한다.** 수집은 출처를 못 갖춘 후보를 원장에
+    아무 표시 없이 미루므로, 그 후보는 여전히 「다음에 팔 후보」의 첫 번째다. 그대로 집으면
+    **미뤄 둔 앞 후보가 막힘으로 걷히고 정작 막힌 뒤 후보는 멀쩡히 남는다** — 붙는 사유는
+    사실이지만 대상이 틀려, 한도 소진을 상한에 세지 않기로 한 것과 같은 이유로
+    **사람을 엉뚱한 곳으로 보낸다.**
     """
     candidate = state.pinned_candidate(run_dir)
     claim = candidate.claim if candidate is not None else None
     if claim is None and step == COLLECT:
-        stuck = ledger.next_unexplored(ledger_path)
+        stuck = ledger.next_unexplored(ledger_path, skip=decision_log.deferred_claims(run_dir, COLLECT))
         claim = stuck.claim if stuck is not None else None
 
     if claim is None:

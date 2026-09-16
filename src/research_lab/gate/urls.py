@@ -4,9 +4,14 @@
 「없는 출처」**이고, 그것은 **읽어서는 구별되지 않는다.** 사람이 판단할 일이 아니라
 기계가 막을 일이다.
 
-[중요] 「죽음」은 **404·410 뿐**이다. 403·429·5xx·타임아웃·DNS 실패는 「판정 못 함」으로
-통과시킨다. 학술지·뉴스 사이트는 봇을 막으므로 차단을 죽음으로 보면 **멀쩡한 출처가 든
-회차가 매번 죽는다** — 판정을 «못 하는 것»과 «실패로 판정하는 것»은 다르다.
+[중요] 「죽음」은 **404·410 뿐**이고, 그것도 **GET 으로 확인한 뒤에야** 확정한다.
+403·429·5xx·타임아웃·DNS 실패는 「판정 못 함」으로 통과시킨다. 학술지·뉴스 사이트는 봇을
+막으므로 차단을 죽음으로 보면 **멀쩡한 출처가 든 회차가 매번 죽는다** — 판정을
+«못 하는 것»과 «실패로 판정하는 것»은 다르다.
+
+GET 확인을 붙인 이유는 그 구분이 **메서드에서도 갈리기 때문**이다. HEAD 에만 404 를 주고
+GET 에는 200 을 주는 서버가 있어(국내 언론사의 `articleView.html` CMS), HEAD 하나로 확정하면
+**살아 있는 출처를 지어낸 것으로 몬다** [실측 2026-09-16].
 
 [주의] 그래서 남는 구멍이 하나 있다 — **도메인 자체가 가짜인 URL 은 DNS 실패로 떨어져
 통과한다.** 실제 위조는 대개 「진짜 도메인 + 가짜 경로」 모양이라 404 로 잡히지만,
@@ -69,6 +74,23 @@ ALLOWED_SCHEMES: Final = frozenset({"http", "https"})
 # 그런 사이트의 URL 은 **영영 검사되지 않으므로** GET 으로 한 번 더 묻는다
 METHOD_REFUSED_STATUS_CODES: Final = frozenset({405, 501})
 
+# HEAD 의 응답만으로 «확정하지 않을» 상태코드. GET 으로 한 번 더 물어 그 답으로 판정한다.
+#
+# 두 갈래가 들어 있고 이유가 서로 다르다.
+#   - 405·501 : HEAD 자체를 거부당해 **있는지 없는지를 아직 못 물었다**
+#   - 404·410 : 「그 자리에 문서가 없다」로 읽히지만, **HEAD 에만 404 를 주고 GET 에는
+#               200 을 주는 서버가 있다.** 국내 언론사가 널리 쓰는 `articleView.html`
+#               CMS 가 그렇다 [실측 2026-09-16]
+#
+# 404 를 확인 없이 확정하면 **살아 있는 1차 출처가 「지어낸 것」으로 몰리고, 그 한 건이
+# 회차를 통째로 끝낸다.** 그때까지 이 게이트가 잡은 죽음은 두 건이었고 **둘 다 그 오탐**이라,
+# 지어낸 출처를 잡은 적은 한 번도 없이 멀쩡한 회차만 두 번 죽였다.
+#
+# [중요] 살아 있는 URL 에는 이 왕복이 붙지 않는다 — 2xx·3xx 는 HEAD 한 번으로 끝난다.
+# 모든 URL 에 붙이면 이 게이트를 지나는 트래픽이 통째로 두 배가 되고, 남의 서버를 그만큼
+# 더 두드린다. 확인은 «죽음 후보»에만 붙는다
+CONFIRM_WITH_GET_STATUS_CODES: Final = METHOD_REFUSED_STATUS_CODES | DEAD_STATUS_CODES
+
 # 한 URL 을 기다리는 시간. 한 회차의 출처가 [실측 2026-09-12] 12건이었고 단계 하나가
 # 172~273초 걸리므로, 최악(전부 타임아웃)이어도 회차 전체에서 무시할 수 있는 몫이다
 PROBE_TIMEOUT_SECONDS: Final = 10.0
@@ -118,6 +140,10 @@ def liveness_for_status(status: int) -> Liveness:
 def probe_url(url: str) -> Probe:
     """URL 하나를 실제로 찔러 본다 — 기본 prober.
 
+    HEAD 로 먼저 묻고, 그 답으로 «확정할 수 없는» 상태코드면 GET 으로 한 번 더 묻는다.
+    GET 의 답이 최종이다 — 거기서도 못 가르면 「판정 못 함」이 되며, 그것이 죽음으로
+    모는 것보다 안전하다.
+
     Args:
         url: 찔러 볼 URL
 
@@ -125,9 +151,19 @@ def probe_url(url: str) -> Probe:
         판정과 그 근거. **어떤 이유로 실패해도 예외를 올리지 않는다**
     """
     probed = _request(url, method="HEAD")
-    if probed.status in METHOD_REFUSED_STATUS_CODES:
-        return _request(url, method="GET")
-    return probed
+    if probed.status not in CONFIRM_WITH_GET_STATUS_CODES:
+        return probed
+
+    # [중요] 확인의 «판정»은 GET 의 것이지만, **사유에는 둘을 함께 남긴다.**
+    # HEAD 쪽을 버리면 「HEAD 는 404 였는데 GET 이 막혔다」가 「HEAD 가 아무 말도 안 했다」와
+    # 구별되지 않고, 그러면 위 오탐을 **로그에서 다시 잴 방법이 없어진다** —
+    # 이 왕복을 넣게 만든 실측 자체가 HEAD 와 GET 의 «불일치»가 보였기 때문에 가능했다
+    confirmed = _request(url, method="GET")
+    return Probe(
+        liveness=confirmed.liveness,
+        detail=f"{probed.detail} -> {confirmed.detail}",
+        status=confirmed.status,
+    )
 
 
 def probe_all(urls: Iterable[object], *, probe: Prober) -> dict[str, Probe]:

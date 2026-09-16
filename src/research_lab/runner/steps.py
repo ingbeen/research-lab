@@ -34,9 +34,18 @@ from typing import Final
 # 판정을 먼저 정하고 측정 설계를 거기 맞출 수 있는데, 이 저장소는 프롬프트 지시가
 # 형식적으로만 지켜진 것을 여러 번 확인했다. **순서를 지시가 아니라 단계 경계로 보장한다.**
 # 그리고 「판 것」 표시도 이 마지막 단계가 한다
+# 후보를 «만드는» 단계와 «고르는» 단계.
+#
+# [중요] 이름을 여기서 한 번 정하고 쓰는 쪽이 그것을 가리킨다. 부르는 쪽이 위치(`STEPS[0]`)로
+# 집으면 **앞에 단계를 하나 끼우는 순간 다른 단계를 가리키게 되고**, 그 어긋남은 예외가 아니라
+# 「건너뛰기 판정이 조용히 뒤바뀌는」 모양으로 나타난다 — 아래 `STEPS_WITHOUT_CANDIDATE` 가
+# 위치로 자르지 않는 것과 같은 이유이며, 그 경고가 이 둘에도 그대로 적용된다
+EXPLORE: Final = "explore"
+COLLECT: Final = "collect"
+
 STEPS: Final = (
-    "explore",
-    "collect",
+    EXPLORE,
+    COLLECT,
     "rebut",
     "lineage",
     "feasibility",
@@ -58,7 +67,7 @@ STEPS: Final = (
 # 들어가고**, 그러면 러너가 「후보가 없다」며 수집을 건너뛴다 — 후보를 «만드는» 단계가
 # 후보가 없어서 안 도는 상태가 되어 파이프라인이 조용히 영영 멈춘다.
 # 이름으로 가르면 단계를 어디에 끼워도 그 뜻이 유지된다
-STEPS_WITHOUT_CANDIDATE: Final = ("explore", "collect")
+STEPS_WITHOUT_CANDIDATE: Final = (EXPLORE, COLLECT)
 CANDIDATE_STEPS: Final = tuple(name for name in STEPS if name not in STEPS_WITHOUT_CANDIDATE)
 
 
