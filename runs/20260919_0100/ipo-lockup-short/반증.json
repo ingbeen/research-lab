@@ -1,0 +1,47 @@
+{
+  "claim": "IPO 락업 해제일 1~2주 전에 해당 종목을 공매도하고 해제일 직후 청산한다",
+  "rebuttals": [
+    {
+      "title": "Price, Volume and Spread Effects Associated with the Expiry of Lock-In Agreements: Evidence from the Hong Kong IPO Market (Goergen, Mazouz, Yin, Pacific-Basin Finance Journal, v18(5))",
+      "url": "https://ideas.repec.org/a/eee/pacfin/v18y2010i5p442-459.html",
+      "published": "2010",
+      "kind": "primary",
+      "says": "홍콩 IPO 시장을 대상으로 락업(lock-in) 만기 전후 주가를 분석한 결과, 거래량과 매수-매도 스프레드는 증가했지만 통계적으로 유의미한 주가 하락(비정상수익률)은 발견되지 않았다. 저자들은 이를 '준강형 효율적 시장 가설'을 확인하는 결과로 해석하며, 대부분의 IPO가 소수 비제도적 대주주에 의해 지배되어 해제 후에도 실제 매도가 일어나지 않는 점을 원인으로 든다. 이는 락업 해제 = 주가 하락이라는 전제 자체가 시장·표본에 따라 성립하지 않음을 보여준다."
+    },
+    {
+      "title": "보호예수 종료 시점의 지분율 변동과 시장반응 (DBpia 논문)",
+      "url": "https://www.dbpia.co.kr/journal/articleDetail?nodeId=NODE07228328",
+      "published": "2016-04",
+      "kind": "primary",
+      "says": "국내 IPO 표본에서 보호예수 종료일과 실제 주식 반환일 전후의 누적초과수익률을 분석한 결과 '유의적인 하락 현상은 발견할 수 없었다'고 결론짓는다. 최대주주 지분율도 해제 전후로 유의한 변동이 없었으며, 시장이 느끼는 우려는 실제 매도 물량보다 정보 불균형에 따른 심리적 비용에 가깝다고 본다."
+    },
+    {
+      "title": "SpaceX stock surges 11% after lockup expiry selloff, short squeeze eyed",
+      "url": "https://www.investing.com/news/stock-market-news/spacex-stock-surges-11-after-lockup-expiry-selloff-short-squeeze-eyed-93CH-4846967",
+      "published": "2026-08-07",
+      "kind": "secondary",
+      "says": "스페이스X는 락업 해제 전 유통주식의 약 29%가 공매도된 상태였다. 통념대로라면 해제 후 매도 물량으로 주가가 하락해야 하지만, 실제로는 초반 급락 이후 오히려 11% 급등하며 반등했고 기사는 이를 '공매도 커버링에 의한 숏스퀴즈'로 분석한다. 해제 직전 공매도를 걸어 둔 투자자는 이 사례에서 손실을 봤다."
+    },
+    {
+      "title": "Facebook Stock Price Up 10.3 Percent On The Day As Biggest Lockup Expires (TechCrunch)",
+      "url": "https://techcrunch.com/2012/11/14/facebook-biggest-lockup-expiration/",
+      "published": "2012-11-14",
+      "kind": "secondary",
+      "says": "저커버그를 포함한 내부자 7.73억 주가 거래 가능해진, 페이스북 역대 최대 규모 락업 해제일에 주가는 하락은커녕 장중 10.3% 상승했고 종가 기준 12.6% 상승 마감했다. 내부자들이 예상과 달리 매도하지 않고 보유를 선택하면서 장기 투자자들의 매수가 들어와 '해제 전 공포가 해소되는' 랠리가 나타났다는 해석이다. 해제일 직전~직후 공매도 진입 전략이 정반대 결과를 낸 실제 사례다."
+    },
+    {
+      "title": "IPO Lockup Expiration: What the Data Shows (Strasmore)",
+      "url": "https://www.strasmore.com/blog/ipo-lockup-expiration",
+      "published": "unknown",
+      "kind": "secondary",
+      "says": "Facebook·Twitter·Uber·Lyft·Snap 5건의 유명 락업 해제 사례를 검토한 결과 방향성은 5건 중 4건이 하락이었지만 Facebook은 +12.5%로 반대 방향이었고, Facebook의 경우 해제 2주 전부터 주가가 미리 14.4% 하락해 '공포가 선반영'된 뒤였다. 유일하게 신뢰할 수 있는 패턴은 거래량 증가뿐이며, 방향성(공매도 수익 여부)은 사례마다 뒤집혀 예측 불가능하다고 결론짓는다."
+    }
+  ],
+  "not_found_reason": "",
+  "unverified": [
+    "CoreWeave가 락업 해제 시점에 주가가 하락 대신 상승해 공매도 세력이 손실을 봤다는 주장 — 검색 엔진 요약에는 나왔으나 이를 직접 뒷받침하는 개별 기사 URL을 찾지 못했다. moneyneversleeps.co.kr 기사(2025-07-15)는 코어위브가 락업 해제 '전' 고점 대비 28% 하락해 공매도가 평가이익을 냈지만 낮은 유통주식 비율 때문에 대차 수수료로 이익의 상당 부분이 소진된다는 내용까지만 확인했고, 해제 '이후' 주가가 반전 상승했다는 부분은 확인하지 못했다",
+    "Strasmore 블로그 글의 정확한 발행일",
+    "Alphanume Research(alphanume-research.com)의 「Arbitraging Lockup Expirations」 전체 본문 — 유료 구독 벽에 막혀 일부만 확인했다. 확인된 부분은 이 전략이 '가장 쉬운 엣지'라며 전략을 지지하는 쪽이었고 SpaceX 사례를 예외로 취급했으므로, 이 글 자체는 반증이 아니라 찬성 근거에 가깝다고 판단해 반증 목록에서 제외했다",
+    "미국 2000년 닷컴 붕괴 당시 '락업 해제 여부와 무관하게 인터넷주가 붕괴했고 일별 포트폴리오 수익률이 락업 해제 건수·금액에 거의 영향받지 않았다'는 취지의 연구 — 검색 요약에서만 언급됐고, 이를 명시적으로 결론짓는 논문 원문 URL을 특정하지 못했다"
+  ]
+}

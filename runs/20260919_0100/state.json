@@ -1,0 +1,14 @@
+{
+  "settled": [
+    "explore",
+    "collect",
+    "rebut"
+  ],
+  "skipped": [
+    "explore"
+  ],
+  "candidate": {
+    "claim": "IPO 락업 해제일 1~2주 전에 해당 종목을 공매도하고 해제일 직후 청산한다",
+    "identifier": "ipo-lockup-short"
+  }
+}

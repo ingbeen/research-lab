@@ -167,6 +167,14 @@ ls -l ~/.claude/keys/research-lab-oauth-token   # 권한이 600 이어야 한다
 ### 3.2 등록한다
 
 ```bash
+./scripts/trigger.sh on
+```
+
+**예전에 껐던 기계라면 이 쪽을 씁니다.** `disable` 기록이 남아 있으면 `bootstrap` 만으로는
+`Bootstrap failed: 5: Input/output error` 로 거부되는데, 스크립트가 `enable` 을 먼저
+걸어 그 자리를 덮습니다(8.1절). 처음 등록하는 기계에서는 아래와 같습니다.
+
+```bash
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/local.research-lab.cycle.plist
 ```
 
@@ -205,7 +213,10 @@ sudo pmset repeat wakeorpoweron MTWRFSU 00:55:00
 ## 4. 등록 뒤 확인 — 읽기 전용
 
 ```bash
-# 등록됐나
+# 등록됐나 — 「지금」과 「재부팅 후」를 갈라 봅니다 (8.1절)
+./scripts/trigger.sh status
+
+# 원시 출력으로 교차 확인
 launchctl print gui/$(id -u)/local.research-lab.cycle | head -20
 
 # 엔진도 함께 뜨게 돼 있나 (3.0절)
@@ -378,10 +389,53 @@ WSL 에서 돌리면 **잠금이 그 파일 시스템에서 표준대로 도는�
 
 ## 8. 멈추거나 고칠 때
 
-```bash
-# 잠시 끈다
-launchctl bootout gui/$(id -u)/local.research-lab.cycle
+### 8.1 예약을 끈다 — 🔴 끄기는 «두 동작»입니다
 
+```bash
+./scripts/trigger.sh off      # 끄고, 정말 꺼졌는지 검증까지 합니다
+./scripts/trigger.sh status   # 「지금」과 「재부팅 후」를 갈라 보여줍니다
+```
+
+**`launchctl bootout` 만 걸면 재부팅에서 되살아납니다.** 작업 정의 파일이
+`~/Library/LaunchAgents/` 에 남아 있으면 다음 로그인 때 launchd 가 다시 올립니다.
+
+| 조작 | 지금 세션 | 재부팅 후 |
+| --- | --- | --- |
+| `bootout` 만 | 내려감 | 🔴 **다시 올라와 돕니다** |
+| `disable` 만 | 🔴 **계속 돕니다** | 안 올라옴 |
+| **`disable` + `bootout`** | 내려감 | 안 올라옴 |
+
+**[실측] 2026-09-21** — 더미 LaunchAgent 로 쟀습니다. `disable` 만 건 서비스는
+`kickstart` 가 그대로 실행됐고(로그 1줄 → 2줄), 둘 다 건 뒤에는 `rc=113` 으로 서비스를
+찾지 못했습니다. `disable` 상태는 `/var/db/com.apple.xpc.launchd/disabled.<uid>.plist`
+에 기록되므로 재부팅을 넘습니다. 자세한 경위는 [DESIGN.md](DESIGN.md) §11.13 에 있습니다.
+
+> 🔴 **`launchctl list` 로 꺼졌는지 판정하지 마세요.** `disabled` 인 서비스도 그대로
+> 보여줍니다. 실제로 그 출력만 보고 「내려갔다」고 판정했다가 **사흘간 회차가 도는 것을
+> 놓쳤습니다.** 그래서 `status` 가 로드 여부와 disabled 여부를 **따로** 냅니다 —
+> 특히 **「지금은 안 도는데 재부팅하면 도는」 조합**을 못 박아 경고합니다.
+>
+> 🔴 **도는 중인 회차가 있으면 `off` 가 경고합니다.** 내리면 그 회차가 끊길 수 있고,
+> 끊긴 회차는 `runs/cycles.jsonl` 에 종료 줄을 남기지 못해 **5.1 의 「시작만 있고 종료가
+> 없다」로 보입니다** — 전원 차단과 구별되지 않습니다. 경고만 하고 막지는 않습니다.
+
+**스크립트를 못 쓰는 상황**(다른 기계·셸만 있는 복구)에서는 직접 두 줄을 겁니다.
+되살릴 때는 **`enable` 이 `bootstrap` 보다 먼저**여야 합니다 — 순서가 반대면
+`Bootstrap failed: 5: Input/output error` 로 거부됩니다.
+
+```bash
+# 끈다
+launchctl disable gui/$(id -u)/local.research-lab.cycle
+launchctl bootout  gui/$(id -u)/local.research-lab.cycle
+
+# 켠다
+launchctl enable    gui/$(id -u)/local.research-lab.cycle
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/local.research-lab.cycle.plist
+```
+
+### 8.2 나머지를 되돌린다
+
+```bash
 # 절전 해제 예약을 지운다
 sudo pmset repeat cancel
 
@@ -389,8 +443,14 @@ sudo pmset repeat cancel
 brew services stop colima
 ```
 
-**작업 정의 파일을 고친 뒤에는 `bootout` → `bootstrap` 순으로 다시 올립니다.**
-고치기만 하면 이미 올라간 정의가 그대로 돕니다.
+**둘 다 `trigger.sh` 가 건드리지 않습니다.** 앞은 `sudo` 가 필요해 사람 몫이고,
+뒤는 토큰을 쓰지 않으면서 다른 작업의 도커까지 멈추기 때문입니다.
+
+### 8.3 작업 정의 파일을 고친 뒤
+
+**`bootout` → `bootstrap` 순으로 다시 올립니다.** 고치기만 하면 이미 올라간 정의가
+그대로 돕니다. `./scripts/trigger.sh off` 다음에 `on` 을 부르면 같은 일을 하면서
+**disabled 기록까지 정리**됩니다.
 
 > 🔴 **진입점 파일 이름이 바뀌면 컨테이너 이미지를 다시 빌드해야 합니다.**
 > 소스는 호스트 폴더를 그대로 물려 쓰므로 평소에는 빌드가 필요 없는데, **진입점만
