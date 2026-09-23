@@ -4,9 +4,15 @@
 그래서 인자를 만드는 일과 실행하는 일을 나눠 두었다.
 """
 
+import json
+import subprocess
+from pathlib import Path
+from typing import Any
+
 import pytest
 
 from research_lab.agent import invoke
+from research_lab.runner.steps import StepFailed
 
 
 def _command(**overrides: object) -> list[str]:
@@ -149,3 +155,73 @@ def test_session_ids_are_unique() -> None:
     Then: 서로 다르다
     """
     assert invoke.new_session_id() != invoke.new_session_id()
+
+
+def _run_with(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, outcome: Any) -> StepFailed:
+    """`subprocess.run` 을 가로채 한 번 부르고, 올라온 실패를 돌려준다.
+
+    [중요] 진짜 `claude` 를 부르지 않는다 — 토큰을 쓰고, 한도에 걸린 모양은 일부러 만들 수 없다.
+    """
+
+    def fake_run(command: list[str], **_: Any) -> subprocess.CompletedProcess[str]:
+        if isinstance(outcome, BaseException):
+            raise outcome
+        return subprocess.CompletedProcess(command, outcome[0], stdout=outcome[1], stderr="")
+
+    monkeypatch.setattr(invoke.subprocess, "run", fake_run)
+    with pytest.raises(StepFailed) as raised:
+        invoke.invoke(prompt="무엇을 해라", cwd=tmp_path, env={}, budget_usd=1.0)
+    return raised.value
+
+
+def test_nonzero_exit_carries_what_the_call_spent(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """
+    목적: 종료 코드가 0 이 아닌 호출도 응답에 적힌 비용을 실패와 함께 나르는 계약을 고정한다.
+
+    [실측] 예산 상한($2.4330) · 단계 도중 한도($0.9002) 가 이 경로로 끝났고, 둘 다
+    **stdout 에 비용이 적힌 JSON 이 있었는데** 결정 로그의 비용 줄에는 남지 않았다.
+
+    Given: 종료 코드 1 과 비용이 든 JSON stdout
+    When: 호출한다
+    Then: 실패가 오르고 그 비용 · 토큰을 싣는다. 원문 모양(`exit=` · `--- stdout ---`)은 그대로다
+    """
+    stdout = json.dumps(
+        {"is_error": True, "total_cost_usd": 2.4330374, "session_id": "세션-가", "usage": {"output_tokens": 30}}
+    )
+
+    failed = _run_with(monkeypatch, tmp_path, (1, stdout))
+
+    assert failed.spent is not None
+    assert failed.spent.cost_usd == 2.4330374
+    assert failed.spent.tokens == 30
+    assert failed.raw.startswith("exit=1\n--- stdout ---\n"), "분류표와 사람이 읽는 원문 모양을 바꾸지 않는다"
+
+
+def test_nonzero_exit_without_json_carries_nothing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """
+    목적: stdout 이 JSON 이 아니면 «모른다»로 남는 계약을 고정한다.
+
+    지어낸 0 을 실으면 「재서 0」으로 읽혀 **돈을 안 쓴 것처럼** 보인다.
+
+    Given: 종료 코드 1 과 JSON 이 아닌 stdout
+    When: 호출한다
+    Then: 실패가 오르고 실어 보낸 것이 없다
+    """
+    failed = _run_with(monkeypatch, tmp_path, (1, "알 수 없는 오류로 죽었습니다"))
+
+    assert failed.spent is None
+
+
+def test_timeout_carries_nothing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """
+    목적: 시간 초과로 끊긴 호출은 «모른다»로 남는 계약을 고정한다.
+
+    끊긴 CLI 는 응답을 못 낸다. 쓴 돈은 있지만 알 방법이 없고, 그것을 0 으로 적으면 거짓이다.
+
+    Given: 시간 초과로 끊기는 호출
+    When: 호출한다
+    Then: 실패가 오르고 실어 보낸 것이 없다
+    """
+    failed = _run_with(monkeypatch, tmp_path, subprocess.TimeoutExpired(cmd="claude", timeout=1800.0))
+
+    assert failed.spent is None

@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from research_lab.agent.invoke import AgentResult
+from research_lab.agent.invoke import AgentResult, new_session_id
 from research_lab.gate import queries as query_gate
 from research_lab.runner import collect, cycle, decision_log, failures, ledger, steps
 
@@ -22,7 +22,7 @@ def _answer(payload: object, *, cost: float | None = 0.5, tokens: int | None = 1
     """에이전트가 그 JSON 을 돌려줬다고 치는 응답."""
     text = json.dumps(payload, ensure_ascii=False)
     return AgentResult(
-        text=text, raw=text, cost_usd=cost, tokens=tokens, usage=None, elapsed_seconds=1.0, session_id="세션"
+        text=text, raw=text, cost_usd=cost, tokens=tokens, usage=None, elapsed_seconds=1.0, session_id=new_session_id()
     )
 
 

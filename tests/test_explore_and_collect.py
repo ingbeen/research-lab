@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 
-from research_lab.agent.invoke import AgentResult
+from research_lab.agent.invoke import AgentResult, new_session_id
 from research_lab.runner import collect, decision_log, explore, ledger, naming, state
 from research_lab.runner.steps import StepFailed, StepQualityFailed
 
@@ -25,7 +25,7 @@ def _answer(payload: object, *, cost: float | None = 0.5, tokens: int | None = 1
         tokens=tokens,
         usage=None,
         elapsed_seconds=1.0,
-        session_id="세션",
+        session_id=new_session_id(),
     )
 
 
@@ -129,7 +129,7 @@ def test_explore_rejects_non_json_answer(tmp_path: Path) -> None:
         tokens=None,
         usage=None,
         elapsed_seconds=1.0,
-        session_id="세션",
+        session_id=new_session_id(),
     )
 
     with pytest.raises(StepFailed, match="줄글"):

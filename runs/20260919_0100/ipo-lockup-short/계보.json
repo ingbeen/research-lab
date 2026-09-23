@@ -1,0 +1,126 @@
+{
+  "claim": "IPO 락업 해제일 1~2주 전에 해당 종목을 공매도하고 해제일 직후 청산한다",
+  "groups": [
+    {
+      "origin": {
+        "title": "Facebook Stock Price Up 10.3 Percent On The Day As Biggest Lockup Expires",
+        "url": "https://techcrunch.com/2012/11/14/facebook-biggest-lockup-expiration/",
+        "published": "2012-11-14"
+      },
+      "copies": [
+        {
+          "title": "Much ado about liquidity? Lockup expirations and stock prices",
+          "url": "https://aswathdamodaran.substack.com/p/much-ado-about-liquidity-lockup-expirations-12-11-19"
+        }
+      ],
+      "why": "두 글 모두 2012-11-14 페이스북 락업 해제 당일 주가 변동률로 동일한 +12.6%를 인용한다(TechCrunch: '최종 업데이트: 주가가 12.6% 상승', Damodaran: '11월 14일: +12.6% (777백만주)'). 발행일이 5일 이내로 몰려 있어(11/14 → 11/19) 같은 시장 데이터를 이어 받은 것으로 본다. TechCrunch 는 사건 당일 보도이므로 원본, Damodaran 은 같은 수치를 5일 뒤 재인용한 복제로 분류했다."
+    },
+    {
+      "origin": {
+        "title": "락업 해제에 주가 휘청...새내기주의 '잔인한 4월'",
+        "url": "https://www.fnnews.com/news/202404081533386890",
+        "published": "2024-04-08"
+      },
+      "copies": [],
+      "why": "2024년 국내 신규상장 5개 종목(한싹·한빛레이저·두산로보틱스·레뷰코퍼레이션·케이엔알시스템)의 락업 해제 후 하락률을 다루며 다른 어느 출처와도 종목·수치·문장이 겹치지 않는다. 독립 출처로 본다."
+    },
+    {
+      "origin": {
+        "title": "보호예수 해제 시점의 공매도와 주식수익률의 관계 (유수정·이영주, 2021)",
+        "url": "https://www.dbpia.co.kr/journal/articleDetail?nodeId=NODE10560477",
+        "published": "2021-05-01"
+      },
+      "copies": [],
+      "why": "국내(한국) IPO 데이터를 써서 '해제 전 20일 비정상공매도비율이 해제 후 20일 수익률과 음의 관계'라는 자체 실증 결과를 낸다. 같은 표본·같은 숫자를 쓰는 다른 출처가 목록에 없어 독립으로 본다. 결론 방향은 Gibbs & Hao(2018, JBF)의 '비VC/PE 종목에서 공매도가 이후 수익률을 예측' 결과와 같은 방향이지만, 데이터와 구체적 수치가 달라 같은 덩어리로 묶지 않았다."
+    },
+    {
+      "origin": {
+        "title": "공매도 세력이 노리는 코어위브 '락업 해제'",
+        "url": "https://moneyneversleeps.co.kr/news/articleView.html?idxno=104967",
+        "published": "2025-07-15"
+      },
+      "copies": [],
+      "why": "코어위브(CoreWeave) 단일 사건을 S3파트너스 데이터와 애널리스트(브래드 라임스도프) 코멘트로 다룬다. 유통주식비율 13%·해제 물량 2억9000만주 등 이 기사에만 등장하는 고유 숫자라 독립으로 본다."
+    },
+    {
+      "origin": {
+        "title": "Short selling around the expiration of IPO share lockups (Gibbs & Hao, Journal of Banking and Finance 88, 2018)",
+        "url": "https://web.csulb.edu/colleges/cob/intranet/vita/pdfsubmissions/3062e-1-s2.0-s0378426617302339-main.pdf",
+        "published": "2018-01-01"
+      },
+      "copies": [],
+      "why": "PE·VC 백킹 여부에 따라 락업 해제 전 공매도 증가폭과 그 예측력이 갈린다는 독자적 실증 결과(웹검색으로 확인: Gibbs & Hao, JBF 88, 2018, 30-43)를 낸다. 같은 결과를 재인용하는 출처가 목록에 없어 독립으로 본다. 단, 이 URL 자체를 직접 열면 PDF 메타데이터가 깨져 무관한 수학 논문(Ramakrishnan, o-minimal structures) 정보가 반환되므로 본문 확인은 웹검색으로 대체했다."
+    },
+    {
+      "origin": {
+        "title": "The Expiration of IPO Share Lockups (Field & Hanka, Journal of Finance 56(2), 2001)",
+        "url": "https://ideas.repec.org/r/bla/jfinan/v56y2001i2p471-500.html",
+        "published": "2001-01-01"
+      },
+      "copies": [],
+      "why": "1,948건의 락업 표본에서 해제 시 거래량 40% 영구 증가, 3일 초과수익률 -1.5%(VC 백킹 종목에서 더 큼)라는 독자적 결과를 낸 최초 연구다(수치는 웹검색으로 확인 — repec 페이지 자체에는 초록 텍스트가 표시되지 않았다). 이 논문의 구체 수치(40%, -1.5%)를 그대로 재인용하는 다른 출처가 목록에 없어 독립으로 본다."
+    },
+    {
+      "origin": {
+        "title": "Shorting IPO lockup expiration (IHS/Markit commentary)",
+        "url": "https://cdn.ihs.com/www/blog/commentary/pdf/Shorting-IPO-lockup-expiration.pdf",
+        "published": "2015-08-05"
+      },
+      "copies": [],
+      "why": "Markit 자체의 증권대차(공매도) 데이터베이스를 근거로 트위터·에츠(Etsy) 등 2015년 사례를 다룬 독자 리포트다. 다른 출처가 재인용하는 정황이 없어 독립으로 본다."
+    },
+    {
+      "origin": {
+        "title": "GPRO Stock - Here's Why Shorting GoPro is All the Rage",
+        "url": "https://investorplace.com/2014/10/gpro-stock-gopro-short-selling/",
+        "published": "2014-10-06"
+      },
+      "copies": [],
+      "why": "GoPro 단일 종목(IPO 후 180% 급등, PER 90배, 락업 해제 12월 26일)에 대한 단독 논평이며, 이 기사에만 등장하는 고유 숫자라 독립으로 본다."
+    },
+    {
+      "origin": {
+        "title": "Price, Volume and Spread Effects Associated with the Expiry of Lock-In Agreements: Evidence from the Hong Kong IPO Market (Goergen, Mazouz, Yin, 2010)",
+        "url": "https://ideas.repec.org/a/eee/pacfin/v18y2010i5p442-459.html",
+        "published": "2010-01-01"
+      },
+      "copies": [],
+      "why": "홍콩 IPO 시장 데이터로 '거래량·스프레드는 증가하나 주가에는 유의미한 변화 없음'이라는 독자 결과를 낸다. 다른 목록 출처와 표본·수치가 겹치지 않아 독립으로 본다."
+    },
+    {
+      "origin": {
+        "title": "보호예수 종료 시점의 지분율 변동과 시장반응 (김석·전상경, 2016)",
+        "url": "https://www.dbpia.co.kr/journal/articleDetail?nodeId=NODE07228328",
+        "published": "2016-04-01"
+      },
+      "copies": [],
+      "why": "국내 데이터로 '보호예수 종료일·반환일 전후 유의미한 주가 하락 없음, 지분율 변동도 없음'이라는, 2021년 유수정·이영주 논문과는 반대 결론의 독자 실증 결과를 낸다. 저자·표본·결론이 달라 별개 출처로 본다."
+    },
+    {
+      "origin": {
+        "title": "SpaceX stock surges 11% after lockup expiry selloff, short squeeze eyed",
+        "url": "https://www.investing.com/news/stock-market-news/spacex-stock-surges-11-after-lockup-expiry-selloff-short-squeeze-eyed-93CH-4846967",
+        "published": "2026-08-07"
+      },
+      "copies": [],
+      "why": "SpaceX 단일 사건(공매도 비중 29%, 공정가치 $108.95 등)을 다루며 이 기사에만 등장하는 고유 숫자라 독립으로 본다."
+    },
+    {
+      "origin": {
+        "title": "IPO Lockup Expiration: What the Data Shows (Strasmore)",
+        "url": "https://www.strasmore.com/blog/ipo-lockup-expiration",
+        "published": "2026-07-12"
+      },
+      "copies": [],
+      "why": "페이스북 2012-11-14 사례를 포함해 5개 사건(페이스북·트위터·스냅·라이프트·우버)의 가격·거래량 배수를 정리한 독자 집계다. 페이스북 수치가 +12.5%로 TechCrunch/Damodaran 의 +12.6%와 근접하지만 소수점 자리가 다르고, 트위터·스냅·라이프트·우버의 거래량 배수(12.3배·2.9배·3.9배·2.3배) 등 다른 출처에 없는 고유 데이터를 함께 제시해 텍스트를 그대로 베낀 정황은 없다고 판단해 독립으로 분류했다. 다만 페이스북 수치가 근접하는 점은 미검증으로 남긴다. 목록에는 발행일이 'unknown'으로 돼 있었으나 실제로 열어 보니 2026-07-12(2026-07-26 업데이트)로 확인됐다."
+    }
+  ],
+  "independent_source_count": 12,
+  "unverified": [
+    "Field & Hanka(2001) 의 -1.5%/40% 수치는 repec 서지 페이지 자체에는 없고 별도 웹검색으로 확인한 것이라 원문 PDF 대조는 못 했다",
+    "Gibbs & Hao(2018) 의 PDF(csulb.edu 호스팅)는 직접 열면 메타데이터가 깨져 무관한 수학 논문 정보가 반환된다 — ScienceDirect/repec 서지정보로 존재는 확인했으나 원문 본문 대조는 못 했다",
+    "IHS/Markit 리포트의 구체적 공매도 비중·수익률 수치는 PDF 요약이 뭉뚱그려져 있어 정확한 값을 확인하지 못했다",
+    "Strasmore 블로그의 페이스북 +12.5% 수치가 TechCrunch/Damodaran 의 +12.6%와 독립 계산인지 재인용인지는 확정하지 못했다",
+    "Strasmore 블로그의 실제 발행일(2026-07-12)이 최신 데이터인지, 즉 목록에 적힌 'unknown' 이 이 최근 재발행을 가리키는지는 확인하지 못했다"
+  ]
+}

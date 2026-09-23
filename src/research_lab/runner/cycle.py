@@ -266,8 +266,10 @@ def _execute_with_retries(run_dir: Path, step: str, execute: StepExecutor) -> Fa
             # 게이트가 막은 것은 분류표를 거치지 않는다. 내용이 아니라 «누가 막았는가»가
             # 갈래를 정하고, `should_retry` 가 False 라 아래에서 기록만 하고 끝난다.
             # [주의] `StepFailed` 의 하위라 **이 줄이 먼저 와야** 한다
+            _record_spent(run_dir, step, blocked)
             failure = Failure(kind=FailureKind.QUALITY, raw=blocked.raw)
         except steps.StepFailed as failed:
+            _record_spent(run_dir, step, failed)
             failure = failures.classify(failed.raw)
         except Exception as unexpected:
             # 예상 못 한 예외도 «분류 못 한 실패»다. 여기서 터뜨리면 그 회차가 통째로 끝나고
@@ -297,6 +299,26 @@ def _execute_with_retries(run_dir: Path, step: str, execute: StepExecutor) -> Fa
     # **마지막 실패를 그대로 돌려준다.** 「재시도를 다 썼다」로 바꿔 넘기면 원문이 사라져
     # 부르는 쪽이 무엇 때문에 막혔는지 알 수 없다. 몇 번 시도했는지는 결정 로그에 있다
     return failure
+
+
+def _record_spent(run_dir: Path, step: str, failed: steps.StepFailed) -> None:
+    """실패한 호출이 쓴 것을 비용 줄로 남긴다. 모르면 아무것도 적지 않는다.
+
+    [중요] 비용 줄은 단계가 결과를 «돌려받은 뒤» 적는다. 결과 대신 실패가 오른 호출은
+    그 자리에 닿지 못해, 여기서 적지 않으면 **이미 쓴 돈이 회차의 쓴 돈 · 토큰 · 한도 비율에서
+    통째로 빠진다** — 실패 줄의 원문에 금액이 있어도 집계는 비용 줄만 더한다.
+    실패 줄 «앞»에 적어, 로그를 읽는 사람이 「얼마를 쓰고 멈췄나」를 순서대로 본다.
+
+    [주의] 결과를 실었어도 **잰 것이 하나도 없으면** 적지 않는다. CLI 출력 자체가 JSON 이
+    아니면 결과에 금액 · 토큰 · 성분이 모두 비는데, 적으면 값이 빈 줄이 남아 종료 코드로
+    멈춘 같은 모양의 실패(아무것도 안 적는다)와 로그 모양이 갈린다. **하나라도 있으면 적는다** —
+    금액만 빠진 결과를 버리면 그 토큰이 한도 비율에서 빠지는데, 성공한 호출은 같은 결과를
+    그대로 적으므로 경로에 따라 규칙이 갈린다.
+    """
+    spent = failed.spent
+    if spent is None or (spent.cost_usd is None and spent.tokens is None and spent.usage is None):
+        return
+    decision_log.record_cost(run_dir, step, spent)
 
 
 def _close_if_stuck(run_dir: Path, ledger_path: Path, step: str) -> tuple[str | None, str | None]:

@@ -2,7 +2,12 @@
   "settled": [
     "explore",
     "collect",
-    "rebut"
+    "rebut",
+    "lineage",
+    "feasibility",
+    "mechanism",
+    "measurement",
+    "verdict"
   ],
   "skipped": [
     "explore"

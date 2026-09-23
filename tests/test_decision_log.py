@@ -163,6 +163,45 @@ def test_cost_line_without_components_stays_recordable(tmp_path: Path) -> None:
     assert entry.get("tokens_input") is None
 
 
+def _call(session_id: str) -> invoke.AgentResult:
+    return invoke.AgentResult(
+        text="답", raw="{}", cost_usd=0.5, tokens=10, usage=None, elapsed_seconds=1.0, session_id=session_id
+    )
+
+
+def test_the_same_call_is_recorded_once(tmp_path: Path) -> None:
+    """
+    목적: 같은 호출의 비용이 «두 번» 세이지 않는 계약을 고정한다.
+
+    비용 줄을 적는 자리가 둘이다 — 결과를 돌려받은 단계와, 실패를 받은 러너. 지금은 단계가
+    파싱 «뒤»에 적어 겹치지 않지만, 그 순서는 여러 단계 모듈에 흩어진 관용이라 한 곳이
+    바뀌면 **같은 호출이 두 번 세이고 에러가 안 난다.** 세션 ID 는 호출마다 새로 정하므로
+    그것으로 가른다.
+
+    Given: 같은 세션 ID 의 호출 결과
+    When: 비용을 두 번 적는다
+    Then: 비용 줄이 하나다
+    """
+    decision_log.record_cost(tmp_path, "collect", _call("세션-가"))
+    decision_log.record_cost(tmp_path, "collect", _call("세션-가"))
+
+    assert len(decision_log.read(tmp_path)) == 1
+
+
+def test_different_calls_are_recorded_separately(tmp_path: Path) -> None:
+    """
+    목적: 다른 호출은 각자 비용 줄을 남기는 계약을 고정한다.
+
+    Given: 세션 ID 가 다른 두 호출 결과
+    When: 각각 비용을 적는다
+    Then: 비용 줄이 둘이다
+    """
+    decision_log.record_cost(tmp_path, "collect", _call("세션-가"))
+    decision_log.record_cost(tmp_path, "collect", _call("세션-나"))
+
+    assert len(decision_log.read(tmp_path)) == 2
+
+
 def test_korean_is_not_escaped(tmp_path: Path) -> None:
     """
     목적: 한글이 읽을 수 있는 형태로 남는 계약을 고정한다.

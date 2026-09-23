@@ -16,7 +16,7 @@ from typing import Any
 
 import pytest
 
-from research_lab.agent.invoke import AgentResult
+from research_lab.agent.invoke import AgentResult, new_session_id
 from research_lab.common_constants import (
     LINEAGE_FILENAME,
     PRO_EVIDENCE_FILENAME,
@@ -33,7 +33,9 @@ QUERIES = ["Sell in May 비판", "sell in may debunked", "할로윈 효과 재�
 def _answer(payload: object) -> AgentResult:
     """에이전트가 그 JSON 을 돌려줬다고 치는 응답."""
     text = json.dumps(payload, ensure_ascii=False)
-    return AgentResult(text=text, raw=text, cost_usd=0.5, tokens=100, usage=None, elapsed_seconds=1.0, session_id="세션")
+    return AgentResult(
+        text=text, raw=text, cost_usd=0.5, tokens=100, usage=None, elapsed_seconds=1.0, session_id=new_session_id()
+    )
 
 
 def _pin(run_dir: Path, ledger_path: Path) -> Path:

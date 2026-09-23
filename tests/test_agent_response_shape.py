@@ -329,3 +329,115 @@ def test_session_limit_response_is_a_failure_despite_success_subtype() -> None:
     """
     with pytest.raises(StepFailed):
         invoke._parse(raw=MEASURED_SESSION_LIMIT, elapsed=0.1, session_id="세션")
+
+
+# [실측 2026-09-22] 계보 단계가 20턴을 돈 «뒤에» 세션 한도에 걸린 응답이다. 값이 든 필드만
+# 남기고 줄였으며 자격증명은 들어 있지 않다. 위 `MEASURED_SESSION_LIMIT` 은 호출 «시작»에서
+# 거부돼 비용이 0 이었지만, 이것은 **이미 쓴 만큼 과금된 뒤**에 멈춘 모양이다
+MEASURED_MIDSTEP_LIMIT = json.dumps(
+    {
+        "type": "result",
+        "subtype": "success",
+        "is_error": True,
+        "stop_reason": "stop_sequence",
+        "terminal_reason": "api_error",
+        "api_error_status": 429,
+        "result": "You've hit your session limit · resets 2:10am (Asia/Seoul)",
+        "session_id": "de602fb7-3d2b-4fd9-84bb-1937a475f823",
+        "total_cost_usd": 0.9001812000000001,
+        "num_turns": 20,
+        "usage": {
+            "input_tokens": 12,
+            "cache_creation_input_tokens": 49463,
+            "cache_read_input_tokens": 230271,
+            "output_tokens": 18540,
+        },
+    }
+)
+
+
+def test_midstep_limit_carries_what_the_call_spent() -> None:
+    """
+    목적: 도중에 멈춘 호출이 «쓴 것»을 실패와 함께 나르는 계약을 고정한다.
+
+    [실측 2026-09-22] 이 응답의 $0.9002 가 결정 로그의 어느 비용 줄에도 남지 않아
+    회차 로그의 쓴 돈 · 토큰 · 한도 비율에서 통째로 빠졌다. 비용 줄은 단계가 결과를
+    «돌려받은 뒤» 적는데, 이 호출은 결과 대신 실패를 올렸기 때문이다.
+
+    Given: 실측된 «단계 도중» 한도 소진 응답
+    When: 호출 계층이 읽는다
+    Then: 실패로 올라오되, 그 호출의 비용 · 새 토큰 · 성분 · 세션을 함께 싣는다
+    """
+    with pytest.raises(StepFailed) as raised:
+        invoke._parse(raw=MEASURED_MIDSTEP_LIMIT, elapsed=210.1, session_id="쓰이지-않는-값")
+
+    spent = raised.value.spent
+    assert spent is not None
+    assert spent.cost_usd == 0.9001812000000001
+    assert spent.tokens == 68_015, "새 토큰 = 입력 + 출력 + 캐시 생성. 캐시 읽기는 뺀다"
+    assert spent.usage == {
+        "input_tokens": 12,
+        "output_tokens": 18540,
+        "cache_creation_input_tokens": 49463,
+        "cache_read_input_tokens": 230271,
+    }
+    assert spent.session_id == "de602fb7-3d2b-4fd9-84bb-1937a475f823"
+
+
+def test_start_of_call_rejection_carries_a_measured_zero() -> None:
+    """
+    목적: 시작에서 거부된 호출의 비용이 «잴 수 없음»이 아니라 «0»으로 실리는 계약을 고정한다.
+
+    이 로그는 「재서 0 이었다」와 「잴 수 없었다」를 가른다. 응답에 0 이 적혀 왔으면 0 이다.
+
+    Given: 실측된 인증 실패 응답(비용 0)
+    When: 호출 계층이 읽는다
+    Then: 실어 보낸 비용이 None 이 아니라 0 이다
+    """
+    with pytest.raises(StepFailed) as raised:
+        invoke._parse(raw=MEASURED_AUTH_FAILURE, elapsed=0.1, session_id="세션")
+
+    spent = raised.value.spent
+    assert spent is not None
+    assert spent.cost_usd == 0
+
+
+@pytest.mark.parametrize("answer", ["JSON 이 아닌 산문", '["목록", "이지", "객체가", "아니다"]'])
+def test_unparsable_answer_carries_the_result(answer: str) -> None:
+    """
+    목적: 답에서 JSON 객체를 못 꺼낸 실패가 «받은 결과»를 그대로 나르는 계약을 고정한다.
+
+    [실측] 과거 회차에서 이 경로로 세 번 샜다 — 에이전트는 끝까지 돌아 돈을 썼는데
+    단계가 비용을 적기 «전»에 파싱이 실패해 그 비용이 어디에도 남지 않았다.
+
+    Given: 객체로 읽히지 않는 답 (산문 · 배열)
+    When: 단계가 JSON 을 꺼낸다
+    Then: 실패가 오르고, 실어 보낸 것이 넘겨받은 결과 자신이다
+    """
+    result = AgentResult(
+        text=answer, raw=answer, cost_usd=0.6, tokens=500, usage=None, elapsed_seconds=1.0, session_id="세션"
+    )
+
+    with pytest.raises(StepFailed) as raised:
+        invoke.parse_json_answer(result, what="탐색")
+
+    assert raised.value.spent is result
+
+
+def test_null_session_id_falls_back_to_the_given_one() -> None:
+    """
+    목적: 응답의 세션 ID 가 `null` 이어도 «"None"» 이라는 글자가 되지 않는 계약을 고정한다.
+
+    [중요] `str(None)` 은 `"None"` 이라는 «내용이 있는» 문자열이다. 비용 줄은 세션 ID 로
+    같은 호출을 가르므로, 서로 다른 호출이 둘 다 `"None"` 을 가지면 **뒤의 비용 줄이
+    같은 호출로 보여 버려진다.** 열쇠가 «있고» 값이 `null` 이면 `dict.get` 의 기본값도 안 쓰인다.
+
+    Given: 세션 ID 가 null 인 응답
+    When: 호출 계층이 읽는다
+    Then: 미리 정한 세션 ID 가 쓰인다
+    """
+    raw = json.dumps({"type": "result", "is_error": False, "result": "답", "session_id": None})
+
+    parsed = invoke._parse(raw=raw, elapsed=1.0, session_id="미리-정한-값")
+
+    assert parsed.session_id == "미리-정한-값"

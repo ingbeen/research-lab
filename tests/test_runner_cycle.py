@@ -8,7 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from research_lab.runner import cycle, decision_log, failures, ledger, state, steps
+from research_lab.agent import invoke
+from research_lab.runner import budget, cycle, decision_log, failures, ledger, state, steps, usage
 
 
 @pytest.fixture(autouse=True)
@@ -284,6 +285,137 @@ def test_failure_result_carries_the_raw_text(tmp_path: Path) -> None:
 
     assert result.failure is not None
     assert result.failure.raw == raw
+
+
+def _spent(session_id: str, *, cost_usd: float | None = 0.9, output_tokens: int | None = 100) -> invoke.AgentResult:
+    """실패한 호출이 «쓴 것». 세션 ID 를 호출마다 다르게 받는다 — 비용 줄이 그것으로 호출을 가른다."""
+    return invoke.AgentResult(
+        text="",
+        raw="{}",
+        cost_usd=cost_usd,
+        tokens=output_tokens,
+        usage={"output_tokens": output_tokens} if output_tokens is not None else None,
+        elapsed_seconds=1.0,
+        session_id=session_id,
+    )
+
+
+def test_failed_call_cost_is_recorded_before_the_failure(tmp_path: Path) -> None:
+    """
+    목적: 실패한 호출이 쓴 돈이 결정 로그의 «비용 줄»로 남는 계약을 고정한다.
+
+    [실측 2026-09-22] 계보 단계가 도중에 한도에 걸려 $0.9002 를 쓰고 멈췄는데, 비용 줄이 없어
+    회차 로그의 쓴 돈 · 토큰 · 한도 비율에서 통째로 빠졌다. 집계는 비용 줄만 더하므로
+    **실패 줄의 원문에 금액이 있어도 없는 것과 같다.**
+
+    Given: 쓴 것을 실은 한도 실패를 내는 단계
+    When: 회차를 돈다
+    Then: 실패 줄 «바로 앞»에 그 호출의 비용 줄이 하나 있고, 집계에 들어가며, 재시도하지 않는다
+    """
+    limit_phrase = failures.patterns_for(failures.FailureKind.LIMIT)[0]
+    attempts: list[str] = []
+
+    def hitting_limit_midway(step: str, _: Path) -> None:
+        attempts.append(step)
+        raise steps.StepFailed(f"앞말 {limit_phrase} 뒷말", spent=_spent("세션-가", cost_usd=0.9, output_tokens=68))
+
+    run_dir = tmp_path / "run"
+    cycle.run_cycle(run_dir=run_dir, ledger_path=tmp_path / "원장.md", execute=hitting_limit_midway)
+
+    entries = decision_log.read(run_dir)
+    events = [entry["event"] for entry in entries]
+    assert events.count(decision_log.EVENT_COST) == 1
+    assert events.index(decision_log.EVENT_COST) + 1 == events.index(decision_log.EVENT_FAILED)
+    assert budget.cost_of(run_dir) == 0.9
+    assert usage.tokens_of(run_dir).new_total == 68
+    assert len(attempts) == 1
+
+
+def test_each_retried_call_leaves_its_own_cost_line(tmp_path: Path) -> None:
+    """
+    목적: 「그 외」 실패로 재시도한 호출마다 비용 줄이 «따로» 남는 계약을 고정한다.
+
+    재시도는 호출을 새로 한다 — 세 번 불렀으면 세 번 쓴 것이다.
+
+    Given: 호출마다 다른 세션으로 쓴 것을 실은 「그 외」 실패
+    When: 회차가 상한까지 재시도한다
+    Then: 비용 줄이 시도 수만큼이고 금액이 모두 더해진다
+    """
+    sessions = iter(["세션-1", "세션-2", "세션-3"])
+
+    def always_failing(step: str, _: Path) -> None:
+        raise steps.StepFailed("도무지 알 수 없는 실패", spent=_spent(next(sessions), cost_usd=0.5))
+
+    run_dir = tmp_path / "run"
+    cycle.run_cycle(run_dir=run_dir, ledger_path=tmp_path / "원장.md", execute=always_failing)
+
+    costs = [entry for entry in decision_log.read(run_dir) if entry["event"] == decision_log.EVENT_COST]
+    assert len(costs) == failures.MAX_RETRIES
+    assert budget.cost_of(run_dir) == 0.5 * failures.MAX_RETRIES
+
+
+def test_failure_without_spent_leaves_no_cost_line(tmp_path: Path) -> None:
+    """
+    목적: 쓴 것을 모르는 실패는 비용 줄을 «만들지 않는» 계약을 고정한다.
+
+    지어낸 0 을 적으면 「재서 0」으로 읽혀 돈을 안 쓴 것처럼 보인다.
+
+    Given: 쓴 것을 싣지 않은 실패
+    When: 회차를 돈다
+    Then: 비용 줄이 없다
+    """
+
+    def failing(step: str, _: Path) -> None:
+        raise steps.StepFailed("시간이 다 됐다")
+
+    run_dir = tmp_path / "run"
+    cycle.run_cycle(run_dir=run_dir, ledger_path=tmp_path / "원장.md", execute=failing)
+
+    assert all(entry["event"] != decision_log.EVENT_COST for entry in decision_log.read(run_dir))
+
+
+def test_failure_with_nothing_measured_leaves_no_cost_line(tmp_path: Path) -> None:
+    """
+    목적: 결과를 실었어도 «잰 것이 하나도 없는» 실패는 비용 줄을 만들지 않는 계약을 고정한다.
+
+    CLI 출력 자체가 JSON 이 아니면 결과의 금액 · 토큰 · 성분이 모두 빈다. 적으면 값이 빈 줄이
+    남아, 종료 코드로 멈춘 같은 모양의 실패와 로그 모양이 갈린다.
+
+    Given: 금액 · 토큰 · 성분이 모두 빈 결과를 실은 실패
+    When: 회차를 돈다
+    Then: 비용 줄이 없다
+    """
+
+    def failing(step: str, _: Path) -> None:
+        raise steps.StepFailed("출력이 JSON 이 아니다", spent=_spent("세션-가", cost_usd=None, output_tokens=None))
+
+    run_dir = tmp_path / "run"
+    cycle.run_cycle(run_dir=run_dir, ledger_path=tmp_path / "원장.md", execute=failing)
+
+    assert all(entry["event"] != decision_log.EVENT_COST for entry in decision_log.read(run_dir))
+
+
+def test_failure_missing_only_the_amount_still_counts_its_tokens(tmp_path: Path) -> None:
+    """
+    목적: 금액만 빠진 실패도 토큰을 비용 줄로 남기는 계약을 고정한다.
+
+    응답 모양은 CLI 가 정하는 것이라 금액만 빠지는 날이 올 수 있다. 그때 버리면 그 토큰이
+    한도 비율에서 빠지는데, 성공한 호출은 같은 결과를 그대로 적으므로 **경로에 따라 규칙이 갈린다.**
+
+    Given: 금액은 없고 토큰은 있는 결과를 실은 실패
+    When: 회차를 돈다
+    Then: 비용 줄이 하나 남고 그 토큰이 집계에 들어간다
+    """
+
+    def failing(step: str, _: Path) -> None:
+        raise steps.StepFailed("금액이 빠진 응답", spent=_spent("세션-가", cost_usd=None, output_tokens=40))
+
+    run_dir = tmp_path / "run"
+    cycle.run_cycle(run_dir=run_dir, ledger_path=tmp_path / "원장.md", execute=failing)
+
+    costs = [entry for entry in decision_log.read(run_dir) if entry["event"] == decision_log.EVENT_COST]
+    assert len(costs) == 1
+    assert usage.tokens_of(run_dir).new_total == 40
 
 
 def test_second_cycle_cannot_start_while_one_is_running(tmp_path: Path) -> None:

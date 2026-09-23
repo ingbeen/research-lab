@@ -158,17 +158,19 @@ def parse_json_answer(result: AgentResult, *, what: str) -> dict[str, Any]:
         꺼낸 JSON 객체
 
     Raises:
-        StepFailed: 객체를 못 꺼냈을 때. **원문을 통째로 실어 보낸다**
+        StepFailed: 객체를 못 꺼냈을 때. **원문을 통째로 실어 보내고, 받은 결과도 함께 싣는다** —
+            단계는 이 함수 «뒤»에 비용을 적으므로, 여기서 멈추면 에이전트가 끝까지 돌아
+            쓴 돈이 어디에도 안 남는다
     """
     text = _unwrap(result.text)
 
     try:
         loaded: Any = json.loads(text)
     except json.JSONDecodeError as broken:
-        raise StepFailed(f"{what} 응답에서 JSON 을 못 꺼냈습니다: {broken}\n--- 원문 ---\n{result.raw}") from broken
+        raise StepFailed(f"{what} 응답에서 JSON 을 못 꺼냈습니다: {broken}\n--- 원문 ---\n{result.raw}", spent=result) from broken
 
     if not isinstance(loaded, dict):
-        raise StepFailed(f"{what} 응답이 객체가 아닙니다\n--- 원문 ---\n{result.raw}")
+        raise StepFailed(f"{what} 응답이 객체가 아닙니다\n--- 원문 ---\n{result.raw}", spent=result)
     return loaded
 
 
@@ -252,10 +254,15 @@ def invoke(
     raw = completed.stdout or ""
 
     if completed.returncode != 0:
+        # [중요] 멈췄어도 stdout 에 응답이 적혀 왔으면 그 호출이 쓴 것을 함께 싣는다.
+        # [실측] 예산 상한과 «단계 도중» 한도 소진이 이 길로 오고, 둘 다 이미 과금된 뒤다
+        payload = _payload_of(raw)
+        spent = _result_from(payload, raw=raw, elapsed=elapsed, session_id=resolved_session) if payload else None
         # [중요] stdout 과 stderr 을 **둘 다** 싣는다. 실패 모양이 아직 [미검증] 이라
         # 어느 쪽에 단서가 있을지 모르고, 잘라 내면 처음 부딪히는 날 답을 못 얻는다
         raise StepFailed(
-            f"exit={completed.returncode}\n" f"--- stdout ---\n{raw}\n" f"--- stderr ---\n{completed.stderr}"
+            f"exit={completed.returncode}\n" f"--- stdout ---\n{raw}\n" f"--- stderr ---\n{completed.stderr}",
+            spent=spent,
         )
 
     return _parse(raw=raw, elapsed=elapsed, session_id=resolved_session)
@@ -268,21 +275,34 @@ def _parse(*, raw: str, elapsed: float, session_id: str) -> AgentResult:
     **파이프라인이 죽는 것보다 「그 값을 모른다」로 남는 편이 낫다** —
     원문은 어차피 통째로 보존되므로 나중에 다시 읽을 수 있다.
     """
-    payload: dict[str, Any] = {}
-    try:
-        loaded: Any = json.loads(raw)
-        if isinstance(loaded, dict):
-            payload = loaded
-    except json.JSONDecodeError:
-        pass
+    payload = _payload_of(raw) or {}
+    result = _result_from(payload, raw=raw, elapsed=elapsed, session_id=session_id)
 
     # [중요] 종료 코드만 보면 «성공으로 끝난 실패»를 놓친다. CLI 가 결과 안에
     # `is_error` 를 실어 보내면서 0 으로 끝나는 경우가 있고, 그때 이 계층이 통과시키면
     # 실패가 한참 뒤 파싱 단계에서 「JSON 이 아닙니다」라는 **엉뚱한 진단**으로 튀어나온다.
     # 여기서 잡아야 원문이 붙은 채로 러너의 분류기에 닿는다
     if payload.get("is_error") is True:
-        raise StepFailed(f"agent reported is_error\n--- 원문 ---\n{raw}")
+        raise StepFailed(f"agent reported is_error\n--- 원문 ---\n{raw}", spent=result)
 
+    return result
+
+
+def _payload_of(raw: str) -> dict[str, Any] | None:
+    """응답 원문이 JSON 객체면 그것을, 아니면 None 을 돌려준다."""
+    try:
+        loaded: Any = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    return loaded if isinstance(loaded, dict) else None
+
+
+def _result_from(payload: dict[str, Any], *, raw: str, elapsed: float, session_id: str) -> AgentResult:
+    """응답 객체에서 결과를 꺼낸다. 성공과 실패가 같이 쓴다.
+
+    [중요] 한 곳에 두는 이유는 실패한 호출의 비용도 성공과 «같은 규칙»으로 세야 하기
+    때문이다. 두 벌이면 한쪽만 고쳐질 때 비용 줄이 경로에 따라 다른 값을 말한다.
+    """
     cost = payload.get("total_cost_usd")
 
     # [실측 2026-09-14] `--json-schema` 를 걸면 CLI 가 **파싱된 객체**를 이 필드에 함께 싣는다.
@@ -290,6 +310,7 @@ def _parse(*, raw: str, elapsed: float, session_id: str) -> AgentResult:
     # 스키마를 켜는 이유가 바로 그것이다. 스키마가 없으면 이 필드가 없어 `result` 로 돌아간다
     structured = payload.get("structured_output")
     answer = structured if isinstance(structured, dict | list) else payload.get("result", raw)
+    reported_session = payload.get("session_id")
 
     return AgentResult(
         text=_answer_text(answer),
@@ -298,7 +319,10 @@ def _parse(*, raw: str, elapsed: float, session_id: str) -> AgentResult:
         tokens=_new_tokens(payload.get("usage")),
         usage=_usage_components(payload.get("usage")),
         elapsed_seconds=elapsed,
-        session_id=str(payload.get("session_id", session_id)),
+        # [중요] `str()` 로 바로 찍지 않는다. 열쇠가 «있고» 값이 null 이면 `"None"` 이라는
+        # 글자가 되는데, 비용 줄은 이 값으로 같은 호출을 가르므로 **서로 다른 호출이 겹쳐
+        # 뒤의 비용이 버려진다**
+        session_id=reported_session if isinstance(reported_session, str) and reported_session else session_id,
     )
 
 

@@ -109,15 +109,26 @@ def record(run_dir: Path, step: str, event: str, **fields: Any) -> None:
 def record_cost(run_dir: Path, step: str, result: AgentResult) -> None:
     """한 번의 호출이 쓴 비용·토큰·시간을 남긴다.
 
-    네 단계가 똑같이 적는 값이라 한 곳에서 만든다. 네 벌로 흩어져 있으면
-    **한 곳만 고쳐질 때 회차 예산 집계가 그 단계에서만 어긋나고**, 합계가 틀렸다는 것은
+    모든 단계와 러너가 똑같이 적는 값이라 한 곳에서 만든다. 여러 벌로 흩어져 있으면
+    **한 곳만 고쳐질 때 회차 예산 집계가 그 자리에서만 어긋나고**, 합계가 틀렸다는 것은
     드러나지 않는다.
+
+    **같은 호출(세션 ID)은 한 번만 적는다.** 그 폴더에 이미 적혀 있으면 아무것도 하지 않는다.
 
     Args:
         run_dir: 그 회차의 실행 폴더
         step: 어느 단계의 호출인가
         result: 에이전트 호출 결과
     """
+    # [중요] 비용 줄을 적는 자리가 둘이다 — 결과를 돌려받은 단계와, 실패를 받은 러너.
+    # 지금은 단계가 파싱 «뒤»에 적어 겹치지 않지만 그 순서는 여러 단계 모듈에 흩어진
+    # 관용이라, 한 곳이 바뀌면 **같은 호출이 두 번 세이고 에러가 안 난다.**
+    # 세션 ID 는 호출마다 새로 정하므로 그것으로 가른다
+    if any(
+        entry.get("event") == EVENT_COST and entry.get("session_id") == result.session_id for entry in read(run_dir)
+    ):
+        return
+
     # [중요] 성분을 모를 때는 **열쇠를 아예 넣지 않는다.** `None` 으로 채우면
     # 「잴 수 없었다」가 「0 이었다」와 구별되지 않는다
     components = {
