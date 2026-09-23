@@ -1,0 +1,19 @@
+{
+  "settled": [
+    "explore",
+    "collect",
+    "rebut",
+    "lineage",
+    "feasibility",
+    "mechanism",
+    "measurement",
+    "verdict"
+  ],
+  "skipped": [
+    "explore"
+  ],
+  "candidate": {
+    "claim": "코스피 12월 결산법인 중 고배당 종목을 배당락일 직전(약 2영업일 전 매수 마감) 저가에 매수해 배당락 이후 반등을 노린다",
+    "identifier": "kr-exdiv-rebound"
+  }
+}

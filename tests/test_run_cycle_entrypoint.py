@@ -497,14 +497,22 @@ def test_the_step_guard_clears_the_most_expensive_step_ever_measured(entrypoint:
     [실측 2026-09-15] 상한이 $2 였을 때 반증 단계가 $2.4330 에서 잘렸고,
     **근거 문서 한 장이 통째로 날아갔다.** 이 값은 폭주 감지이지 과금 방지가 아니므로
     (과금은 `billing_guard` 가 막는다) 정상 작업보다 낮게 두면 잃는 것만 있다.
+    그때 상한을 실측 최대의 약 1.6배로 올렸다.
 
-    Given: 지금까지 실측된 한 단계의 최고액
+    [실측 2026-09-23] 모델을 바꾸자 토큰당 가격이 두 배가 되었다. 위에서 잘린 반증은 필요량이
+    $2.4330 이상이었으므로 새 가격으로는 $4.866 이상이다 — 그날 끝까지 돈 두 회차의 최대
+    ($3.0299)보다 무겁다. 「넘기만 하면 된다」로 단언하면 여유가 줄어드는 것을 못 잡는다.
+
+    Given: 알려진 가장 무거운 단계의 필요량(하한)
     When: 단계 상한을 본다
-    Then: 그보다 넉넉히 위에 있다
+    Then: 그보다 약 1.6배 이상 위에 있다
     """
-    measured_max_usd = 2.4330
+    heaviest_known_step_usd = 2.4330 * 2
+    headroom = 1.6
 
-    assert entrypoint.DEFAULT_BUDGET_USD > measured_max_usd, "정상으로 확인된 단계 비용보다 낮은 상한은 폭주가 아니라 «작업»을 자른다"
+    assert (
+        entrypoint.DEFAULT_BUDGET_USD >= heaviest_known_step_usd * headroom
+    ), "정상으로 확인된 단계 비용에 여유가 없는 상한은 폭주가 아니라 «작업»을 자른다"
 
 
 def test_the_loop_produces_the_requested_number_of_dossiers(entrypoint: Any, monkeypatch: pytest.MonkeyPatch) -> None:
