@@ -1,0 +1,19 @@
+{
+  "settled": [
+    "explore",
+    "collect",
+    "rebut",
+    "lineage",
+    "feasibility",
+    "mechanism",
+    "measurement",
+    "verdict"
+  ],
+  "skipped": [
+    "explore"
+  ],
+  "candidate": {
+    "claim": "국내 상장사가 자사주 매입을 공시한 다음날 매수해 단기(수주~수개월) 보유한다",
+    "identifier": "kr-buyback-next-day"
+  }
+}

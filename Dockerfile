@@ -18,10 +18,15 @@ FROM python:3.12-slim
 #
 # git 을 넣는 이유는 에이전트가 저장소 상태를 읽을 수 있어야 해서이고, ca-certificates 는
 # 웹 조회에 필요하다
+#
+# [중요] 버전을 고정한다. 고정하지 않으면 다시 빌드할 때마다 CLI 가 바뀌어 응답 모양 같은
+# 동작이 에러 없이 달라진다. [실측 2026-09-23] 러너가 고정한 모델(`agent/invoke.py` 의 MODEL)은
+# 2.1.280 이상만 받는다 — 2.1.270 에서는 400 으로 거부됐다. 모델을 바꿀 때는 이 버전이
+# 그 모델을 받는지 먼저 본다
 RUN apt-get update \
  && apt-get install -y --no-install-recommends nodejs npm ca-certificates git \
  && rm -rf /var/lib/apt/lists/* \
- && npm install -g @anthropic-ai/claude-code \
+ && npm install -g @anthropic-ai/claude-code@2.1.280 \
  && npm cache clean --force
 
 # 컨테이너 «안» 경로는 고정한다. 호스트 경로는 바깥에서 주입한다 —

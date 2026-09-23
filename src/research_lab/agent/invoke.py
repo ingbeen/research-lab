@@ -28,6 +28,16 @@ CLAUDE_BINARY: Final = "claude"
 # 아티팩트는 VSCode diff 흐름 밖이고, 무인 실행에서는 볼 사람도 없다
 DEFAULT_TOOLS: Final = ("WebSearch", "WebFetch", "Read", "Write", "Glob", "Grep")
 
+# 모든 단계가 쓰는 모델. **별칭(`opus`)이 아니라 전체 ID 로 적는다** — 별칭은 다음 모델이
+# 나오는 날 가리키는 대상이 바뀌고, 지정을 빼면 CLI 기본값을 따른다. 둘 다 에러 없이
+# 회차의 모델이 달라진다. [실측 2026-09-23] 이 모델은 Claude Code 2.1.280 이상만 받으므로
+# 바꿀 때는 Dockerfile 이 고정한 버전이 그 모델을 받는지 먼저 본다
+MODEL: Final = "claude-opus-5-5"
+
+# [중요] 모델과 «함께» 명시한다. Opus 5.5 는 effort 를 안 주면 `medium` 으로 돈다 —
+# 모델을 올리면서 effort 는 오히려 내려간다
+EFFORT: Final = "xhigh"
+
 # [중요] **쓰지 않는 플래그.** 코드 주석이 아니라 이 계층의 계약으로 박는다.
 #
 # - `--no-session-persistence`: 세션 로그가 안 남아 **폭주 감지 fallback 이 통째로 사라진다**
@@ -117,6 +127,10 @@ def build_command(
         prompt,
         "--output-format",
         "json",
+        "--model",
+        MODEL,
+        "--effort",
+        EFFORT,
         "--session-id",
         session_id,
         "--permission-mode",

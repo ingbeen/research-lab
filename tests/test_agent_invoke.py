@@ -98,6 +98,38 @@ def test_tools_are_narrowed() -> None:
     assert command[command.index("--tools") + 1] == ",".join(invoke.DEFAULT_TOOLS)
 
 
+def test_model_is_pinned_by_full_id() -> None:
+    """
+    목적: 모델을 «전체 ID»로 고정하는 계약을 고정한다.
+
+    지정하지 않으면 CLI 기본값을 따르고, 별칭(`opus`)을 쓰면 다음 모델이 나오는 날
+    가리키는 대상이 바뀐다 — 둘 다 **에러 없이** 회차의 모델이 달라진다.
+
+    Given: 기본 인자
+    When: 명령을 만든다
+    Then: `--model` 이 전체 ID 로 들어 있다
+    """
+    command = _command()
+
+    assert command[command.index("--model") + 1] == "claude-opus-5-5"
+
+
+def test_effort_is_explicit() -> None:
+    """
+    목적: effort 를 명시하는 계약을 고정한다.
+
+    Opus 5.5 는 effort 를 안 주면 `medium` 으로 돈다 — 모델을 올리면서 effort 는
+    오히려 내려가는데 **에러는 안 난다.**
+
+    Given: 기본 인자
+    When: 명령을 만든다
+    Then: `--effort xhigh` 가 들어 있다
+    """
+    command = _command()
+
+    assert command[command.index("--effort") + 1] == "xhigh"
+
+
 def test_artifact_tool_is_not_granted() -> None:
     """
     목적: 산출물이 «파일»로 남게 하는 계약을 고정한다.
