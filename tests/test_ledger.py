@@ -808,3 +808,170 @@ def test_status_of_an_unknown_candidate_is_none(tmp_path: Path) -> None:
     Then: None 이 돌아온다
     """
     assert ledger.status_of(tmp_path / "없는원장.md", "아무 후보") is None
+
+
+# --------------------------------------------------------------------------
+# 줄바꿈 · 빈 값
+#
+# 한 줄 주장은 에이전트가 낸 값이라 «한 줄»이라는 보장이 없다. 줄바꿈이 섞이면 한 번 담은
+# 후보가 원장에서 두 줄로 쪼개지고, 뒷줄이 후보 줄 모양이면 **에이전트가 낸 적 없는 후보**로
+# 읽힌다. 정규형이 비는 주장은 **아무것도 읽히지 않는 줄**로 쌓인다. 둘 다 예외가 없다.
+# --------------------------------------------------------------------------
+
+MULTILINE_CLAIM = "소형주를 12월 말에 산다\n- [ ] 주입된 후보"
+
+
+def test_a_claim_with_a_newline_stays_one_entry(tmp_path: Path) -> None:
+    """
+    목적: [중요] 줄바꿈이 든 주장을 담아도 원장 항목이 «하나»인 계약을 고정한다.
+
+    쪼개지면 뒷줄이 새 후보로 끼어들어 수집이 그것을 판다. 원장은 **중복 방지의 전부**라
+    한 번 들어간 줄은 사람이 지우기 전까지 남는다.
+
+    Given: 줄바꿈 뒤에 후보 줄 모양이 이어지는 주장
+    When: 담고 읽는다
+    Then: 항목이 정확히 하나다
+    """
+    path = tmp_path / "원장.md"
+
+    ledger.append(path, MULTILINE_CLAIM, identifier="x")
+
+    assert len(ledger.load(path)) == 1
+
+
+def test_a_claim_with_a_newline_is_caught_as_a_duplicate(tmp_path: Path) -> None:
+    """
+    목적: 줄바꿈이 든 주장도 «중복으로 걸리는» 계약을 고정한다.
+
+    담는 쪽과 읽는 쪽의 형태가 갈리면 같은 주장이 매번 새 후보로 보이고,
+    탐색이 재시도될 때마다 쪼개진 줄이 또 쌓인다.
+
+    Given: 줄바꿈이 든 주장을 이미 담은 원장
+    When: 같은 주장을 다시 담는다
+    Then: 담기지 않고 항목도 늘지 않는다
+    """
+    path = tmp_path / "원장.md"
+    ledger.append(path, MULTILINE_CLAIM, identifier="x")
+
+    assert ledger.append(path, MULTILINE_CLAIM, identifier="x") is False
+    assert len(ledger.load(path)) == 1
+
+
+def test_a_claim_with_a_newline_can_still_be_marked(tmp_path: Path) -> None:
+    """
+    목적: 줄바꿈이 든 주장으로도 «표시를 바꿀 수 있는» 계약을 고정한다.
+
+    못 찾으면 `UnknownCandidateError` 가 오르고, 탐색은 담은 «뒤에» 기각을 적으므로
+    그 예외가 탐색 단계 전체를 「그 외」 실패로 만든다 — 재시도가 같은 일을 반복한다.
+
+    Given: 줄바꿈이 든 주장을 담은 원장
+    When: 그 주장 그대로 표시를 묻고 · 기각하고 · 판 것으로 표시한다
+    Then: 모두 그 줄을 찾는다
+    """
+    path = tmp_path / "원장.md"
+    ledger.append(path, MULTILINE_CLAIM)
+
+    assert ledger.status_of(path, MULTILINE_CLAIM) is ledger.Status.UNEXPLORED
+    ledger.mark_rejected(path, MULTILINE_CLAIM, "사유")
+    assert ledger.status_of(path, MULTILINE_CLAIM) is ledger.Status.REJECTED
+    ledger.mark_explored(path, MULTILINE_CLAIM)
+    assert ledger.status_of(path, MULTILINE_CLAIM) is ledger.Status.EXPLORED
+
+
+def test_a_hand_written_row_with_extra_spaces_still_blocks_duplicates(tmp_path: Path) -> None:
+    """
+    목적: [중요] «읽는 쪽»도 같은 정규형을 지나는 계약을 고정한다.
+
+    쓰는 쪽만 공백을 접으면, 사람이 공백 두 칸이나 탭을 넣어 적은 줄이 담는 쪽의 형태와
+    갈려 **같은 후보가 새 후보로 또 담긴다.** 한쪽만 정규화하면 에러 없이 어긋난다.
+
+    Given: 사람이 공백 두 칸과 탭을 섞어 적은 줄
+    When: 공백 하나짜리 같은 주장을 담고 · 기각한다
+    Then: 담기지 않고 기각은 그 줄을 찾는다
+    """
+    path = tmp_path / "원장.md"
+    path.write_text("- [ ] 11월에  사서\t4월에 판다\n", encoding="utf-8")
+
+    assert ledger.append(path, "11월에 사서 4월에 판다") is False
+    ledger.mark_rejected(path, "11월에 사서 4월에 판다", "사유")
+    assert ledger.status_of(path, "11월에 사서 4월에 판다") is ledger.Status.REJECTED
+
+
+def test_a_claim_that_is_empty_after_normalizing_is_refused(tmp_path: Path) -> None:
+    """
+    목적: 정규형이 «빈» 주장을 담지 않고 거부하는 계약을 고정한다.
+
+    담으면 `- [ ] ` 만 남은 줄이 되어 **아무것도 읽히지 않는다** — 원장은 그대로인데
+    파일에는 읽히지 않는 줄이 회차마다 쌓인다. 외부에서 온 값이라 입력 검증으로 막는다.
+
+    Given: 백틱만 있는 주장 · 공백과 줄바꿈만 있는 주장
+    When: 담는다
+    Then: 거부되고 원장 파일이 생기지 않는다
+    """
+    path = tmp_path / "원장.md"
+
+    for empty in ("```", "  \n\t ", "` `"):
+        with pytest.raises(ValueError):
+            ledger.append(path, empty)
+
+    assert not path.exists()
+
+
+def test_the_canonical_form_does_not_change_when_applied_again() -> None:
+    """
+    목적: [중요] 정규 형태가 «두 번 지나도 같은» 계약을 고정한다.
+
+    쓸 때 한 번 지난 주장을 읽을 때 다시 지난다. 한 번과 두 번의 결과가 갈리면
+    담은 후보가 읽을 때 다른 글자가 되어 **중복 판정과 표시 바꾸기가 에러 없이 어긋난다.**
+
+    Given: 백틱과 공백이 섞여 시작하는 주장들
+    When: 정규 형태를 한 번 · 두 번 만든다
+    Then: 둘이 같다
+    """
+    for claim in ("` `소형주를 산다", "`` ` 소형주를 산다", "\n`\t` 소형주를 산다", "  `spy` — 20일 돌파에 산다"):
+        once = ledger.canonical_claim(claim)
+
+        assert ledger.canonical_claim(once) == once, claim
+
+
+def test_a_claim_starting_with_mixed_backticks_and_spaces_round_trips(tmp_path: Path) -> None:
+    """
+    목적: 백틱과 공백이 섞여 시작하는 주장도 «중복으로 걸리고 표시가 바뀌는» 계약을 고정한다.
+
+    Given: 「` `」 로 시작하는 주장을 담은 원장
+    When: 같은 주장을 다시 담고 · 기각한다
+    Then: 담기지 않고 항목은 하나이며 기각이 그 줄을 찾는다
+    """
+    path = tmp_path / "원장.md"
+    claim = "` `소형주를 12월 말에 산다"
+    ledger.append(path, claim, identifier="x")
+
+    assert ledger.append(path, claim, identifier="x") is False
+    assert len(ledger.load(path)) == 1
+    ledger.mark_rejected(path, claim, "사유")
+    assert ledger.status_of(path, claim) is ledger.Status.REJECTED
+
+
+def test_a_later_row_with_the_same_claim_is_not_picked(tmp_path: Path) -> None:
+    """
+    목적: [중요] 같은 주장이 두 줄이면 «앞 줄»이 그 후보인 계약을 고정한다.
+
+    표시를 묻는 쪽과 바꾸는 쪽은 앞 줄을 본다. 다음 후보를 고르는 쪽만 뒤 줄을 꺼내면,
+    그 후보는 뒤 단계에서 「이미 판 것」으로 건너뛰어지고 표시는 앞 줄에만 적혀
+    **같은 후보를 회차마다 다시 꺼내며 수집 호출만 태운다.** 사람이 손으로 고치는
+    파일이라 공백만 다른 줄이나 같은 줄이 다시 들어올 수 있다.
+
+    Given: 이미 판 줄 뒤에 공백만 다른 같은 주장 · 글자까지 같은 주장이 안 판 줄로 있는 원장
+    When: 다음에 팔 후보를 묻는다
+    Then: 그 둘을 건너뛰고 다른 후보가 돌아온다
+    """
+    path = tmp_path / "원장.md"
+    path.write_text(
+        "- [x] 11월에  사서 4월에 판다\n- [ ] 11월에 사서 4월에 판다\n- [ ] 11월에  사서 4월에 판다\n- [ ] 다른 후보\n",
+        encoding="utf-8",
+    )
+
+    candidate = ledger.next_unexplored(path)
+
+    assert candidate is not None
+    assert candidate.claim == "다른 후보"

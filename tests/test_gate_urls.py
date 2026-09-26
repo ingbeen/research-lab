@@ -12,6 +12,7 @@
 무엇이 들어오면 무엇으로 판정하는지가 테스트에 그대로 적힌다.
 """
 
+import email.message
 import urllib.error
 import urllib.request
 from typing import Any
@@ -271,7 +272,7 @@ def test_non_string_urls_do_not_crash() -> None:
     When: 찔러 보고 검사한다
     Then: 예외가 나지 않는다
     """
-    probed = urls.probe_all([None, 3, "https://example.com/a"], probe=_probe_of({}))  # type: ignore[list-item]
+    probed = urls.probe_all([None, 3, "https://example.com/a"], probe=_probe_of({}))
 
     assert urls.shortfall_reason(probed) is None
 
@@ -408,7 +409,7 @@ def test_head_refusal_falls_back_to_get(monkeypatch: pytest.MonkeyPatch) -> None
     def fake_urlopen(request: Any, timeout: float | None = None) -> _FakeResponse:
         seen.append(request.get_method())
         if request.get_method() == "HEAD":
-            raise urllib.error.HTTPError(request.full_url, 405, "Method Not Allowed", {}, None)  # type: ignore[arg-type]
+            raise urllib.error.HTTPError(request.full_url, 405, "Method Not Allowed", email.message.Message(), None)
         return _FakeResponse(200)
 
     monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
@@ -438,7 +439,7 @@ def test_head_404_is_confirmed_with_get(monkeypatch: pytest.MonkeyPatch) -> None
     def fake_urlopen(request: Any, timeout: float | None = None) -> _FakeResponse:
         seen.append(request.get_method())
         if request.get_method() == "HEAD":
-            raise urllib.error.HTTPError(request.full_url, 404, "Not Found", {}, None)  # type: ignore[arg-type]
+            raise urllib.error.HTTPError(request.full_url, 404, "Not Found", email.message.Message(), None)
         return _FakeResponse(200)
 
     monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
@@ -463,7 +464,7 @@ def test_head_404_stays_dead_when_get_agrees(monkeypatch: pytest.MonkeyPatch) ->
     """
 
     def fake_urlopen(request: Any, timeout: float | None = None) -> _FakeResponse:
-        raise urllib.error.HTTPError(request.full_url, 404, "Not Found", {}, None)  # type: ignore[arg-type]
+        raise urllib.error.HTTPError(request.full_url, 404, "Not Found", email.message.Message(), None)
 
     monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
 
@@ -489,7 +490,7 @@ def test_head_404_becomes_unknown_when_get_cannot_answer(monkeypatch: pytest.Mon
 
     def fake_urlopen(request: Any, timeout: float | None = None) -> _FakeResponse:
         if request.get_method() == "HEAD":
-            raise urllib.error.HTTPError(request.full_url, 404, "Not Found", {}, None)  # type: ignore[arg-type]
+            raise urllib.error.HTTPError(request.full_url, 404, "Not Found", email.message.Message(), None)
         raise TimeoutError("끊김")
 
     monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
@@ -516,7 +517,7 @@ def test_the_head_verdict_survives_in_the_detail(monkeypatch: pytest.MonkeyPatch
 
     def fake_urlopen(request: Any, timeout: float | None = None) -> _FakeResponse:
         if request.get_method() == "HEAD":
-            raise urllib.error.HTTPError(request.full_url, 404, "Not Found", {}, None)  # type: ignore[arg-type]
+            raise urllib.error.HTTPError(request.full_url, 404, "Not Found", email.message.Message(), None)
         raise TimeoutError("끊김")
 
     monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
@@ -566,7 +567,7 @@ def test_http_error_becomes_a_verdict(monkeypatch: pytest.MonkeyPatch) -> None:
     """
 
     def fake_urlopen(request: Any, timeout: float | None = None) -> _FakeResponse:
-        raise urllib.error.HTTPError(request.full_url, 404, "Not Found", {}, None)  # type: ignore[arg-type]
+        raise urllib.error.HTTPError(request.full_url, 404, "Not Found", email.message.Message(), None)
 
     monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
 

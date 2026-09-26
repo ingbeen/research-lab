@@ -4,8 +4,9 @@
 때문이고, 그렇게 만들어진 합의는 「여러 소스에서 확인됨」이라는 라벨을 달고 온다.
 계보표는 그 라벨을 벗겨 **「세 곳에서 확인」이 아니라 「한 원본 · 복제 두 곳」**으로 적게 한다.
 
-[중요] 게이트가 보는 것은 둘뿐이다 — 독립 소스 «수»가 적혔나, 그리고 모았던 출처가
-**하나도 빠지지 않고** 계보표에 들어갔나. 어느 것이 진짜 원본인지는 판정하지 않는다.
+[중요] 게이트가 보는 것은 하나뿐이다 — 모았던 출처가 **하나도 빠지지 않고** 계보표에
+들어갔나. 어느 것이 진짜 원본인지는 판정하지 않는다. 독립 소스 «수»는 에이전트가 적지 않고
+러너가 덩어리 수로 센다.
 
 [중요] **검색어 하한을 걸지 않는다.** 계보는 이미 모은 출처를 보는 일이라 하한을 걸면
 억지 검색을 유발한다 — 게이트가 규율을 만드는 것이 아니라 규율을 흉내 내게 만드는 자리다.
@@ -41,19 +42,20 @@ def test_complete_lineage_passes() -> None:
     assert reason is None
 
 
-def test_missing_independent_source_count_is_blocked() -> None:
+def test_the_gate_does_not_ask_for_the_independent_source_count() -> None:
     """
-    목적: 「복제를 뺀 진짜 소스 수」가 없으면 막는 계약을 고정한다.
+    목적: 게이트가 「복제를 뺀 진짜 소스 수」를 «요구하지 않는» 계약을 고정한다.
 
-    그 숫자가 이 단계의 산출물이다. 없으면 계보표는 출처를 나열한 표일 뿐이다.
+    정의상 자기 혼자인 덩어리가 독립 1 이라 그 수는 덩어리 수와 같다. 에이전트에게 적게 하면
+    틀려도 에러가 없으므로 러너가 센다 — 게이트가 요구하면 러너가 세는 값과 두 벌이 된다.
 
-    Given: 독립 소스 수가 없는 계보표
+    Given: 출처를 모두 다뤘고 독립 소스 수는 안 적은 계보표
     When: 검사한다
-    Then: 사유가 나온다
+    Then: 사유가 없다
     """
     payload = {"groups": [_group("https://example.com/원본", [])]}
 
-    assert lineage.shortfall_reason(payload, source_urls=["https://example.com/원본"]) is not None
+    assert lineage.shortfall_reason(payload, source_urls=["https://example.com/원본"]) is None
 
 
 def test_dropped_source_is_blocked() -> None:

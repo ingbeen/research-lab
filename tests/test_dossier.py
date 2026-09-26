@@ -19,6 +19,7 @@ from typing import Any
 import pytest
 
 from research_lab.common_constants import (
+    FEASIBILITY_FILENAME,
     LINEAGE_FILENAME,
     MEASUREMENT_FILENAME,
     PRO_EVIDENCE_FILENAME,
@@ -401,6 +402,56 @@ def test_a_dict_value_is_written_as_prose(prepared: Any) -> None:
     assert "{'" not in written
     assert "코스피 동일가중" in written
     assert "달러 기준 러셀3000" in written
+
+
+def test_a_market_list_is_written_as_prose(prepared: Any) -> None:
+    """
+    목적: 「대상 시장」 자리도 «파이썬 표기»로 새지 않는 계약을 고정한다.
+
+    이 자리만 `_flatten` 을 안 지나면 시장이 목록으로 올 때 `['국내', '미국']` 이
+    문서에 실린다 — 문서에 값을 싣는 자리는 전부 같은 펴기를 지나야 한 곳만 새지 않는다.
+
+    Given: 대상 시장이 목록인 실현가능성 산출물
+    When: 조립한다
+    Then: 그 줄에 대괄호와 작은따옴표가 없고 두 시장이 읽힌다
+    """
+    ready = prepared()
+    found = json.loads((ready.output_dir / FEASIBILITY_FILENAME).read_text(encoding="utf-8"))
+    found["market"] = ["국내", "미국"]
+    (ready.output_dir / FEASIBILITY_FILENAME).write_text(json.dumps(found, ensure_ascii=False), encoding="utf-8")
+
+    written = _assembled(ready)
+
+    market_line = next(line for line in written.splitlines() if line.startswith("**대상 시장**"))
+    assert "[" not in market_line
+    assert "'" not in market_line
+    assert "국내" in market_line
+    assert "미국" in market_line
+
+
+def test_the_single_value_reason_slot_follows_the_gate(prepared: Any) -> None:
+    """
+    목적: 「격자가 한 값뿐인 이유」 칸을 싣는지를 «게이트와 같은 판정»으로 정하는 계약을 고정한다.
+
+    판정이 두 벌이면 한쪽은 「해명됐다」, 다른 쪽은 「안 적혔다」로 읽는다 — 게이트가 해명으로
+    통과시킨 한 값 격자가 사유 칸 없이 나가거나, 게이트가 빈 것으로 본 사유가
+    「(적히지 않았습니다)」 칸으로 찍힌다.
+
+    Given: 사유 자리에 빈 값만 든 목록인 산출물 · 숫자 0 인 산출물
+    When: 각각 조립한다
+    Then: 빈 목록이면 그 칸이 없고, 0 이면 그 칸이 있다 (게이트는 0 을 적힌 것으로 본다)
+    """
+    ready = prepared()
+    plan = json.loads((ready.output_dir / MEASUREMENT_FILENAME).read_text(encoding="utf-8"))
+
+    label = dict(dossier._MEASUREMENT_SLOTS)[measurement_gate.KEY_SINGLE_VALUE_REASON]
+    for reason, rendered in (([""], False), (0, True)):
+        plan[measurement_gate.KEY_SINGLE_VALUE_REASON] = reason
+        (ready.output_dir / MEASUREMENT_FILENAME).write_text(json.dumps(plan, ensure_ascii=False), encoding="utf-8")
+
+        written = _assembled(ready)
+
+        assert (label in written) is rendered, reason
 
 
 def test_table_cells_are_written_as_prose_not_as_code(prepared: Any) -> None:

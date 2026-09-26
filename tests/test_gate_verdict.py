@@ -104,6 +104,24 @@ def test_a_missing_criteria_is_a_shortfall() -> None:
     assert "criteria" in reason
 
 
+def test_a_slot_holding_only_empty_values_is_a_shortfall() -> None:
+    """
+    목적: [중요] 빈 값만 담은 목록·절도 «빈 자리»로 막는 계약을 고정한다.
+
+    `str([""])` 는 `"['']"` 라 비어 있지 않다. 안 파고들면 **게이트는 「적혔다」로 읽고
+    조립부는 「적히지 않았습니다」로 찍어**, 기준이 빈 판정이 완성본으로 나간다.
+
+    Given: 적용한 기준 자리에 빈 값만 든 목록 · 절 · 겹친 목록이 온 산출물
+    When: 검사한다
+    Then: 모두 그 자리를 가리키는 사유가 돌아온다
+    """
+    for hollow in ([""], {"k": ""}, [[]]):
+        reason = verdict.shortfall_reason(_filled(criteria=hollow))
+
+        assert reason is not None, hollow
+        assert "criteria" in reason
+
+
 def test_any_shape_is_survivable() -> None:
     """
     목적: [중요] 어떤 입력에도 «예외를 올리지 않는» 계약을 고정한다 (계층 계약 §5).

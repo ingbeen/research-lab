@@ -4,10 +4,10 @@
 때문이고, 그렇게 만들어진 합의는 「여러 소스에서 확인됨」이라는 라벨을 달고 온다.
 계보표는 그 라벨을 벗겨 **「세 곳에서 확인」이 아니라 「한 원본 · 복제 두 곳」**으로 적게 한다.
 
-[중요] 보는 것은 둘뿐이다 — **복제를 뺀 진짜 소스 수**가 적혔나, 그리고 모았던 출처가
-**하나도 빠지지 않고** 계보표에 들어갔나. 어느 것이 진짜 원본인지는 판정하지 않는다.
-출처를 빠뜨리고 「독립 세 곳」이라 적으면 그 숫자가 통째로 틀리는데, **그 고장은
-에러를 내지 않는다** — 표는 그럴듯하게 완성된 것처럼 보인다.
+[중요] 보는 것은 하나뿐이다 — 모았던 출처가 **하나도 빠지지 않고** 계보표에 들어갔나.
+어느 것이 진짜 원본인지는 판정하지 않는다. 출처를 빠뜨리면 덩어리로 세는 「독립 몇 곳」이
+통째로 틀리는데, **그 고장은 에러를 내지 않는다** — 표는 그럴듯하게 완성된 것처럼 보인다.
+복제를 뺀 진짜 소스 수는 보지 않는다 — 정의상 덩어리 수와 같아 러너가 센다.
 
 [중요] **검색어 하한을 걸지 않는다.** 계보는 이미 모은 출처를 보는 일이라 하한을 걸면
 억지 검색을 유발한다 — 게이트가 규율을 만드는 대신 규율을 «흉내 내게» 만드는 자리다.
@@ -18,7 +18,6 @@ from typing import Any, Final
 from urllib.parse import urlsplit
 
 KEY_GROUPS: Final = "groups"
-KEY_INDEPENDENT_SOURCE_COUNT: Final = "independent_source_count"
 
 # 사유에 실을 빠진 URL 의 최대 개수. 전부 실으면 실패 원문이 통째로 URL 목록이 된다
 MAX_LISTED_MISSING: Final = 5
@@ -80,13 +79,6 @@ def shortfall_reason(payload: Mapping[str, Any], *, source_urls: Iterable[str]) 
     품질 실패는 회차 안에서 재시도되지 않으므로 그 오탐은 회차를 통째로 태우고,
     세 번이면 **후보가 원장에서 걷힌다.**
     """
-    count: Any = payload.get(KEY_INDEPENDENT_SOURCE_COUNT)
-    if not isinstance(count, int) or isinstance(count, bool):
-        return (
-            f"복제를 뺀 진짜 소스 수(`{KEY_INDEPENDENT_SOURCE_COUNT}`)가 없거나 정수가 아닙니다. "
-            f"그 숫자가 이 단계의 산출물입니다 — 없으면 계보표는 출처를 나열한 표일 뿐입니다."
-        )
-
     expected = {normalize_url(url): url for url in source_urls if normalize_url(url)}
     covered = _covered(payload.get(KEY_GROUPS))
 
@@ -99,7 +91,7 @@ def shortfall_reason(payload: Mapping[str, Any], *, source_urls: Iterable[str]) 
     return (
         f"모았던 출처가 계보표에서 빠졌습니다: {listed}{tail}. "
         f"찬성·반증이 연 URL 은 «전부» 원본이나 복제 중 한 자리에 놓여야 합니다 — "
-        f"빠뜨린 채 독립 소스 수를 적으면 그 숫자가 틀리고, 그 고장은 에러를 내지 않습니다."
+        f"빠뜨리면 덩어리로 세는 독립 소스 수가 틀리고, 그 고장은 에러를 내지 않습니다."
     )
 
 

@@ -150,7 +150,7 @@ def test_scan_scope_excludes_the_repository_root() -> None:
     When: 목록을 본다
     Then: 저장소 루트·문서·테스트가 들어 있지 않다
     """
-    roots = set(secrets.scan_roots(common_constants.RUNS_DIR / "20260101_0100"))
+    roots = set(secrets.scan_roots(common_constants.RUNS_DIR / "20260101_0100", ledger_dir=common_constants.LEDGER_DIR))
 
     assert common_constants.BASE_DIR not in roots
     assert common_constants.DOCS_DIR not in roots
@@ -171,7 +171,7 @@ def test_scan_scope_covers_everything_the_cycle_writes() -> None:
     """
     run_dir = common_constants.RUNS_DIR / "20260101_0100"
     written = common_constants.DOSSIER_DIR / "20260101_pead-us.md"
-    roots = set(secrets.scan_roots(run_dir, dossier_path=written))
+    roots = set(secrets.scan_roots(run_dir, ledger_dir=common_constants.LEDGER_DIR, dossier_path=written))
 
     assert run_dir in roots
     assert written in roots
@@ -192,7 +192,7 @@ def test_scan_scope_does_not_include_past_cycles() -> None:
     When: 목록을 본다
     Then: `runs/` 전체가 아니라 그 회차의 폴더 하나만 들어 있다
     """
-    roots = set(secrets.scan_roots(common_constants.RUNS_DIR / "20260102_0100"))
+    roots = set(secrets.scan_roots(common_constants.RUNS_DIR / "20260102_0100", ledger_dir=common_constants.LEDGER_DIR))
 
     assert common_constants.RUNS_DIR not in roots
 
@@ -213,6 +213,7 @@ def test_scan_scope_does_not_include_past_dossiers() -> None:
     roots = set(
         secrets.scan_roots(
             common_constants.RUNS_DIR / "20260102_0100",
+            ledger_dir=common_constants.LEDGER_DIR,
             dossier_path=common_constants.DOSSIER_DIR / "20260102_pead-us.md",
         )
     )
@@ -232,7 +233,46 @@ def test_a_cycle_without_a_dossier_still_has_a_scope() -> None:
     Then: 실행 폴더와 원장은 그대로 들어 있다
     """
     run_dir = common_constants.RUNS_DIR / "20260103_0100"
-    roots = set(secrets.scan_roots(run_dir))
+    roots = set(secrets.scan_roots(run_dir, ledger_dir=common_constants.LEDGER_DIR))
 
     assert run_dir in roots
     assert common_constants.LEDGER_DIR in roots
+
+
+def test_the_scope_follows_the_ledger_it_is_given(tmp_path: Path) -> None:
+    """
+    목적: [중요] 검사 범위의 원장 폴더가 «넘겨받은 원장의 폴더»인 계약을 고정한다.
+
+    기본 원장 자리를 상수로 박으면 다른 원장을 쓴 회차는 **실제로 쓴 원장을 검사하지 않고**
+    기본 원장을 검사한다 — 통과를 알리면서 아무것도 안 본 것이다.
+
+    Given: 기본이 아닌 자리의 원장 폴더
+    When: 검사 범위를 만든다
+    Then: 그 폴더가 들어 있고 기본 원장 폴더는 없다
+    """
+    used = tmp_path / "다른원장"
+    roots = set(secrets.scan_roots(common_constants.RUNS_DIR / "20260104_0100", ledger_dir=used))
+
+    assert used in roots
+    assert common_constants.LEDGER_DIR not in roots
+
+
+def test_a_leftover_temporary_ledger_file_is_scanned(tmp_path: Path) -> None:
+    """
+    목적: [중요] 원장 폴더에 남은 «임시 파일»도 검사받는 계약을 고정한다.
+
+    원장은 임시 파일에 쓰고 바꿔 끼우는데, 강제 종료되면 그 임시 파일이 남아 그대로 커밋된다.
+    원장 «파일»만 넘기면 그 파일이 검사에서 빠지고, **빠진 사실은 아무 소리도 내지 않는다.**
+
+    Given: 원장 옆에 자격증명 모양이 든 임시 파일이 남은 원장 폴더
+    When: 그 회차의 범위를 스캔한다
+    Then: 임시 파일에서 발견된다
+    """
+    ledger_dir = tmp_path / "ledger"
+    ledger_dir.mkdir()
+    (ledger_dir / "원장.md").write_text("- [ ] 멀쩡한 후보\n", encoding="utf-8")
+    (ledger_dir / "원장.md.tmp").write_text(f"- [ ] {OAUTH_TOKEN_SHAPED}\n", encoding="utf-8")
+
+    findings = secrets.scan(secrets.scan_roots(tmp_path / "run", ledger_dir=ledger_dir))
+
+    assert [finding.path.name for finding in findings] == ["원장.md.tmp"]

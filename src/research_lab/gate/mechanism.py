@@ -15,6 +15,8 @@
 from collections.abc import Mapping
 from typing import Any, Final
 
+from research_lab.gate.filled import is_filled
+
 KEY_EDGE: Final = "edge"
 KEY_DECAY: Final = "decay"
 
@@ -63,22 +65,9 @@ def shortfall_reason(payload: Mapping[str, Any]) -> str | None:
             return f"{ordinal} 칸(`{section_key}`)이 없거나 절이 아닙니다. 그 칸이 비면 근거 문서가 미완성이 됩니다."
 
         for key, label in fields:
-            if not _is_filled(section.get(key)):
+            if not is_filled(section.get(key)):
                 return (
                     f"{ordinal} 칸의 「{label}」(`{key}`)가 비어 있습니다. " f"해당하지 않으면 «「해당 없음」과 그 이유»를 적으세요 — 빈 채로 두는 것과 다릅니다."
                 )
 
     return None
-
-
-def _is_filled(value: Any) -> bool:
-    """그 자리가 «채워졌나».
-
-    [주의] 답의 «내용»은 보지 않는다. 「해당 없음」 한 줄도 채운 것이다 —
-    여기서 내용을 따지기 시작하면 게이트가 또 하나의 판단자가 된다.
-    """
-    if value is None:
-        return False
-    if isinstance(value, list | tuple | set | dict) and not value:
-        return False
-    return bool(str(value).strip())

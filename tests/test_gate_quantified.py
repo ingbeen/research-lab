@@ -128,6 +128,23 @@ def test_parameter_without_a_name_does_not_count() -> None:
     assert quantified.shortfall_reason(claim, parameters) is not None
 
 
+def test_a_name_holding_only_empty_values_does_not_count() -> None:
+    """
+    목적: 빈 값만 담은 목록·절 이름도 «이름 없음»으로 보는 계약을 고정한다.
+
+    `str([""])` 는 `"['']"` 라 비어 있지 않아, 안 파고들면 이름 없는 축이 해명으로 세어진다.
+    탐색과 수집에는 응답 모양을 강제하는 스키마가 없다.
+
+    Given: 이름 자리에 빈 값만 든 목록 · 절 · 겹친 목록이 온 파라미터
+    When: 검사한다
+    Then: 모두 막힌다
+    """
+    for hollow in ([""], {"k": ""}, [[]]):
+        parameters = [{"name": hollow, "unit": "거래일", "candidates": [5, 20]}]
+
+        assert quantified.shortfall_reason("단기 보유한다", parameters) is not None, hollow
+
+
 def test_malformed_parameters_do_not_crash_the_gate() -> None:
     """
     목적: 모양이 어긋난 입력에 게이트가 «죽지 않는» 계약을 고정한다.

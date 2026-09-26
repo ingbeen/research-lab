@@ -583,6 +583,37 @@ def test_a_dossier_count_below_one_is_rejected(entrypoint: Any, monkeypatch: pyt
         assert stopped.value.code != entrypoint.EXIT_LIMIT
 
 
+def test_a_step_budget_that_cannot_work_is_rejected(entrypoint: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    목적: [중요] 쓸 수 없는 단계 상한이면 «돌기 전에» 거부하는 계약을 고정한다.
+
+    인자 단계에서 안 막으면 각 단계 안에서야 터지고, 그 예외는 「그 외」로 분류돼
+    **간격을 두고 상한까지 재시도한 뒤 막힘 횟수에 센다.** 막힘 상한에 닿으면 수집 단계가
+    원장의 다음 후보를 집어 **물어본 적도 없는 후보를 걷어낸다.**
+
+    Given: 0 · 음수 · nan · inf 인 단계 상한
+    When: 회차를 부른다
+    Then: 돌기 전에 인자 오류 종료 코드로 끝난다
+    """
+    _stub_cycle(entrypoint, monkeypatch, outcomes=[_finished()], cost_usd=1.0)
+
+    for bad in ("0", "-1", "nan", "inf"):
+        with pytest.raises(SystemExit) as stopped:
+            entrypoint.main(["--budget-usd", bad, "--cycle-dossiers", "1"])
+        assert stopped.value.code == entrypoint.EXIT_USAGE, bad
+
+
+def test_a_usable_step_budget_is_accepted(entrypoint: Any) -> None:
+    """
+    목적: 거부 규칙이 «정상 값»까지 막지 않는 계약을 고정한다.
+
+    Given: 양의 유한한 단계 상한
+    When: 인자를 읽는다
+    Then: 그 값 그대로 읽힌다
+    """
+    assert entrypoint._parse_args(["--budget-usd", "8.0"]).budget_usd == 8.0
+
+
 def test_the_loop_stops_when_a_cycle_is_incomplete(entrypoint: Any, monkeypatch: pytest.MonkeyPatch) -> None:
     """
     목적: 미완성으로 끝나면 루프를 «멈추는» 계약을 고정한다.
@@ -684,6 +715,30 @@ def test_every_iteration_is_scanned_for_secrets(entrypoint: Any, monkeypatch: py
     assert len(scanned) == len(seen) > 1
     for run_dir, roots in zip(seen, scanned, strict=True):
         assert run_dir in roots
+
+
+def test_the_ledger_actually_used_is_scanned(entrypoint: Any, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """
+    목적: [중요] 자격증명 스캔이 «이 회차가 실제로 쓴» 원장을 보는 계약을 고정한다.
+
+    기본 원장 자리를 상수로 박으면 `--ledger` 로 다른 원장을 쓴 회차는 **실제로 쓴 원장을
+    검사하지 않고** 기본 원장을 검사한다 — 통과를 알리면서 아무것도 안 본 것이다.
+
+    Given: 기본이 아닌 원장을 지정한 회차
+    When: 회차를 돈다
+    Then: 검사 범위에 그 원장의 폴더가 있고 기본 원장 폴더는 없다
+    """
+    from research_lab.common_constants import LEDGER_DIR
+
+    scanned: list[tuple[Path, ...]] = []
+    _stub_cycle(entrypoint, monkeypatch, outcomes=[_finished()], cost_usd=1.0)
+    monkeypatch.setattr(entrypoint.secrets, "scan", lambda roots: scanned.append(tuple(roots)) or [])
+    used = tmp_path / "다른원장" / "원장.md"
+
+    entrypoint.main(["--ledger", str(used), "--cycle-dossiers", "1"])
+
+    assert used.parent in scanned[0]
+    assert LEDGER_DIR not in scanned[0]
 
 
 def test_a_secret_stops_the_loop_at_that_iteration(entrypoint: Any, monkeypatch: pytest.MonkeyPatch) -> None:

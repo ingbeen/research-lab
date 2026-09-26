@@ -102,14 +102,19 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
     queries = payload_helpers.as_strings(payload.get("queries"))
     candidates = payload_helpers.as_list(payload.get("candidates"))
 
+    decision_log.record(run_dir, "explore", decision_log.EVENT_READ, queries=queries, query_count=len(queries))
+    # [중요] 비용은 응답을 읽은 «직후»에 적는다. 아래의 파일·원장 기록은 `StepFailed` 가 아닌
+    # 예외(`OSError` 등)로도 죽는데, 그 길에는 비용을 실어 나를 자리가 없어 **이미 쓴 돈이
+    # 회차의 쓴 돈 · 토큰 · 한도 비율에서 통째로 빠진다**
+    decision_log.record_cost(run_dir, "explore", result)
+
     # 원문을 먼저 남긴다. 아래에서 무엇이 걸러지든 「에이전트가 무엇을 냈나」는 남아야 한다.
     # 반쯤 쓰다 끊기면 완성본 자리에 잘린 파일이 남으므로 원자적으로 바꾼다
     with atomic_write(run_dir / EXPLORE_RESULT_FILENAME) as file:
         json.dump(payload, file, ensure_ascii=False, indent=2)
 
-    decision_log.record(run_dir, "explore", decision_log.EVENT_READ, queries=queries, query_count=len(queries))
-
-    added, duplicates, rejected = _store(ledger_path, candidates)
+    considered, overflow = candidates[:MAX_CANDIDATES], candidates[MAX_CANDIDATES:]
+    added, duplicates, rejected, empty = _store(ledger_path, considered)
 
     decision_log.record(
         run_dir,
@@ -117,6 +122,7 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
         decision_log.EVENT_JUDGED,
         added=added,
         proposed=len(candidates),
+        considered=len(considered),
         rejected=len(rejected),
     )
     if duplicates:
@@ -127,12 +133,21 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
             reason="이미 원장에 있는 후보",
             claims=duplicates,
         )
+    if empty:
+        decision_log.record(run_dir, "explore", decision_log.EVENT_DISCARDED, reason="주장이 비어 있다", claims=empty)
     for claim, why in rejected:
         # 기각은 후보마다 사유가 다르므로 한 줄씩 남긴다. 묶어서 세면
         # 「무엇이 왜 걸렸나」가 사라져 사전을 고칠 재료가 없어진다
         decision_log.record(run_dir, "explore", decision_log.EVENT_DISCARDED, claim=claim, reason=why)
-
-    decision_log.record_cost(run_dir, "explore", result)
+    if overflow:
+        # 상한 밖은 보지도 않고 버린다. 기록 없이 자르면 에이전트가 무엇을 냈는지가 로그에서 사라진다
+        decision_log.record(
+            run_dir,
+            "explore",
+            decision_log.EVENT_DISCARDED,
+            reason=f"한 회차에 담는 후보 상한(MAX_CANDIDATES={MAX_CANDIDATES})을 넘었다",
+            claims=[_text_of(candidate, "claim") for candidate in overflow],
+        )
 
     # [중요] 후보를 «담은 뒤에» 검사한다. 찾은 후보를 버리면 그 회차가 통째로 헛돌고,
     # 다음 회차는 원장에 재고가 생겨 탐색을 건너뛰므로 이 실패가 반복되지도 않는다
@@ -142,15 +157,20 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
         raise StepQualityFailed(f"탐색 검색어 부족 — {shortfall}")
 
 
-def _store(ledger_path: Path, candidates: list[Any]) -> tuple[int, list[str], list[tuple[str, str]]]:
-    """후보를 원장에 담고, 담은 수와 중복·기각으로 버린 것을 돌려준다.
+def _store(ledger_path: Path, candidates: list[Any]) -> tuple[int, list[str], list[tuple[str, str]], list[str]]:
+    """후보를 원장에 담고, 담은 수와 중복·기각·빈 주장으로 버린 것을 돌려준다.
 
     [중요] **기각된 후보도 원장에 남긴다.** 지우면 다음 탐색이 같은 후보를 새 후보로
     다시 담고 그 회차가 또 기각한다 — 기각은 「본 적 없다」가 아니다.
+
+    [중요] 주장은 **원장의 정규 형태로 맞춘 뒤** 다룬다. 원장이 정규 형태로 읽히므로
+    여기서 에이전트가 낸 글자 그대로 비교하면 줄바꿈 하나에 중복 판정이 어긋난다.
+    정규 형태가 비는 주장은 원장이 거부하므로 담기 «전»에 걸러 에이전트가 낸 글자 그대로 돌려준다.
     """
     added = 0
     duplicates: list[str] = []
     rejected: list[tuple[str, str]] = []
+    empty: list[str] = []
     # 중복은 «여기서» 먼저 걸러 낸다. 그래야 같은 후보를 두 번 낸 응답이 파일을 두 번
     # 건드리지 않는다.
     #
@@ -160,9 +180,11 @@ def _store(ledger_path: Path, candidates: list[Any]) -> tuple[int, list[str], li
     # 한 번에 모아 쓰는 쪽으로 바꾼다
     seen = {entry.claim for entry in ledger.load(ledger_path)}
 
-    for candidate in candidates[:MAX_CANDIDATES]:
-        claim = _text_of(candidate, "claim")
+    for candidate in candidates:
+        written = _text_of(candidate, "claim")
+        claim = ledger.canonical_claim(written)
         if not claim:
+            empty.append(written)
             continue
         if claim in seen:
             duplicates.append(claim)
@@ -182,7 +204,7 @@ def _store(ledger_path: Path, candidates: list[Any]) -> tuple[int, list[str], li
         ledger.mark_rejected(ledger_path, claim, shortfall)
         rejected.append((claim, shortfall))
 
-    return added, duplicates, rejected
+    return added, duplicates, rejected, empty
 
 
 def _text_of(candidate: Any, key: str) -> str:

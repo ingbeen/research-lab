@@ -27,7 +27,7 @@ import pytest
 
 from research_lab import common_constants
 from research_lab.gate import selfcontained
-from research_lab.runner import steps
+from research_lab.runner import feasibility, steps
 
 # 훑을 깊이 상한. 프롬프트를 담는 상수는 문자열이거나 「목록 안의 문자열」 정도다
 _MAX_DEPTH = 6
@@ -86,3 +86,25 @@ def test_every_prompt_passes_the_gate_it_enforces(step: str) -> None:
     reason = selfcontained.shortfall_reason(_texts_of(module))
 
     assert reason is None, f"지시문이 자기가 금지한 표현을 쓰고 있습니다 — {reason}"
+
+
+def test_the_data_catalog_passes_the_gate_it_is_fed_into() -> None:
+    """
+    목적: [중요] 러너가 프롬프트에 «통째로» 싣는 데이터 카탈로그 본문도 게이트를 통과하는
+    계약을 고정한다.
+
+    그 본문은 모듈 상수가 아니라 파일이라 위 검사가 못 본다. 그런데 에이전트에게는
+    지시문과 똑같이 읽힌다 — 나간 근거 문서들이 「카탈로그에 …」 · 「카탈로그는 …」 으로
+    그 목록을 가리켰고, 그때 이 본문에도 같은 꼴(「카탈로그에 있다」 · 「이 카탈로그는」)이
+    적혀 있었다.
+
+    Given: 실현가능성 단계가 읽어 싣는 데이터 카탈로그 본문
+    When: 산출물에 걸던 것과 «같은» 게이트에 넣는다
+    Then: 걸리는 것이 없다
+    """
+    catalog = feasibility.load_catalog(common_constants.DATA_CATALOG_PATH)
+
+    reason = selfcontained.shortfall_reason({"데이터 카탈로그": catalog})
+
+    assert catalog, "카탈로그를 못 읽으면 이 검사가 빈 본문으로 통과한다"
+    assert reason is None, f"카탈로그 본문이 자기가 금지한 표현을 쓰고 있습니다 — {reason}"

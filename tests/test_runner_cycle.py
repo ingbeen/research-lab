@@ -190,7 +190,7 @@ def test_interrupted_cycle_resumes_at_the_failed_step(tmp_path: Path) -> None:
         if step == "explore":
             ledger.append(ledger_path, "탐색이 찾은 후보")
             return
-        raise steps.StepFailed("수집이 깨졌다")
+        raise invoke.StepFailed("수집이 깨졌다")
 
     cycle.run_cycle(run_dir=run_dir, ledger_path=ledger_path, execute=failing)
 
@@ -215,7 +215,7 @@ def test_limit_failure_stops_without_retrying(tmp_path: Path) -> None:
 
     def hitting_limit(step: str, _: Path) -> None:
         attempts.append(step)
-        raise steps.StepFailed(f"앞말 {limit_phrase} 뒷말")
+        raise invoke.StepFailed(f"앞말 {limit_phrase} 뒷말")
 
     result = cycle.run_cycle(run_dir=tmp_path / "run", ledger_path=tmp_path / "원장.md", execute=hitting_limit)
 
@@ -239,7 +239,7 @@ def test_other_failure_is_retried_up_to_the_cap(tmp_path: Path) -> None:
 
     def always_failing(step: str, _: Path) -> None:
         attempts.append(step)
-        raise steps.StepFailed("도무지 알 수 없는 실패")
+        raise invoke.StepFailed("도무지 알 수 없는 실패")
 
     cycle.run_cycle(run_dir=tmp_path / "run", ledger_path=tmp_path / "원장.md", execute=always_failing)
 
@@ -279,7 +279,7 @@ def test_failure_result_carries_the_raw_text(tmp_path: Path) -> None:
     raw = "서버가 이상한 소리를 했다"
 
     def always_failing(step: str, _: Path) -> None:
-        raise steps.StepFailed(raw)
+        raise invoke.StepFailed(raw)
 
     result = cycle.run_cycle(run_dir=tmp_path / "run", ledger_path=tmp_path / "원장.md", execute=always_failing)
 
@@ -317,7 +317,7 @@ def test_failed_call_cost_is_recorded_before_the_failure(tmp_path: Path) -> None
 
     def hitting_limit_midway(step: str, _: Path) -> None:
         attempts.append(step)
-        raise steps.StepFailed(f"앞말 {limit_phrase} 뒷말", spent=_spent("세션-가", cost_usd=0.9, output_tokens=68))
+        raise invoke.StepFailed(f"앞말 {limit_phrase} 뒷말", spent=_spent("세션-가", cost_usd=0.9, output_tokens=68))
 
     run_dir = tmp_path / "run"
     cycle.run_cycle(run_dir=run_dir, ledger_path=tmp_path / "원장.md", execute=hitting_limit_midway)
@@ -344,7 +344,7 @@ def test_each_retried_call_leaves_its_own_cost_line(tmp_path: Path) -> None:
     sessions = iter(["세션-1", "세션-2", "세션-3"])
 
     def always_failing(step: str, _: Path) -> None:
-        raise steps.StepFailed("도무지 알 수 없는 실패", spent=_spent(next(sessions), cost_usd=0.5))
+        raise invoke.StepFailed("도무지 알 수 없는 실패", spent=_spent(next(sessions), cost_usd=0.5))
 
     run_dir = tmp_path / "run"
     cycle.run_cycle(run_dir=run_dir, ledger_path=tmp_path / "원장.md", execute=always_failing)
@@ -366,7 +366,7 @@ def test_failure_without_spent_leaves_no_cost_line(tmp_path: Path) -> None:
     """
 
     def failing(step: str, _: Path) -> None:
-        raise steps.StepFailed("시간이 다 됐다")
+        raise invoke.StepFailed("시간이 다 됐다")
 
     run_dir = tmp_path / "run"
     cycle.run_cycle(run_dir=run_dir, ledger_path=tmp_path / "원장.md", execute=failing)
@@ -387,7 +387,7 @@ def test_failure_with_nothing_measured_leaves_no_cost_line(tmp_path: Path) -> No
     """
 
     def failing(step: str, _: Path) -> None:
-        raise steps.StepFailed("출력이 JSON 이 아니다", spent=_spent("세션-가", cost_usd=None, output_tokens=None))
+        raise invoke.StepFailed("출력이 JSON 이 아니다", spent=_spent("세션-가", cost_usd=None, output_tokens=None))
 
     run_dir = tmp_path / "run"
     cycle.run_cycle(run_dir=run_dir, ledger_path=tmp_path / "원장.md", execute=failing)
@@ -408,7 +408,7 @@ def test_failure_missing_only_the_amount_still_counts_its_tokens(tmp_path: Path)
     """
 
     def failing(step: str, _: Path) -> None:
-        raise steps.StepFailed("금액이 빠진 응답", spent=_spent("세션-가", cost_usd=None, output_tokens=40))
+        raise invoke.StepFailed("금액이 빠진 응답", spent=_spent("세션-가", cost_usd=None, output_tokens=40))
 
     run_dir = tmp_path / "run"
     cycle.run_cycle(run_dir=run_dir, ledger_path=tmp_path / "원장.md", execute=failing)
@@ -640,7 +640,7 @@ def test_retry_waits_between_attempts(tmp_path: Path, monkeypatch: pytest.Monkey
     monkeypatch.setattr(cycle, "sleep", waited.append)
 
     def always_failing(step: str, _: Path) -> None:
-        raise steps.StepFailed("일시적인 고장")
+        raise invoke.StepFailed("일시적인 고장")
 
     cycle.run_cycle(run_dir=tmp_path / "run", ledger_path=tmp_path / "원장.md", execute=always_failing)
 

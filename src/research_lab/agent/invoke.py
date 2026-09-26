@@ -19,7 +19,6 @@ from pathlib import Path
 from typing import Any, Final
 
 from research_lab.agent.billing_guard import assert_subscription_only
-from research_lab.runner.steps import StepFailed
 
 CLAUDE_BINARY: Final = "claude"
 
@@ -83,6 +82,27 @@ class AgentResult:
     usage: dict[str, int] | None
     elapsed_seconds: float
     session_id: str
+
+
+class StepFailed(RuntimeError):
+    """단계가 실패했을 때. **에이전트의 출력 원문을 그대로 들고 다닌다.**
+
+    분류는 러너가 하고 이 예외는 나르기만 한다. 여기서 미리 분류하면
+    분류표를 고칠 때 예외를 올리는 쪽까지 따라 고쳐야 하고, 무엇보다 **원문이 요약되면
+    처음 한도에 부딪히는 날 그 답을 못 얻는다.**
+
+    [중요] 그 호출이 쓴 것을 알면 `spent` 로 함께 나른다. 비용 줄은 단계가 결과를
+    «돌려받은 뒤» 적으므로, 결과 대신 실패가 오르면 **이미 쓴 돈이 집계에서 통째로 빠진다**
+    (실측은 `docs/DESIGN.md` §11.14). 모르면 None 이다 — 지어낸 0 은 「재서 0」으로 읽힌다.
+
+    [중요] **이 계층이 정의한다.** 올리는 쪽이 이 계층이고 나르는 `spent` 도 이 계층의
+    `AgentResult` 다. 러너에 두면 이 계층이 러너를 import 해야 해서 의존 방향이 뒤집힌다.
+    """
+
+    def __init__(self, raw: str, *, spent: AgentResult | None = None) -> None:
+        super().__init__(raw)
+        self.raw = raw
+        self.spent = spent
 
 
 def build_command(

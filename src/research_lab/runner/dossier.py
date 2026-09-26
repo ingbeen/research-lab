@@ -37,6 +37,7 @@ from research_lab.common_constants import (
 from research_lab.gate import measurement as measurement_gate
 from research_lab.gate import mechanism as mechanism_gate
 from research_lab.gate import verdict as verdict_gate
+from research_lab.gate.filled import is_filled
 from research_lab.runner import naming, outputs, state
 from research_lab.runner import payload as payload_helpers
 from research_lab.runner.atomic import atomic_write
@@ -320,7 +321,7 @@ def _named_slots(heading: str, section: Any, fields: tuple[tuple[str, str], ...]
 def _feasibility_section(heading: str, section: Any, fields: tuple[tuple[str, str], ...], extra: Any) -> str:
     """4번 칸과 5번 칸 — 물은 자리를 하나씩 펼친다."""
     lines = [heading, ""]
-    market = payload_helpers.as_text(extra.get("market")) if isinstance(extra, dict) else ""
+    market = _flatten(extra.get("market")) if isinstance(extra, dict) else ""
     if market:
         lines.extend([f"**대상 시장**: {market}", ""])
     for key, label in fields:
@@ -423,9 +424,11 @@ def _measurement_section(plan: dict[str, Any]) -> str:
     lines = ["## 10. 측정 설계 초안", ""]
     for key, label in _MEASUREMENT_SLOTS:
         value = plan.get(key)
-        if key == measurement_gate.KEY_SINGLE_VALUE_REASON and not str(value or "").strip():
+        if key == measurement_gate.KEY_SINGLE_VALUE_REASON and not is_filled(value):
             # 격자가 여럿이면 이 자리는 물을 것이 없다. 빈 칸을 남기면 읽는 사람이
-            # 「빠뜨린 것인가」를 매번 판별해야 한다
+            # 「빠뜨린 것인가」를 매번 판별해야 한다.
+            # 빈 판정은 게이트와 같은 `is_filled` 로 한다 — 갈리면 게이트가 해명으로 통과시킨
+            # 사유를 여기서 빼거나, 게이트가 빈 것으로 본 사유를 「적히지 않았습니다」 칸으로 찍는다
             continue
         lines.extend([f"**{label}**", "", _text(value), ""])
     return "\n".join(lines).rstrip()

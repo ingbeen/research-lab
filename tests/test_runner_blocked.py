@@ -11,19 +11,24 @@
 「누적 집계를 만들지 않는다」 규칙과 `collect` 가 기각 수를 결정 로그로 세는 방식 그대로다.
 """
 
+import itertools
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
+from research_lab.agent.invoke import StepFailed
 from research_lab.common_constants import STATE_FILENAME
 from research_lab.runner import cycle, decision_log, ledger, state
-from research_lab.runner.steps import StepFailed, StepQualityFailed
+from research_lab.runner.steps import StepQualityFailed
 
 PINNED_CLAIM = "그 회차가 판 후보"
 
 # [실측 2026-09-12] 실제로 부딪힌 한도 문구. 분류표가 이것을 「한도」로 읽는다
 LIMIT_RAW = "You've hit your session limit - resets 4:40pm (Asia/Seoul)"
+
+# 분류표가 「그 외」로 떨어뜨리는 일시적 고장
+TRANSIENT_RAW = "connection reset by peer"
 
 
 @pytest.fixture(autouse=True)
@@ -257,6 +262,127 @@ def test_retries_within_one_cycle_count_as_one_cycle(tmp_path: Path) -> None:
 
     assert result is not None
     assert result.blocked_claim is None
+
+
+def _in_turn(fail_at: str, raws: list[str | None]) -> Callable[[str, Path], None]:
+    """지정한 단계를 부를 때마다 `raws` 를 차례로 돌며 실패하는 실행기.
+
+    `None` 은 게이트가 막은 것(재시도 없음)이다. 수집은 `_executor` 와 같은 이유로
+    실패하지 않았을 때만 후보를 박는다.
+    """
+    turns = itertools.cycle(raws)
+
+    def execute(step: str, run_dir: Path) -> None:
+        if step == fail_at:
+            raw = next(turns)
+            if raw is None:
+                raise StepQualityFailed("게이트가 막았다")
+            raise StepFailed(raw)
+        if step == "collect":
+            state.pin_candidate(run_dir, state.Candidate(claim=PINNED_CLAIM, identifier=None))
+
+    return execute
+
+
+def test_a_cycle_that_ended_on_the_limit_is_not_counted(tmp_path: Path) -> None:
+    """
+    목적: [중요] 첫 시도가 「그 외」였어도 «한도로 끝난» 회차는 세지 않는 계약을 고정한다.
+
+    세는 것은 그 회차의 «마지막» 실패다. 첫 시도의 갈래로 세면 네트워크가 한 번 끊긴 뒤
+    한도에 걸린 회차가 「막힌 회차」로 세어지고, 새벽 회차는 한도에 자주 걸리므로
+    **멀쩡한 후보가 막힘 상한에 닿아 `- [!]` 로 걷힌다.**
+
+    Given: 매 회차 첫 시도는 연결 끊김 · 재시도는 한도로 끝나는 실행 폴더
+    When: 세 회차를 돈다
+    Then: 후보가 그대로 남고 폴더도 안 접힌다
+    """
+    ledger_path = _stocked_ledger(tmp_path)
+    run_dir = tmp_path / "run"
+
+    result = _run_cycles(
+        3, run_dir=run_dir, ledger_path=ledger_path, execute=_in_turn("rebut", [TRANSIENT_RAW, LIMIT_RAW])
+    )
+
+    assert result is not None
+    assert result.blocked_claim is None
+    assert ledger.load(ledger_path)[0].status is ledger.Status.UNEXPLORED
+    assert state.closed_reason(run_dir) is None
+
+
+def test_a_cycle_that_used_up_its_retries_is_counted(tmp_path: Path) -> None:
+    """
+    목적: 「그 외」로 재시도 상한까지 간 회차는 «한 번» 세는 계약을 고정한다.
+
+    Given: 매 회차 「그 외」로 상한까지 실패하는 실행 폴더
+    When: 세 회차를 돈다
+    Then: 3회차에 그 후보가 걷힌다
+    """
+    ledger_path = _stocked_ledger(tmp_path)
+
+    result = _run_cycles(
+        3, run_dir=tmp_path / "run", ledger_path=ledger_path, execute=_in_turn("rebut", [TRANSIENT_RAW])
+    )
+
+    assert result is not None
+    assert result.blocked_claim == PINNED_CLAIM
+
+
+def test_a_transient_failure_that_recovered_is_not_counted(tmp_path: Path) -> None:
+    """
+    목적: 재시도로 «성공한» 회차의 실패 줄은 세지 않는 계약을 고정한다.
+
+    그 줄을 세면 다음에 같은 단계가 막혔을 때 이미 한 번 막힌 것으로 출발한다.
+
+    Given: 첫 시도는 「그 외」로 실패하고 재시도는 성공하는 단계
+    When: 그 단계를 돌고 막힌 회차를 센다
+    Then: 0 이다
+    """
+    run_dir = tmp_path / "run"
+    outcomes = iter([StepFailed(TRANSIENT_RAW), None])
+
+    def execute(_step: str, _run_dir: Path) -> None:
+        outcome = next(outcomes)
+        if outcome is not None:
+            raise outcome
+
+    assert cycle._execute_with_retries(run_dir, "rebut", execute) is None
+    assert cycle._failed_cycles(run_dir, "rebut") == 0
+
+
+def test_a_transient_failure_then_a_gate_block_counts_once(tmp_path: Path) -> None:
+    """
+    목적: 한 회차 안에서 「그 외」 뒤에 게이트에 막히면 «한 번만» 세는 계약을 고정한다.
+
+    Given: 첫 시도는 「그 외」, 재시도는 게이트에 막히는 단계
+    When: 그 단계를 돌고 막힌 회차를 센다
+    Then: 1 이다
+    """
+    run_dir = tmp_path / "run"
+    outcomes = iter([StepFailed(TRANSIENT_RAW), StepQualityFailed("게이트가 막았다")])
+
+    def execute(_step: str, _run_dir: Path) -> None:
+        raise next(outcomes)
+
+    assert cycle._execute_with_retries(run_dir, "rebut", execute) is not None
+    assert cycle._failed_cycles(run_dir, "rebut") == 1
+
+
+def test_a_failure_line_without_an_attempt_is_not_counted(tmp_path: Path) -> None:
+    """
+    목적: 시도 번호가 없는 실패 줄은 «세지 않는» 계약을 고정한다.
+
+    시도 번호는 러너가 재시도하며 적는다. 그것이 없는 줄은 어느 회차의 어느 시도인지
+    모르는 줄이고, 모를 때 세는 쪽으로 떨어지면 **물어볼 이유가 없는 후보가 일찍 걷힌다.**
+
+    Given: 갈래는 있으나 시도 번호가 없는 실패 줄들
+    When: 막힌 회차를 센다
+    Then: 0 이다
+    """
+    run_dir = tmp_path / "run"
+    decision_log.record(run_dir, "rebut", decision_log.EVENT_FAILED, kind="other", raw="시도 번호 없음")
+    decision_log.record(run_dir, "rebut", decision_log.EVENT_FAILED, kind="quality", raw="시도 번호 없음")
+
+    assert cycle._failed_cycles(run_dir, "rebut") == 0
 
 
 def test_blocked_run_dir_is_closed(tmp_path: Path) -> None:

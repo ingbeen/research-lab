@@ -87,6 +87,22 @@ def test_a_null_reason_is_blocked_like_an_empty_one() -> None:
     assert rebuttal.shortfall_reason({"rebuttals": [], "not_found_reason": None}) is not None
 
 
+def test_a_reason_holding_only_empty_values_is_blocked() -> None:
+    """
+    목적: 빈 값만 담은 목록·절 사유도 «빈 사유»로 막는 계약을 고정한다.
+
+    `str([""])` 는 `"['']"` 라 비어 있지 않다. 안 파고들면 게이트는 「적혔다」로 읽고,
+    그 값이 저장돼 **문서의 반증 칸에 파이썬 표기로 실린다.** 반증 단계에는 응답 모양을
+    강제하는 스키마가 없다.
+
+    Given: 반증 0건이고 사유가 빈 값만 든 목록 · 절 · 겹친 목록인 산출물
+    When: 검사한다
+    Then: 모두 막힌다
+    """
+    for hollow in ([""], {"k": ""}, [[]]):
+        assert rebuttal.shortfall_reason({"rebuttals": [], "not_found_reason": hollow}) is not None, hollow
+
+
 def test_rebuttals_in_a_wrong_shape_are_blocked() -> None:
     """
     목적: 목록 자리에 다른 것이 와도 «통과되지 않는» 계약을 고정한다.

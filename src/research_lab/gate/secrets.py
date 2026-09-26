@@ -14,8 +14,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
-from research_lab.common_constants import LEDGER_DIR
-
 # 탐지 규칙. **이름을 붙이는 이유**는 발견을 기록할 때 값 대신 이름을 남기기 위해서다.
 #
 # [중요] 이 표는 러너가 «그 회차에 쓴» 경로에만 적용된다. 저장소 전체로 넓히면
@@ -43,7 +41,7 @@ class Finding:
     line_number: int
 
 
-def scan_roots(run_dir: Path, *, dossier_path: Path | None = None) -> tuple[Path, ...]:
+def scan_roots(run_dir: Path, *, ledger_dir: Path, dossier_path: Path | None = None) -> tuple[Path, ...]:
     """그 회차의 검사 범위를 만든다.
 
     [중요] **지난 회차들의 실행 폴더를 넣지 않는다.** `runs/` 전체를 넘기면 과거 어느 회차에
@@ -63,15 +61,23 @@ def scan_roots(run_dir: Path, *, dossier_path: Path | None = None) -> tuple[Path
     [주의] **원장은 폴더째로 둔다.** 회차마다 다시 쓰는 «공유 상태»라 「그 회차가 쓴 줄」만
     가릴 수 없고, 파일 하나라 걸리면 사람이 바로 본다.
 
+    [중요] 원장 폴더는 **부르는 쪽이 실제로 쓴 원장의 폴더**를 받는다. 기본 자리를 상수로 박으면
+    다른 원장을 쓴 회차는 실제로 쓴 원장을 검사받지 않는다. 파일이 아니라 폴더인 것은 러너가
+    그 폴더에 원장 말고도 쓰기 때문이다 — 강제 종료로 남은 원장의 임시 파일도 그대로 커밋된다.
+    원장을 넓은 폴더에 두면 범위가 그 폴더 전체로 번져 회차마다 실패하지만, **그 실패는 소리가
+    나고 빠뜨린 파일은 소리가 없다.**
+
     Args:
         run_dir: 그 회차의 실행 폴더
+        ledger_dir: 그 회차가 쓴 원장이 든 폴더. **기본값을 두지 않는다** — 부르는 쪽이 빠뜨려도
+            조용히 돌면 엉뚱한 원장을 검사하고 통과를 알린다
         dossier_path: 그 회차가 쓴 근거 문서. 안 나왔으면 None
 
     Returns:
         그 회차에 러너가 쓴 곳들
     """
     written = (dossier_path,) if dossier_path is not None else ()
-    return (run_dir, *written, LEDGER_DIR)
+    return (run_dir, *written, ledger_dir)
 
 
 def scan(roots: Iterable[Path]) -> list[Finding]:

@@ -5,12 +5,9 @@
 """
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Final
+from typing import Final
 
-if TYPE_CHECKING:
-    # 타입으로만 가져온다. 런타임에 가져오면 `agent.invoke` 가 이 모듈의 `StepFailed` 를
-    # 가져오는 것과 맞물려 순환 import 가 된다
-    from research_lab.agent.invoke import AgentResult
+from research_lab.agent.invoke import StepFailed
 
 # 후보를 «만드는» 단계와 «고르는» 단계.
 #
@@ -87,24 +84,6 @@ class StepNotImplementedError(RuntimeError):
     상한까지 헛돌고 나서 「다음 회차가 이어받습니다」라는 종료 코드로 보고되어,
     **아무 일도 안 하는 상태를 정상으로 알린다.** 그래서 러너가 이 예외만은 그대로 터뜨린다.
     """
-
-
-class StepFailed(RuntimeError):
-    """단계가 실패했을 때. **에이전트의 출력 원문을 그대로 들고 다닌다.**
-
-    분류는 `failures.classify` 가 하고 이 예외는 나르기만 한다. 여기서 미리 분류하면
-    분류표를 고칠 때 예외를 올리는 쪽까지 따라 고쳐야 하고, 무엇보다 **원문이 요약되면
-    처음 한도에 부딪히는 날 그 답을 못 얻는다.**
-
-    [중요] 그 호출이 쓴 것을 알면 `spent` 로 함께 나른다. 비용 줄은 단계가 결과를
-    «돌려받은 뒤» 적으므로, 결과 대신 실패가 오르면 **이미 쓴 돈이 집계에서 통째로 빠진다**
-    (실측은 `docs/DESIGN.md` §11.14). 모르면 None 이다 — 지어낸 0 은 「재서 0」으로 읽힌다.
-    """
-
-    def __init__(self, raw: str, *, spent: "AgentResult | None" = None) -> None:
-        super().__init__(raw)
-        self.raw = raw
-        self.spent = spent
 
 
 class StepQualityFailed(StepFailed):

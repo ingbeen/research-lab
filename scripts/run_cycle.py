@@ -10,6 +10,7 @@
 import argparse
 import contextlib
 import json
+import math
 import os
 import sys
 from collections.abc import Callable, Mapping
@@ -257,14 +258,17 @@ def _run_cycles(args: argparse.Namespace) -> CycleOutcome:
             # [중요] 예외 «원문»을 회차 로그에 싣지 않는다. 그 문구에는 실행 폴더의
             # **절대경로**가 들어 있어, 저장소에 커밋되는 이 로그에 호스트의 사용자 폴더가
             # 그대로 남는다 — 이 저장소는 PUBLIC 이고 이 파일은 자격증명 스캔 «밖»이다.
-            # 화면(저장소 밖)에는 원문 그대로 알린다 — 사람이 고칠 때 경로가 필요하다
+            # 화면(저장소 밖)에는 원문 그대로 알린다 — 사람이 고칠 때 경로가 필요하다.
+            #
+            # [주의] 어느 잠금에 막혔는지 단정하지 않는다. 회차는 원장 잠금을 먼저 잡으므로
+            # 원장 때문에 막혀도 같은 예외가 온다 — 「그 폴더」라 적으면 사람을 엉뚱한 곳으로 보낸다
             print(f"[중지] {running}", file=sys.stderr)
             return CycleOutcome(
                 exit_code=EXIT_INCOMPLETE,
                 produced=produced,
                 spent_usd=spent_usd,
                 tokens=spent_tokens,
-                stop_reason=f"이미 도는 회차가 있어 그 폴더를 잡지 못했습니다 — {run_dir.name}",
+                stop_reason=f"이미 도는 회차가 원장이나 실행 폴더를 잡고 있어 시작하지 못했습니다 — {run_dir.name}",
                 last_run_dir=run_dir,
             )
         spent_usd += budget.cost_of(run_dir) - before_usd
@@ -272,7 +276,7 @@ def _run_cycles(args: argparse.Namespace) -> CycleOutcome:
 
         # [중요] **반복마다** 검사한다. 마지막 폴더만 보면 앞의 폴더들이 통째로 빠지고,
         # 이 저장소는 PUBLIC 이라 그 누락이 그대로 공개 이력이 된다
-        leaked = _report_secrets(run_dir)
+        leaked = _report_secrets(run_dir, args.ledger.parent)
         if leaked is not None:
             return CycleOutcome(
                 exit_code=leaked,
@@ -347,18 +351,19 @@ def _loop_stop_reason(result: cycle.CycleResult, *, produced: int, requested: in
     return None
 
 
-def _report_secrets(run_dir: Path) -> int | None:
+def _report_secrets(run_dir: Path, ledger_dir: Path) -> int | None:
     """그 회차가 쓴 것에 자격증명이 들어갔는지 본다.
 
     산출물이 생긴 «뒤에» 검사한다. 검사기는 사후 장치이고, 여기가 마지막 그물이다.
 
     Args:
         run_dir: 그 반복의 실행 폴더
+        ledger_dir: 그 회차가 실제로 쓴 원장이 든 폴더
 
     Returns:
         걸렸으면 자격증명 갈래의 종료 코드, 깨끗하면 None
     """
-    findings = secrets.scan(secrets.scan_roots(run_dir, dossier_path=_dossier_of(run_dir)))
+    findings = secrets.scan(secrets.scan_roots(run_dir, ledger_dir=ledger_dir, dossier_path=_dossier_of(run_dir)))
     if not findings:
         return None
 
@@ -695,6 +700,32 @@ def _dossier_count(raw: str) -> int:
     return count
 
 
+def _step_budget(raw: str) -> float:
+    """단계 상한 인자를 읽는다 — **0 보다 큰 유한한 금액이 아니면 돌기 전에 거부한다.**
+
+    Args:
+        raw: 명령줄에 적힌 값
+
+    Returns:
+        0 보다 큰 유한한 달러 금액
+
+    Raises:
+        argparse.ArgumentTypeError: 숫자가 아니거나, 0 이하이거나, `nan`·`inf` 일 때
+
+    [중요] 여기서 안 막으면 각 단계 안에서야 터지고, 그 예외는 「그 외」로 분류돼 상한까지
+    재시도된 뒤 막힘 횟수에 세인다. 막힘 상한에 닿으면 수집 단계가 원장의 다음 후보를 집어
+    **물어본 적도 없는 후보를 걷어낸다.** `nan` 은 크기 비교를 전부 거짓으로 빠져나가므로
+    「0 이하」 검사만으로는 안 걸린다.
+    """
+    try:
+        budget_usd = float(raw)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"단계 상한(--budget-usd)은 달러 금액이어야 합니다: {raw}") from None
+    if not math.isfinite(budget_usd) or budget_usd <= 0:
+        raise argparse.ArgumentTypeError(f"단계 상한(--budget-usd)은 0 보다 큰 유한한 금액이어야 합니다: {raw}")
+    return budget_usd
+
+
 class _Parser(argparse.ArgumentParser):
     """인자가 틀렸을 때 «한도 소진»과 «다른» 코드로 끝나는 파서.
 
@@ -713,7 +744,7 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = _Parser(description="회차 하나를 돌린다")
     parser.add_argument(
         "--budget-usd",
-        type=float,
+        type=_step_budget,
         default=DEFAULT_BUDGET_USD,
         help="한 «단계»의 폭주 감지 상한. 과금 방지가 아닙니다 (기본값: %(default)s)",
     )

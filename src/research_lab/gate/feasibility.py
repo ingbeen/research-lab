@@ -19,6 +19,8 @@ import json
 from collections.abc import Mapping
 from typing import Any, Final
 
+from research_lab.gate.filled import is_filled
+
 KEY_MARKET: Final = "market"
 KEY_DATA: Final = "data"
 KEY_EXECUTION: Final = "execution"
@@ -108,7 +110,7 @@ def shortfall_reason(payload: Mapping[str, Any]) -> str | None:
     Returns:
         모자랄 때의 사유, 충분하면 None
     """
-    if not _is_filled(payload.get(KEY_MARKET)):
+    if not is_filled(payload.get(KEY_MARKET)):
         # [중요] 시장이 없으면 「배수를 걸 수 있나」를 기각 신호로 쓸 수 없다 —
         # 「1배로만 되는데 크기가 작다」는 국내에서는 기각이지만 미국에서 3배를 확인하기
         # 전에는 기각이 아니다(설계 §7.0). 시장 없이 적힌 판정은 나중에 되짚을 수도 없다
@@ -126,7 +128,7 @@ def shortfall_reason(payload: Mapping[str, Any]) -> str | None:
     execution: Mapping[str, Any] = payload[KEY_EXECUTION]
 
     needs = data.get(KEY_NEEDS)
-    if not isinstance(needs, list) or not any(_is_filled(item) for item in needs):
+    if not isinstance(needs, list) or not any(is_filled(item) for item in needs):
         return f"4번 칸의 「어떤 데이터가 필요한가」(`{KEY_NEEDS}`)가 비었거나 목록이 아닙니다. 안 적으면 «다 된다고 가정하고» 넘어갑니다."
 
     availability = data.get(KEY_AVAILABILITY)
@@ -136,7 +138,7 @@ def shortfall_reason(payload: Mapping[str, Any]) -> str | None:
 
     for section, fields, ordinal in ((data, DATA_TEXT_FIELDS, "4번"), (execution, EXECUTION_FIELDS, "5번")):
         for key, label in fields:
-            if not _is_filled(section.get(key)):
+            if not is_filled(section.get(key)):
                 return f"{ordinal} 칸의 「{label}」(`{key}`)가 비어 있습니다. 물을 것이 없으면 «「해당 없음」과 그 이유»를 적으세요 — 빈 채로 두는 것과 다릅니다."
 
     return None
@@ -157,26 +159,6 @@ def cost_terms_in(section: Any) -> tuple[str, ...]:
     """
     text = _as_text(section)
     return tuple(term for term in COST_TERMS if term in text)
-
-
-def _is_filled(value: Any) -> bool:
-    """그 자리가 «채워졌나».
-
-    [주의] 답의 «내용»은 보지 않는다. 숫자 하나만 적어도 채운 것이고, 목록이 와도
-    채운 것으로 본다 — 이상한 모양은 나중에 사람이 본다. 여기서 모양을 따지기 시작하면
-    게이트가 또 하나의 판단자가 된다.
-
-    [중요] 담긴 것이 «빈» 컨테이너도 빈 것으로 본다. `str([""])` 는 `"['']"` 라
-    비어 있지 않으므로, 안 파고들면 **게이트는 「값이 있다」로 읽고 조립부는
-    「적히지 않았습니다」로 렌더한다.**
-    """
-    if value is None:
-        return False
-    if isinstance(value, dict):
-        return any(_is_filled(item) for item in value.values())
-    if isinstance(value, list | tuple | set):
-        return any(_is_filled(item) for item in value)
-    return bool(str(value).strip())
 
 
 def _as_text(value: Any) -> str:

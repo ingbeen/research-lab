@@ -426,6 +426,84 @@ def test_lineage_writes_its_own_file(tmp_path: Path) -> None:
     assert written["independent_source_count"] == 1
 
 
+def test_the_runner_counts_the_independent_sources(tmp_path: Path) -> None:
+    """
+    목적: [중요] 독립 소스 수를 에이전트가 아니라 «러너가 덩어리 수로» 세는 계약을 고정한다.
+
+    정의상 자기 혼자인 덩어리가 독립 1 이라 그 수는 덩어리 수와 같다. 에이전트가 적으면
+    틀려도 에러가 없고, 그 숫자가 6번 칸의 맨 앞에 실린다.
+
+    Given: 덩어리 둘과 모양이 어긋난 항목 하나를 내면서 독립 소스 수를 5 로 적은 응답
+    When: 계보를 돈다
+    Then: 저장된 수와 로그의 수가 둘 다 2 다
+    """
+    run_dir = tmp_path / "run"
+    output_dir = _pin(run_dir, tmp_path / "원장.md")
+    _write_pro_evidence(output_dir, ["https://example.com/원본", "https://example.com/복제", "https://example.com/독립"])
+
+    lineage.run(
+        run_dir,
+        lambda _: _answer(
+            {
+                "groups": [
+                    {
+                        "origin": {"url": "https://example.com/원본"},
+                        "copies": [{"url": "https://example.com/복제"}],
+                        "why": "같은 숫자가 반복된다",
+                    },
+                    {"origin": {"url": "https://example.com/독립"}, "copies": [], "why": "혼자인 덩어리"},
+                    "모양이 어긋난 덩어리",
+                ],
+                "independent_source_count": 5,
+            }
+        ),
+    )
+
+    written = json.loads((output_dir / LINEAGE_FILENAME).read_text(encoding="utf-8"))
+    judged = [e for e in decision_log.read(run_dir) if e["event"] == decision_log.EVENT_JUDGED]
+    assert written["independent_source_count"] == 2
+    assert judged[-1]["independent_source_count"] == 2
+
+
+def test_a_group_without_any_url_is_not_counted(tmp_path: Path) -> None:
+    """
+    목적: 주소가 하나도 없는 덩어리는 독립 소스로 «세지 않는» 계약을 고정한다.
+
+    모은 출처가 없을 때 에이전트가 지시문의 JSON 틀을 그대로 되돌려 쓰면 빈 덩어리가 하나
+    생긴다. 그것을 세면 출처가 0건인 문서의 6번 칸 맨 앞에 「독립 소스 수: 1」이 찍힌다.
+
+    Given: 모은 출처가 없는 회차와, 주소가 빈 틀 덩어리 · 빈 절 덩어리를 낸 응답
+    When: 계보를 돈다
+    Then: 저장된 독립 소스 수가 0 이다
+    """
+    run_dir = tmp_path / "run"
+    output_dir = _pin(run_dir, tmp_path / "원장.md")
+
+    lineage.run(
+        run_dir,
+        lambda _: _answer(
+            {"groups": [{"origin": {"title": "", "url": "", "published": ""}, "copies": [], "why": ""}, {}]}
+        ),
+    )
+
+    written = json.loads((output_dir / LINEAGE_FILENAME).read_text(encoding="utf-8"))
+    assert written["independent_source_count"] == 0
+
+
+def test_the_lineage_prompt_does_not_ask_for_the_count() -> None:
+    """
+    목적: 지시문이 독립 소스 수를 «적게 하지 않는» 계약을 고정한다.
+
+    러너가 세는 값을 에이전트에게도 물으면 두 값이 갈릴 수 있고, 어느 쪽이 맞는지를
+    매번 판별해야 한다.
+
+    Given: 계보 지시문
+    When: 내용을 본다
+    Then: 그 열쇠가 없다
+    """
+    assert "independent_source_count" not in lineage.build_prompt(CLAIM, [{"url": "https://example.com/원본"}])
+
+
 def test_lineage_does_not_mark_the_candidate_explored(tmp_path: Path) -> None:
     """
     목적: [중요] 계보가 후보를 「판 것」으로 표시하지 «않는» 계약을 고정한다.
@@ -558,13 +636,13 @@ def test_lineage_does_not_probe_when_a_cheaper_gate_already_blocked(tmp_path: Pa
     URL 검사만 네트워크를 쓴다. 어차피 막힐 단계에서 찌르는 것은 순 낭비이고,
     남의 서버를 두드리는 일이기도 하다 — 수집·반증이 같은 순서를 지킨다.
 
-    Given: 독립 소스 수가 빠진 계보 응답
+    Given: 모았던 출처 하나를 빠뜨린 계보 응답
     When: 계보를 돈다
     Then: 막히고, 아무 URL 도 찌르지 않았다
     """
     run_dir = tmp_path / "run"
     output_dir = _pin(run_dir, tmp_path / "원장.md")
-    _write_pro_evidence(output_dir, ["https://example.com/원본"])
+    _write_pro_evidence(output_dir, ["https://example.com/원본", "https://example.com/빠뜨린-것"])
     probed = probing()
 
     with pytest.raises(StepQualityFailed):

@@ -8,13 +8,14 @@ import hashlib
 import json
 import subprocess
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Final
 
 import pytest
 
 from research_lab.agent import invoke
-from research_lab.runner.steps import StepFailed
+from research_lab.agent.invoke import StepFailed
 
 # 리눅스가 명령행 인자 «하나»에 허용하는 최대 바이트 (`MAX_ARG_STRLEN` = 32 × 4,096).
 # 인자 전체의 상한(`ARG_MAX`)과는 다른 값이다
@@ -33,14 +34,15 @@ print(json.dumps({{"result": hashlib.sha256(received).hexdigest()}}))
 """
 
 
-def _command(**overrides: object) -> list[str]:
+def _command(
+    *,
+    session_id: str = "11111111-2222-3333-4444-555555555555",
+    budget_usd: float = 2.0,
+    tools: Sequence[str] = invoke.DEFAULT_TOOLS,
+    json_schema: str | None = None,
+) -> list[str]:
     """기본값으로 인자를 만들고 필요한 것만 바꾼다."""
-    kwargs: dict[str, object] = {
-        "session_id": "11111111-2222-3333-4444-555555555555",
-        "budget_usd": 2.0,
-    }
-    kwargs.update(overrides)
-    return invoke.build_command(**kwargs)  # type: ignore[arg-type]
+    return invoke.build_command(session_id=session_id, budget_usd=budget_usd, tools=tools, json_schema=json_schema)
 
 
 def test_runs_in_print_mode() -> None:

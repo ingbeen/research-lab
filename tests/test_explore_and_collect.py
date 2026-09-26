@@ -10,9 +10,9 @@ from typing import Any
 
 import pytest
 
-from research_lab.agent.invoke import AgentResult, new_session_id
+from research_lab.agent.invoke import AgentResult, StepFailed, new_session_id
 from research_lab.runner import collect, decision_log, explore, ledger, naming, state
-from research_lab.runner.steps import StepFailed, StepQualityFailed
+from research_lab.runner.steps import StepQualityFailed
 
 
 def _answer(payload: object, *, cost: float | None = 0.5, tokens: int | None = 100) -> AgentResult:
@@ -134,6 +134,109 @@ def test_explore_rejects_non_json_answer(tmp_path: Path) -> None:
 
     with pytest.raises(StepFailed, match="줄글"):
         explore.run(tmp_path / "run", tmp_path / "원장.md", lambda _: answer)
+
+
+def test_explore_stores_a_multiline_claim_as_one_candidate(tmp_path: Path) -> None:
+    """
+    목적: 줄바꿈이 든 주장을 담아도 원장에 «한 후보»로 들어가는 계약을 고정한다.
+
+    쪼개지면 뒷줄이 에이전트가 낸 적 없는 후보로 끼어들고, 기각을 적는 순간
+    「원장에 없는 후보」 예외가 탐색 단계를 통째로 실패시킨다.
+
+    Given: 한 줄 주장에 줄바꿈과 후보 줄 모양이 섞인 응답
+    When: 탐색을 돈다
+    Then: 원장 항목이 하나다
+    """
+    ledger_path = tmp_path / "원장.md"
+    answer = _answer(
+        {
+            "queries": ["ㄱ", "ㄴ", "ㄷ"],
+            "candidates": [{"claim": "11월 첫 거래일에 사서 4월 마지막 거래일에 판다\n- [ ] 주입된 후보", "identifier": "x"}],
+        }
+    )
+
+    explore.run(tmp_path / "run", ledger_path, lambda _: answer)
+
+    assert len(ledger.load(ledger_path)) == 1
+
+
+def test_explore_does_not_store_a_claim_that_is_empty_after_normalizing(tmp_path: Path) -> None:
+    """
+    목적: 정규형이 빈 주장을 원장에 담지 않고 «버렸다고 남기는» 계약을 고정한다.
+
+    담으면 읽히지 않는 `- [ ] ` 줄이 쌓이고, 조용히 건너뛰면 「무엇을 버렸고 왜」가
+    로그에서 사라져 다음에 같은 응답을 가르칠 재료가 없다.
+
+    Given: 백틱만 있는 주장과 멀쩡한 주장을 낸 응답
+    When: 탐색을 돈다
+    Then: 멀쩡한 것만 담기고, 읽히지 않는 줄이 없고, 버린 사유가 로그에 남는다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    answer = _answer({"queries": ["ㄱ", "ㄴ", "ㄷ"], "candidates": [{"claim": "```"}, {"claim": "둘째 후보"}]})
+
+    explore.run(run_dir, ledger_path, lambda _: answer)
+
+    assert [entry.claim for entry in ledger.load(ledger_path)] == ["둘째 후보"]
+    assert "\n- [ ] \n" not in ledger_path.read_text(encoding="utf-8")
+    discarded = [e for e in decision_log.read(run_dir) if e["event"] == decision_log.EVENT_DISCARDED]
+    assert any("비어" in str(entry.get("reason", "")) for entry in discarded)
+
+
+def test_explore_records_its_cost_even_when_the_ledger_write_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    목적: [중요] 원장에 담다가 죽어도 그 호출의 «비용 줄»은 남는 계약을 고정한다.
+
+    원장 기록 도중의 예외(`OSError` 등)는 `StepFailed` 가 아니라 비용을 실어 나를 길이 없다.
+    비용 줄을 원장 기록 «뒤»에 적으면 이미 쓴 돈이 **회차의 쓴 돈 · 토큰 · 한도 비율에서
+    통째로 빠진다.** 다른 단계는 전부 게이트 «앞»에서 적는다.
+
+    Given: 원장 쓰기가 실패하는 환경과 비용을 돌려준 응답
+    When: 탐색을 돈다
+    Then: 단계는 실패하지만 결정 로그에 그 비용 줄이 있다
+    """
+    run_dir = tmp_path / "run"
+
+    def broken_append(*_args: object, **_kwargs: object) -> bool:
+        raise OSError("원장을 쓸 수 없다")
+
+    monkeypatch.setattr(ledger, "append", broken_append)
+    answer = _answer({"queries": ["ㄱ", "ㄴ", "ㄷ"], "candidates": [{"claim": "첫 후보"}]}, cost=0.77)
+
+    with pytest.raises(OSError):
+        explore.run(run_dir, tmp_path / "원장.md", lambda _: answer)
+
+    costs = [e for e in decision_log.read(run_dir) if e["event"] == decision_log.EVENT_COST]
+    assert [entry["cost_usd"] for entry in costs] == [0.77]
+
+
+def test_candidates_over_the_cap_are_recorded_as_discarded(tmp_path: Path) -> None:
+    """
+    목적: 상한을 넘어 잘린 후보가 «버렸다»로 남는 계약을 고정한다.
+
+    기록 없이 잘리면 에이전트가 무엇을 냈는지가 로그에서 사라지고, 받은 수와 본 수가
+    한 숫자로 뭉쳐 **로그의 숫자끼리 맞지 않는다.**
+
+    Given: 상한보다 둘 많은 후보를 낸 응답
+    When: 탐색을 돈다
+    Then: 상한만큼만 담기고, 잘린 둘이 버린 기록으로 남고, 받은 수와 본 수가 갈려 적힌다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    claims = [f"{index}번 후보를 상장 첫날 종가에 사서 20거래일 뒤 판다" for index in range(explore.MAX_CANDIDATES + 2)]
+    answer = _answer({"queries": ["ㄱ", "ㄴ", "ㄷ"], "candidates": [{"claim": claim} for claim in claims]})
+
+    explore.run(run_dir, ledger_path, lambda _: answer)
+
+    assert len(ledger.load(ledger_path)) == explore.MAX_CANDIDATES
+    entries = decision_log.read(run_dir)
+    discarded = [e for e in entries if e["event"] == decision_log.EVENT_DISCARDED]
+    assert any(entry.get("claims") == claims[explore.MAX_CANDIDATES :] for entry in discarded)
+    judged = [e for e in entries if e["event"] == decision_log.EVENT_JUDGED]
+    assert judged[0]["proposed"] == len(claims)
+    assert judged[0]["considered"] == explore.MAX_CANDIDATES
 
 
 # --------------------------------------------------------------------------

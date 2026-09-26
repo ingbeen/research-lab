@@ -178,3 +178,44 @@ def test_every_offending_section_is_reported_at_once() -> None:
     assert reason is not None
     assert "2. 판정" in reason
     assert "9. 왜 사라졌을 수 있나" in reason
+
+
+# 실제로 저장소 밖에 나간 근거 문서들에서 «원문 그대로» 옮긴 문장.
+# 전부 저장소 안의 데이터 카탈로그를 가리킨다
+LEAKED_CATALOG_POINTERS = (
+    "미국 개별 종목의 장기 상장폐지 시계열을 실제로 어디서 받을 수 있는지(카탈로그에 실측 없음)",
+    "국내 파킹형 ETF(KODEX 단기채권 등)의 일봉이 pykrx 로 정상적으로 받아지는지는 실측된 적이 없다 — " "카탈로그는 ETF 전수조회가 된다고만 확인했지 이 특정 상품군으로 실측하지는 않았다",
+    "정작 팔고 싶은 시점에 못 빌릴 수 있다는 뜻이며, 이는 카탈로그에 없어 이번에 확인한 내용이다.",
+)
+
+
+def test_sentences_that_left_pointing_at_the_data_catalog_are_caught() -> None:
+    """
+    목적: [중요] 실제로 나간 «카탈로그를 가리키는 문장»이 걸리는 계약을 고정한다.
+
+    카탈로그는 근거 문서와 함께 가지 않는다. 받는 쪽에서는 「카탈로그에 없다」가
+    무엇에 없다는 말인지조차 알 수 없어, **그 문장이 받치던 판단이 통째로 해석 불가**가 된다.
+
+    Given: 실제로 나간 근거 문서의 문장들
+    When: 가리키는 말을 센다
+    Then: 전부 걸린다
+    """
+    for sentence in LEAKED_CATALOG_POINTERS:
+        assert selfcontained.pointers_in(sentence), sentence
+
+
+def test_naming_the_catalog_without_a_particle_is_not_caught() -> None:
+    """
+    목적: 조사 없이 «이름만» 부르는 말은 통과시키는 계약을 고정한다.
+
+    지시문은 그 목록을 「데이터 카탈로그」라는 이름으로 싣는다. 이름 자체를 막으면
+    지시문이 다른 이름으로 불러야 하고, 에이전트는 **그 새 이름으로** 가리키기 시작해
+    사전 밖으로 샌다 — 에이전트는 프롬프트에서 받은 말을 제 답에 되돌려 쓴다.
+    그래서 이름은 두고 「카탈로그에 · 는 · 가 · 를 · 의」처럼 **그것에 기대는 문장**만 막는다.
+
+    Given: 이름만 부르는 구분선과 항목 설명
+    When: 가리키는 말을 센다
+    Then: 하나도 안 걸린다
+    """
+    for text in ("----- 데이터 카탈로그 시작 -----", "쓴 카탈로그 항목 이름"):
+        assert selfcontained.pointers_in(text) == (), text

@@ -26,6 +26,8 @@
 
 from typing import Any, Final
 
+from research_lab.gate.filled import is_filled
+
 # 값이 비어 있다는 «표시»가 되는 말.
 #
 # 기각 목록이 아니므로 넉넉히 담는다 — 잴 수 있는 표현(「단기」)과 못 재는 표현(「옥석」)이
@@ -136,9 +138,10 @@ def _is_usable_axis(item: Any) -> bool:
         return False
 
     # [중요] 기본값 `""` 로는 «값이 null 인 경우»를 못 막는다 — 그때는 기본값이 안 쓰이고
-    # `str(None)` = `"None"` 이 되어 **이름이 적힌 것으로 읽힌다**
+    # `str(None)` = `"None"` 이 되어 **이름이 적힌 것으로 읽힌다.** 빈 값만 담은 목록·절(`[""]`)도
+    # 같은 모양이라, 판정은 게이트들이 함께 쓰는 `is_filled` 가 한다
     name = item.get("name")
-    if name is None or not str(name).strip():
+    if not is_filled(name):
         # 이름이 없으면 무슨 축인지 모른 채 숫자만 남는다. 그 격자는 나중에 못 읽는다
         return False
 

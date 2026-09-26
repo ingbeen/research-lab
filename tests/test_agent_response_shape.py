@@ -15,9 +15,8 @@ import json
 import pytest
 
 from research_lab.agent import invoke
-from research_lab.agent.invoke import AgentResult
+from research_lab.agent.invoke import AgentResult, StepFailed
 from research_lab.runner import failures
-from research_lab.runner.steps import StepFailed
 
 # 실측 응답. 값이 든 필드만 남기고 줄였으며, **자격증명은 들어 있지 않다**
 # (원문도 변수 «이름»만 말하고 값은 말하지 않았다)

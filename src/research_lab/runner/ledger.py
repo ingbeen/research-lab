@@ -133,7 +133,7 @@ def load(path: Path) -> list[Entry]:
             continue
         entries.append(
             Entry(
-                claim=matched.group(3).strip(),
+                claim=canonical_claim(matched.group(3)),
                 status=STATUS_OF[matched.group(1)],
                 identifier=matched.group(2),
             )
@@ -152,8 +152,14 @@ def append(path: Path, claim: str, identifier: str | None = None) -> bool:
 
     Returns:
         담았으면 True, 이미 있어서 담지 않았으면 False
+
+    Raises:
+        ValueError: 정규 형태가 빈 주장일 때. 담으면 `- [ ] ` 만 남은 줄이 되어 아무것도
+            읽히지 않는다 — 원장은 그대로인데 읽히지 않는 줄이 호출마다 쌓인다
     """
     normalized = canonical_claim(claim)
+    if not normalized:
+        raise ValueError(f"정규 형태가 빈 주장은 원장에 담을 수 없습니다: {claim!r}")
     existing = load(path)
     if any(entry.claim == normalized for entry in existing):
         return False
@@ -288,14 +294,18 @@ def next_unexplored(path: Path, *, skip: Collection[str] = ()) -> Entry | None:
         아직 안 판 후보 중 가장 먼저 담긴 것. 재고가 떨어졌으면 None —
         그 신호를 받으면 회차는 수집 대신 **탐색으로 전환**한다
     """
-    # [중요] **양쪽을 같은 함수로 통과시킨다.** `load` 는 앞뒤 공백만 떼는데
-    # `canonical_claim` 은 앞머리 백틱까지 뗀다 — 한쪽만 정규화하면 백틱이 붙은 줄에서
-    # 비교가 어긋나고, 그 고장은 예외가 아니라 **지나치라고 말한 후보를 그대로 다시
-    # 집는** 모양으로 나타난다
+    # [중요] **넘겨받은 쪽도 정규 형태로 맞춘다.** `load` 가 정규 형태로 읽으므로 한쪽만
+    # 맞추면 백틱이나 공백 하나에 비교가 어긋나고, 그 고장은 예외가 아니라 **지나치라고
+    # 말한 후보를 그대로 다시 집는** 모양으로 나타난다
     passed_over = {canonical_claim(claim) for claim in skip}
+    # [중요] 같은 주장이 두 줄이면 «앞 줄»이 그 후보다. 표시를 묻는 `status_of` 와 바꾸는
+    # `_rewrite` 가 앞 줄을 보므로, 여기서 뒤 줄을 꺼내면 뒤 단계가 「이미 판 것」으로 건너뛰고
+    # 표시는 앞 줄에만 적혀 **같은 후보를 회차마다 다시 꺼낸다**
+    seen: set[str] = set()
     for entry in load(path):
-        if entry.status is Status.UNEXPLORED and canonical_claim(entry.claim) not in passed_over:
+        if entry.status is Status.UNEXPLORED and entry.claim not in passed_over and entry.claim not in seen:
             return entry
+        seen.add(entry.claim)
     return None
 
 
@@ -328,6 +338,11 @@ def status_of(path: Path, claim: str) -> Status | None:
 def canonical_claim(claim: str) -> str:
     """한 줄 주장을 원장에 담을 «정규 형태»로 만든다.
 
+    [중요] 줄바꿈·탭을 포함한 공백류를 공백 하나로 접는 이유는 원장이 **한 줄에 한 후보**인
+    파일이기 때문이다. 에이전트가 낸 주장에 줄바꿈이 남으면 한 번 담은 후보가 두 줄로 쪼개져
+    뒷줄이 새 후보로 읽히고, 같은 주장을 다시 담아도 중복으로 안 걸리며, 표시를 바꾸려는
+    호출은 「원장에 없는 후보」로 예외를 낸다.
+
     [중요] 앞머리의 백틱을 떼는 이유는 **식별자 자리와 헷갈리지 않게** 하려는 것이다.
     한 줄 주장이 우연히 `` `abc` — `` 로 시작하면 그 줄을 다시 읽을 때 앞부분이 식별자로
     읽히고 주장은 잘린 채 돌아온다. 그러면 **중복 판정이 통째로 깨져** 같은 후보가 회차마다
@@ -337,13 +352,17 @@ def canonical_claim(claim: str) -> str:
     읽고 쓰는 양쪽이 이 함수를 지나므로 **같은 주장은 언제나 같은 문자열이 되어**
     중복 판정이 안정적으로 유지된다.
 
+    [중요] 그래서 **두 번 지나도 같아야 한다.** 쓸 때 한 번 지난 글자를 읽을 때 다시 지나므로,
+    앞머리의 백틱과 공백을 따로 떼면 「` `」 로 시작하는 주장에서 한 번과 두 번의 결과가 갈린다.
+    둘을 섞인 채로 한꺼번에 뗀다.
+
     Args:
         claim: 에이전트가 낸 한 줄 주장
 
     Returns:
-        원장에 담을 형태
+        원장에 담을 형태. 남는 글자가 없으면 빈 문자열
     """
-    return claim.strip().lstrip("`").strip()
+    return " ".join(claim.split()).lstrip("` ")
 
 
 def _is_reason_line(line: str) -> bool:
@@ -428,7 +447,7 @@ def _rewrite(
                 continue
 
         matched = ENTRY_PATTERN.match(line.rstrip("\n"))
-        if matched is None or matched.group(3).strip() != normalized or found:
+        if matched is None or canonical_claim(matched.group(3)) != normalized or found:
             rewritten.append(line)
             continue
 

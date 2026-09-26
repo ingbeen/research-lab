@@ -56,15 +56,17 @@ PROMPT: Final = """`.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 
 - 판단이 서지 않으면 **본문을 다시 열어** 숫자와 예시를 맞춰 보세요
 
 **[중요] 위 목록의 URL 은 하나도 빠짐없이** 어느 덩어리의 원본이나 복제 자리에 놓여야 합니다.
-빠뜨린 채 독립 소스 수를 적으면 **그 숫자가 통째로 틀리고, 그 고장은 에러를 내지 않습니다.**
+빠뜨리면 **독립 소스 수가 통째로 틀리고, 그 고장은 에러를 내지 않습니다.**
 
 독립된 출처는 **자기 혼자인 덩어리**로 적으면 됩니다 (복제가 빈 목록).
+독립 소스 수는 따로 적지 않습니다 — 자기 혼자인 덩어리가 독립 1 이라,
+덩어리를 빠짐없이 나누면 그 수가 곧 덩어리 수입니다.
 
 ## 낼 것
 
 다른 말 없이 **JSON 하나만** 출력하세요.
 
-{{"claim": "받은 한 줄 주장 그대로", "groups": [{{"origin": {{"title": "", "url": "", "published": "YYYY-MM-DD 또는 unknown"}}, "copies": [{{"title": "", "url": ""}}], "why": "왜 복제로 봤나 — 같은 숫자·같은 예시·발행일 쏠림"}}], "independent_source_count": 0, "unverified": ["확인하지 못한 것"]}}
+{{"claim": "받은 한 줄 주장 그대로", "groups": [{{"origin": {{"title": "", "url": "", "published": "YYYY-MM-DD 또는 unknown"}}, "copies": [{{"title": "", "url": ""}}], "why": "왜 복제로 봤나 — 같은 숫자·같은 예시·발행일 쏠림"}}], "unverified": ["확인하지 못한 것"]}}
 """
 
 
@@ -117,7 +119,11 @@ def run(run_dir: Path, ask: AgentCaller) -> None:
         raise StepQualityFailed(f"계보 규율 미달 — {shortfall}")
 
     groups = payload_helpers.as_list(payload.get("groups"))
-    independent = payload.get("independent_source_count")
+    # [중요] 에이전트에게 적게 하지 않고 «센다». 정의상 자기 혼자인 덩어리가 독립 1 이라
+    # 덩어리 수와 같은데, 적게 하면 틀려도 에러가 없고 그 숫자가 6번 칸 맨 앞에 실린다.
+    # 주소가 하나도 없는 덩어리는 세지 않는다 — 계보 게이트도 그런 덩어리를 «다룬 것»으로 보지
+    # 않는다. 모은 출처가 없을 때 지시문의 JSON 틀을 그대로 되돌려 쓰면 그런 덩어리가 생긴다
+    independent = sum(1 for group in groups if any(_url_of(source) for source in _cited_sources([group])))
 
     # [중요] 계보가 낸 주소도 «찔러 본다». 근거 문서의 머리말이 「아래에 적힌 URL 은 실제로
     # 호출해 살아 있는지 확인했습니다」라고 보증하는데, 이 단계만 그 검사를 안 지나면

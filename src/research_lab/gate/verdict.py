@@ -17,6 +17,8 @@
 from collections.abc import Mapping
 from typing import Any, Final
 
+from research_lab.gate.filled import is_filled
+
 KEY_VERDICT: Final = "verdict"
 KEY_REASON: Final = "reason"
 KEY_CRITERIA: Final = "criteria"
@@ -53,7 +55,7 @@ def shortfall_reason(payload: Mapping[str, Any]) -> str | None:
         return f"판정(`{KEY_VERDICT}`)이 약속된 값이 아닙니다 — {promised} 중 하나로 적으세요. " f"이 값은 기계가 읽어 「판정이 어떻게 갈렸나」를 셉니다."
 
     for key, label in TEXT_FIELDS:
-        if not _is_filled(payload.get(key)):
+        if not is_filled(payload.get(key)):
             return (
                 f"2번 칸의 「{label}」(`{key}`)가 비어 있습니다. "
                 f"이 문서는 다른 문서를 한 장도 열 수 없는 곳에서 읽히므로, "
@@ -61,12 +63,3 @@ def shortfall_reason(payload: Mapping[str, Any]) -> str | None:
             )
 
     return None
-
-
-def _is_filled(value: Any) -> bool:
-    """그 자리가 «채워졌나». 답의 내용은 보지 않는다."""
-    if value is None:
-        return False
-    if isinstance(value, list | tuple | set | dict) and not value:
-        return False
-    return bool(str(value).strip())

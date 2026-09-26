@@ -19,6 +19,7 @@ from pathlib import Path
 from time import sleep
 from typing import Final
 
+from research_lab.agent.invoke import StepFailed
 from research_lab.runner import decision_log, failures, ledger, state, steps
 from research_lab.runner.failures import Failure, FailureKind
 
@@ -117,13 +118,13 @@ def run_cycle(
     Args:
         run_dir: 그 회차의 실행 폴더. 상태와 로그가 여기 쌓인다
         ledger_path: 원장 경로
-        execute: 단계를 실제로 실행하는 쪽. 실패하면 `steps.StepFailed` 를 올린다
+        execute: 단계를 실제로 실행하는 쪽. 실패하면 `StepFailed` 를 올린다
 
     Returns:
         어디까지 갔는지와, 멈췄다면 그 이유
 
     Raises:
-        state.AlreadyRunningError: 같은 실행 폴더를 이미 다른 프로세스가 잡고 있을 때
+        state.AlreadyRunningError: 원장이나 같은 실행 폴더를 이미 다른 프로세스가 잡고 있을 때
     """
     # [중요] 잠금이 둘이고 «순서가 고정»이다.
     #
@@ -268,7 +269,7 @@ def _execute_with_retries(run_dir: Path, step: str, execute: StepExecutor) -> Fa
             # [주의] `StepFailed` 의 하위라 **이 줄이 먼저 와야** 한다
             _record_spent(run_dir, step, blocked)
             failure = Failure(kind=FailureKind.QUALITY, raw=blocked.raw)
-        except steps.StepFailed as failed:
+        except StepFailed as failed:
             _record_spent(run_dir, step, failed)
             failure = failures.classify(failed.raw)
         except Exception as unexpected:
@@ -301,7 +302,7 @@ def _execute_with_retries(run_dir: Path, step: str, execute: StepExecutor) -> Fa
     return failure
 
 
-def _record_spent(run_dir: Path, step: str, failed: steps.StepFailed) -> None:
+def _record_spent(run_dir: Path, step: str, failed: StepFailed) -> None:
     """실패한 호출이 쓴 것을 비용 줄로 남긴다. 모르면 아무것도 적지 않는다.
 
     [중요] 비용 줄은 단계가 결과를 «돌려받은 뒤» 적는다. 결과 대신 실패가 오른 호출은
@@ -397,28 +398,32 @@ def _block_candidate(run_dir: Path, ledger_path: Path, step: str, reason: str) -
 def _failed_cycles(run_dir: Path, step: str) -> int:
     """그 단계가 «막혀서» 끝난 회차가 이 폴더에 몇 번 기록됐나 센다.
 
-    [중요] 좁히는 조건이 둘이고 **둘 다 없으면 상한이 엉뚱하게 앞당겨진다.**
+    [중요] **한 회차의 «마지막» 실패 줄만 센다** — 그 회차가 어떻게 끝났는지가 그 줄의 갈래다.
+    한 회차는 실패 줄을 여러 개 남긴다(「그 외」는 시도마다 한 줄, 게이트가 막으면 단계가
+    한 줄(`gate=`)·러너가 한 줄(`attempt=`)). 줄을 다 세면 두 배·세 배로 세어 첫 회차에
+    바로 닿고, **«첫» 시도로 세면** 한 번 끊긴 뒤 한도로 끝난 회차가 막힌 회차로 세어진다 —
+    새벽 회차는 한도에 자주 걸리므로 멀쩡한 후보가 막힘 상한에 닿아 걷힌다.
 
-    - `attempt == 1` — 한 회차의 실패가 로그에 여러 줄을 남긴다. 게이트가 막으면 단계가
-      한 줄(`gate=`)·러너가 한 줄(`attempt=`)을 적고, 「그 외」 실패는 한 회차에 세 줄
-      (`attempt=1,2,3`)을 남긴다. 안 좁히면 두 배·세 배로 세어 첫 회차에 바로 닿는다
-    - `kind` — 한도·인증·예산은 **후보의 문제가 아니다.** 세면 멀쩡한 후보가 사흘 만에
-      걷어내진다 (`COUNTED_FAILURE_KINDS`)
-
-    첫 시도가 실패했지만 재시도로 성공한 회차도 한 줄을 남긴다. 그래도 안전한 이유는
-    **성공한 단계는 `settled` 에 들어가 이 폴더에서 다시 불리지 않고**, 이 판정은
-    방금 실패를 돌려받은 자리에서만 하기 때문이다.
+    갈래도 가른다 — 한도·인증·예산은 **후보의 문제가 아니다** (`COUNTED_FAILURE_KINDS`).
+    재시도로 성공한 회차는 마지막 실패 줄이 없으므로 세어지지 않는다.
 
     **새 누적 상태를 만들지 않는다** — 셀 재료가 이미 그 폴더에 쌓여 있다.
     """
-    return sum(
-        1
-        for entry in decision_log.read(run_dir)
-        if entry.get("step") == step
-        and entry.get("event") == decision_log.EVENT_FAILED
-        and entry.get("attempt") == 1
-        and entry.get("kind") in COUNTED_FAILURE_KINDS
-    )
+    counted = 0
+    for entry in decision_log.read(run_dir):
+        if entry.get("step") != step or entry.get("event") != decision_log.EVENT_FAILED:
+            continue
+        kind = entry.get("kind")
+        attempt = entry.get("attempt")
+        # 시도 번호가 없는 줄은 러너가 재시도하며 적은 줄이 아니다 — 어느 회차의 어느 시도인지
+        # 모르므로 세지 않는 쪽으로 떨어진다. 세는 쪽이면 멀쩡한 후보가 일찍 걷힌다
+        if kind not in COUNTED_FAILURE_KINDS or not isinstance(attempt, int):
+            continue
+        # 마지막 줄은 `_execute_with_retries` 가 멈추는 자리다 — 재시도하지 않는 갈래이거나
+        # 상한에 닿은 시도. 상한은 그 줄에 적힌 값으로 본다(나중에 상수가 바뀌어도 그때의 회차를 센다)
+        if not failures.should_retry(FailureKind(kind)) or attempt == entry.get("max_retries"):
+            counted += 1
+    return counted
 
 
 def _persist(run_dir: Path, settled: list[str], skipped: list[str]) -> None:
