@@ -183,7 +183,7 @@ def test_forbidden_flags_are_never_passed(flag: str) -> None:
     """
     목적: 켜면 «조용히» 망가지는 플래그가 들어가지 않는 계약을 고정한다.
 
-    - `--no-session-persistence`: 세션 로그가 안 남아 폭주 감지 fallback 이 사라진다
+    - `--no-session-persistence`: 세션이 안 남아 끊긴 호출을 `--resume` 으로 되붙을 보험이 사라진다
     - `--disable-slash-commands`: 리서치 스킬이 안 뜨는데 **에러는 안 난다.**
       문서는 그럴듯하게 나오고 소스 독립성·반증·1차 출처 규율만 사라진다
 

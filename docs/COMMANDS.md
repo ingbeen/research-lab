@@ -20,7 +20,7 @@ poetry run python validate_project.py --only-tests
 # 커버리지 포함 테스트
 poetry run python validate_project.py --cov
 
-# 포맷 자동 적용 (마지막 Phase에서만)
+# 포맷 자동 적용
 poetry run black .
 ```
 
@@ -82,9 +82,9 @@ docker build -t research-lab:latest .
 > 않습니다. 원장에 안 판 후보가 없거나 한 장을 못 내고 끝난 경우도 같은 자리에서 멈추며,
 > **왜 멈췄는지는 그 회차의 결정 로그에 남습니다.**
 >
-> **기본값이 네 장인 근거** — [실측 2026-09-15] 근거 문서 한 장이 5시간 창의 약 23% 라,
-> 네 장이면 한 창을 거의 채웁니다. [실측 2026-09-23] 모델을 바꾼 뒤에는 한 장이 25.6% · 27.5% 라
-> 네 장이면 한 창을 조금 넘칩니다(102 ~ 110%). 넘치면 한도에서 깨끗이 멈추고 다음 회차가 이어받습니다. **남는 구독 토큰을 쓰는 것이 이 프로젝트의 목적**입니다.
+> **기본값이 네 장인 근거** — 네 장이면 5시간 창 하나를 채우거나 조금 넘칩니다(한 장이 창의
+> 몇 %인지의 실측은 `scripts/run_cycle.py` 의 `DEFAULT_CYCLE_DOSSIERS` 주석에 있습니다).
+> 넘치면 한도에서 깨끗이 멈추고 다음 회차가 이어받습니다. **남는 구독 토큰을 쓰는 것이 이 프로젝트의 목적**입니다.
 
 > 🔴 **진입점 «파일명»이 바뀌면 이미지를 반드시 다시 빌드합니다.** `ENTRYPOINT` 가 이미지에
 > 구워져 있어, 안 빌드하면 `can't open file '/work/scripts/...': No such file or directory` 로
@@ -129,7 +129,6 @@ poetry run python scripts/run_cycle.py --cycle-dossiers 1
 
 ```bash
 poetry run python -c "
-import sys; sys.path.insert(0,'src')
 from research_lab.runner import cycle_log
 from research_lab.common_constants import RUNS_DIR
 print(cycle_log.unfinished_ids(RUNS_DIR) or '중단된 회차 없음')

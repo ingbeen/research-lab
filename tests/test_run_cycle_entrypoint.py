@@ -184,9 +184,9 @@ def test_unfinished_cycle_with_a_candidate_is_resumed(entrypoint: Any) -> None:
 
 def test_closed_cycle_is_not_resumed(entrypoint: Any) -> None:
     """
-    목적: [중요] 「막힘」으로 «닫힌» 폴더를 이어받지 않는 계약을 고정한다 (설계 §10.1 E).
+    목적: [중요] 「막힘」으로 «닫힌» 폴더를 이어받지 않는 계약을 고정한다.
 
-    이것이 없으면 E 가 통째로 동작하지 않는다. 후보를 원장에서 걷어내도 그 폴더의
+    이것이 없으면 「막힘」이 통째로 동작하지 않는다. 후보를 원장에서 걷어내도 그 폴더의
     「그 회차의 후보」는 살아 있어, 다음 회차가 이어받아 **같은 단계를 또 부르고 또 막힌다.**
     바로 위 계약(후보가 박힌 미완성은 이어받는다)이 여기서는 정확히 반대로 작용하므로
     닫힘을 «먼저» 봐야 한다.
@@ -517,7 +517,7 @@ def test_the_step_guard_clears_the_most_expensive_step_ever_measured(entrypoint:
 
 def test_the_loop_produces_the_requested_number_of_dossiers(entrypoint: Any, monkeypatch: pytest.MonkeyPatch) -> None:
     """
-    목적: 한 장을 끝내고도 «요청한 장수까지» 가는 계약을 고정한다 (설계 §3.1.1).
+    목적: 한 장을 끝내고도 «요청한 장수까지» 가는 계약을 고정한다.
 
     **남는 토큰을 쓰는 것이 이 프로젝트의 목적**이라, 일찍 끝났다고 멈추면 목적과 어긋난다.
 

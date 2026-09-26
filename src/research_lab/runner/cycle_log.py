@@ -127,7 +127,7 @@ def finished(
         #
         # [주의] 2026-09-15 이전의 줄에는 이 자리에 `tokens_limit_total`(네 성분의 합)이
         # 들어 있다. 그때는 캐시 읽기도 한도를 먹는다고 보았고 **그 가정이 틀렸다** —
-        # 실측은 `docs/DESIGN.md` 에 있다. 열쇠 이름을 바꾸는 것은 **같은 이름에 다른 뜻을
+        # 실측은 `usage` 모듈 머리에 있다. 열쇠 이름을 바꾸는 것은 **같은 이름에 다른 뜻을
         # 담지 않기** 위해서다. 덧붙이기 전용 파일이라 과거 줄은 고치지 않는다
         entry["tokens_new_total"] = tokens.new_total
         entry["window_share_percent"] = share

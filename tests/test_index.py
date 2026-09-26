@@ -116,7 +116,6 @@ def test_all_documents_registered() -> None:
     "required",
     [
         "CLAUDE.md",
-        "docs/DESIGN.md",
         "docs/COMMANDS.md",
         "src/research_lab/CLAUDE.md",
     ],

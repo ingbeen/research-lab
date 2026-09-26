@@ -13,9 +13,9 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 #   - 저장소 «안»   : 인증 상태와 세션 로그가 bind mount 를 타고 저장소에 생긴다.
 #                    이 저장소는 PUBLIC 이고 git 이력은 되돌아가지 않는다
 #   - 컨테이너 휘발 : 컨테이너와 함께 죽어 세션 로그가 사라진다.
-#                    폭주 감지 fallback(토큰 합산)과 되붙기가 둘 다 없어진다
+#                    끊긴 호출을 --resume 으로 되붙을 보험이 없어진다
 # 저장소 밖 호스트 폴더는 둘 다 피한다. mac 과 공유되지 않지만 잃는 것이 없다 —
-# 되짚을 로그는 러너가 runs/ 에 쓰고, 되붙기와 5시간 창 합산은 기계를 옮기면 어차피 못 쓴다.
+# 되짚을 로그는 러너가 runs/ 에 쓰고, 되붙기는 기계를 옮기면 어차피 못 쓴다.
 AGENT_HOME="${RESEARCH_LAB_AGENT_HOME:-$HOME/.research-lab-agent-home}"
 
 if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then

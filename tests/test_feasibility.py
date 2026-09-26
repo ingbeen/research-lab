@@ -427,7 +427,7 @@ def test_unknown_catalog_hits_are_counted_separately(tmp_path: Path) -> None:
 
 def test_cost_terms_in_execution_are_recorded_but_do_not_block(tmp_path: Path) -> None:
     """
-    목적: 5번 칸의 비용 표현이 «기록되고 막지는 않는» 계약을 고정한다 (설계 §2 · §10.1 A).
+    목적: 5번 칸의 비용 표현이 «기록되고 막지는 않는» 계약을 고정한다.
 
     Given: 5번 칸에 수수료가 섞인 산출물
     When: 단계를 돈다

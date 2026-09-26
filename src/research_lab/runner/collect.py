@@ -374,9 +374,10 @@ def _give_up_on_deferred(run_dir: Path, deferred: Sequence[str]) -> NoReturn:
 def _reject(run_dir: Path, ledger_path: Path, claim: str, reason: str) -> None:
     """잴 수 없다고 판정된 후보를 원장에 기각으로 적고 사유를 남긴다.
 
-    [중요] 부르는 자리가 둘이다 — 첫 답이 축을 못 냈을 때와, **다시 물어 받은 답이
-    축을 빠뜨렸을 때.** 두 곳에 같은 코드를 두면 한쪽만 고쳐질 수 있고, 그 갈림은
-    「원장에는 적혔는데 로그에는 없다」처럼 **한쪽에만 남는 모양**으로 나타난다.
+    [중요] 부르는 자리는 첫 답이 축을 못 냈을 때 하나다. **다시 물어 받은 답이 축을
+    빠뜨린 것은 기각이 아니다** — `_carry_forward` 가 앞선 답의 축으로 되돌린다.
+    원장 표시와 로그 줄을 한 함수에 묶어 두는 것은 둘이 갈리면 「원장에는 적혔는데 로그에는
+    없다」처럼 **한쪽에만 남는 모양**으로 나타나기 때문이다.
     """
     ledger.mark_rejected(ledger_path, claim, reason)
     decision_log.record(run_dir, steps.COLLECT, decision_log.EVENT_DISCARDED, claim=claim, reason=reason)
