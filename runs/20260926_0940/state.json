@@ -1,0 +1,19 @@
+{
+  "settled": [
+    "explore",
+    "collect",
+    "rebut",
+    "lineage",
+    "feasibility",
+    "mechanism",
+    "measurement",
+    "verdict"
+  ],
+  "skipped": [
+    "explore"
+  ],
+  "candidate": {
+    "claim": "대규모 유상증자(특히 할인율 30% 이상) 공시 종목을 공시 직후 공매도하거나 회피하고, 신주 상장 이후 저점에서 재매수를 노린다",
+    "identifier": "rights-offer-discount"
+  }
+}

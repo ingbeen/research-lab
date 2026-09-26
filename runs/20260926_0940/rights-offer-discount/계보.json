@@ -1,0 +1,281 @@
+{
+  "claim": "대규모 유상증자(특히 할인율 30% 이상) 공시 종목을 공시 직후 공매도하거나 회피하고, 신주 상장 이후 저점에서 재매수를 노린다",
+  "groups": [
+    {
+      "origin": {
+        "title": "유상증자 전후의 공매도 거래가 발행가격에 미치는 영향 (윤평식·임병권, 재무관리연구 35권 2호)",
+        "url": "https://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART002358369",
+        "published": "unknown"
+      },
+      "copies": [
+        {
+          "title": "신주인수권증서의 상장과 차익거래 기회 (윤평식, 한국증권학회지 48권 3호)",
+          "url": "https://www.dbpia.co.kr/journal/articleDetail?nodeId=NODE08744902"
+        },
+        {
+          "title": "주주배정방식 유상증자의 권리락일 주가조정에 관한 연구 (윤평식, 한국증권학회지 49권 3호)",
+          "url": "https://www.e-kjfs.org/journal/view.php?number=895&viewtype=pubreader"
+        },
+        {
+          "title": "주주배정방식 유상증자의 할인율과 발행가격 및 청약률에 관한 연구 (장승현·윤평식, 한국증권학회지 51권 2호)",
+          "url": "https://www.e-kjfs.org/journal/view.php?number=936&viewtype=pubreader"
+        }
+      ],
+      "why": "한 저자(윤평식)가 이어 쓴 논문들이다. 2020년 권리락일 논문(2020-06-30, 2004~2016년 618건)과 2022년 할인율 논문(2022-04-22, 2004~2016년 407건)의 참고문헌을 직접 열어 봤다. 둘 다 Yoon and Lim(2018, 공매도와 발행가격)과 Yoon(2019, 신주인수권증서 차익거래)을 인용하고, 2022년 논문은 2020년 논문도 인용한다. 문장을 베낀 것은 아니고 논문마다 자기 추정치를 낸다. 그러나 같은 사람이 같은 기간의 같은 자료로 서로를 인용하며 낸 확인이라 독립된 확인이 아니다. 그래서 한 덩어리, 소스 1로 센다. 원본 자리에는 목록에서 가장 이른 2018년 논문(91건 표본, 게재 월일 미확인)을 놓았다. 두 e-kjfs 주소는 찬성과 반증 목록에 똑같은 주소로 한 번씩 들어와 있어 한 번만 적었다."
+    },
+    {
+      "origin": {
+        "title": "코스닥기업의 유상증자가 주가에 미치는 영향 (조준희, 사회과학연구 19권 3호)",
+        "url": "https://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART001316005",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "2008년 게재(월일 미확인). 2001~2007년 코스닥 유상증자 공시로 직접 만든 표본이다. 할인율 30% 초과 증자가 공시 뒤 하락했다는 결과를 다른 출처가 같은 숫자로 되풀이하지 않는다. 국제신문과 뉴스톱의 「할인율 20~30%」는 발행 관행을 적은 것이지 이 논문 결과를 옮긴 것이 아니다. 복제 없음."
+    },
+    {
+      "origin": {
+        "title": "Price Pressure and Overnight Seasoned Equity Offerings (Gustafson, JFQA 53권 2호)",
+        "url": "https://www.cambridge.org/core/journals/journal-of-financial-and-quantitative-analysis/article/abs/price-pressure-and-overnight-seasoned-equity-offerings/DE87F9B6B394706A5371AABDB87B2227",
+        "published": "unknown"
+      },
+      "copies": [
+        {
+          "title": "Price Pressure and Overnight Seasoned Equity Offerings (Gustafson, JFQA 53(2):837-866, 2018년 4월)",
+          "url": "https://pure.psu.edu/en/publications/price-pressure-and-overnight-seasoned-equity-offerings/"
+        }
+      ],
+      "why": "같은 논문의 주소 두 개다. 케임브리지 쪽은 출판사 게재본이고, 펜실베이니아 주립대 pure 페이지는 소속 기관 연구 목록에 다시 올린 서지 기록이다. 그래서 둘 다 1차 연구이면서 뒤쪽은 복제다. 찬성과 반증 목록에 주소만 달리해 한 번씩 들어왔다. 2018년 4월호라는 것만 알고 게재 일자는 확인하지 못했다."
+    },
+    {
+      "origin": {
+        "title": "Short Selling Around Seasoned Equity Offerings (Henry·Koski, Review of Financial Studies 23권 12호)",
+        "url": "https://econpapers.repec.org/article/ouprfinst/v_3a23_3ay_3a2010_3ai_3a12_3ap_3a4389-4418.htm",
+        "published": "unknown"
+      },
+      "copies": [
+        {
+          "title": "Short Selling Around Seasoned Equity Offerings (Henry & Koski, Review of Financial Studies 23(12):4389-4418, 2010)",
+          "url": "https://ideas.repec.org/a/oup/rfinst/v23y2010i12p4389-4418.html"
+        }
+      ],
+      "why": "같은 논문(RFS 2010년 23권 12호 4389-4418쪽)의 서지 색인 두 곳이다. EconPapers 와 IDEAS 는 같은 RePEc 색인을 다르게 보여 주는 사이트이고, 둘 다 출판사 원문은 아니다. 원본 자리에는 먼저 받은 쪽을 놓았을 뿐이다. 둘 사이에 선후는 없다. 찬성과 반증 목록에 한 번씩 들어왔다."
+    },
+    {
+      "origin": {
+        "title": "Shelf versus Traditional Seasoned Equity Offerings: The Impact of Potential Short Selling (Dutordoir·Strong·Sun, JFQA 54권 3호)",
+        "url": "https://www.cambridge.org/core/journals/journal-of-financial-and-quantitative-analysis/article/abs/shelf-versus-traditional-seasoned-equity-offerings-the-impact-of-potential-short-selling/44B599740AF62025F323D17B4F2D04AC",
+        "published": "2018-09-07"
+      },
+      "copies": [],
+      "why": "선반등록 증자와 전통 증자를 비교해, 공매도 가능성이 증자 공시 효과를 어떻게 바꾸는지 따로 모은 표본으로 잰 1차 연구다. 다른 공매도·증자 논문과 서로 인용하는지는 본문으로 확인하지 못했다. 다만 저자가 다르고 자기 추정치를 내며, 목록의 다른 출처 숫자를 옮겨 온 흔적이 없어 따로 센다. 적용한 기준: 저자가 다른 연구가 자기 표본으로 다시 잰 것은 독립된 확인이다. 같은 저자의 연작이나 남의 숫자를 되풀이한 글은 한 덩어리다."
+    },
+    {
+      "origin": {
+        "title": "The New Issues Puzzle (Loughran·Ritter, Journal of Finance 50권 1호)",
+        "url": "https://econpapers.repec.org/RePEc:bla:jfinan:v:50:y:1995:i:1:p:23-51",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "1995년 논문이다. 증자 기업이 장기적으로 저성과를 낸다는 이상 현상(new issues puzzle)을 처음 제기했다. 목록의 Eckbo·Masulis·Norli(2000)와 Brav·Geczy·Gompers(2000)는 이 논문을 겨냥한 반론이라 이 논문을 인용한다. 하지만 결론이 반대이고 각자의 표본과 위험 조정 방법으로 다시 쟀다. 주장을 되풀이한 복제가 아니므로 세 덩어리로 따로 센다."
+    },
+    {
+      "origin": {
+        "title": "Seasoned public offerings: resolution of the 'new issues puzzle' (Eckbo, Masulis & Norli, Journal of Financial Economics 56(2):251-291, 2000)",
+        "url": "https://econpapers.repec.org/RePEc:eee:jfinec:v:56:y:2000:i:2:p:251-291",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "Loughran·Ritter(1995)가 말한 장기 저성과가 위험을 조정하면 사라지는지 따로 모은 표본으로 다시 잰 반론이다. 같은 학술지 같은 호(JFE 56권 2호, 2000년)에 Brav·Geczy·Gompers 논문이 함께 실렸다. 하지만 저자와 방법이 다른 별개 작업이다. 발행일이 겹친 것은 받아쓴 결과가 아니라 편집 일정 때문으로 보고 따로 센다."
+    },
+    {
+      "origin": {
+        "title": "Is the abnormal return following equity issuances anomalous? (Brav, Geczy & Gompers, JFE 56(2):209-249, 2000)",
+        "url": "https://ideas.repec.org/a/eee/jfinec/v56y2000i2p209-249.html",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "Loughran·Ritter(1995)의 증자 뒤 초과수익이 정말 이상 현상인지 따로 모은 표본과 다른 비교 방법으로 다시 잰 반론이다. Eckbo·Masulis·Norli 와 같은 호에 실렸지만 저자와 방법이 달라 따로 센다. 두 반론이 서로 인용하는지는 확인하지 못했다."
+    },
+    {
+      "origin": {
+        "title": "The Long-run Performance of Seasoned Equity Offerings with rights: evidence from the Swiss Market (Dubois & Jeanneret, 2000)",
+        "url": "https://ideas.repec.org:443/p/fam/rpseri/rp22.html",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "스위스 시장의 주주배정(rights) 증자 장기 성과를 스위스 표본으로 잰 연구다. 시장이 달라 목록의 미국·한국 연구와 표본이 겹치지 않는다. 같은 숫자나 예시도 반복되지 않는다. 복제 없음."
+    },
+    {
+      "origin": {
+        "title": "Equity Issues and the Disappearing Rights Offer Phenomenon (Eckbo, Journal of Applied Corporate Finance 20(4):72-85, 2008)",
+        "url": "https://ideas.repec.org/a/bla/jacrfn/v20y2008i4p72-85.html",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "Eckbo·Masulis·Norli(2000)와 저자 한 명이 겹친다. 그러나 초록을 열어 보니 장기 성과가 아니라 주주배정 증자가 미국에서 사라진 이유를 다룬다. 정보 비대칭과 역선택 비용으로 발행 방식 선택을 설명하는 별개 주제다. 페이지에 보이는 참고문헌에 2000년 논문이 없다. 같은 주장을 되풀이한 것이 아니므로 따로 센다."
+    },
+    {
+      "origin": {
+        "title": "유상증자 방식과 시장상황에 따른 유상증자후 장기성과 분석 (박형진·홍종운, 대한경영학회지 32(4), 2019)",
+        "url": "https://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART002460426",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "2000~2009년 유상증자 688건으로 직접 만든 표본이다. 주주배정 방식은 증자 뒤 2년간 주가 상승이 유의하고, 일반공모와 제3자 배정은 음의 장기 성과라는 결과다. 표본 기간이 윤평식 연작(2004~2016년)과 다르고, 목록의 다른 출처와 숫자가 겹치지 않는다. 참고문헌은 페이지에 표시되지 않아 확인하지 못했다."
+    },
+    {
+      "origin": {
+        "title": "유상증자가 주가급락위험에 미치는 영향에 대한 연구 (변희섭·강상구, 한국자료분석학회지 21(5):2535-2545, 2019)",
+        "url": "https://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART002519218",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "2003~2016년 유가증권시장 비금융 12월 결산 기업으로 증자 이듬해의 주가 급락 위험을 잰 연구다. 일반공모·제3자 배정에서만 유의하다는 결과다. 표본 기간은 윤평식 연작과 겹치지만 저자와 측정 대상(급락 위험)이 다르다. 같은 숫자나 예시가 없어 따로 센다."
+    },
+    {
+      "origin": {
+        "title": "公募増資に関連する空売り規制の施行等について (일본 금융청)",
+        "url": "https://www.fsa.go.jp/news/23/syouken/20111201-1.html",
+        "published": "2011-12-01"
+      },
+      "copies": [],
+      "why": "일본 금융청이 직접 낸 규정 시행 공고다. 증자 공표 뒤 발행가격 결정까지 공매도한 사람은 증자로 받은 신주로 그 공매도 포지션을 갚을 수 없고, 2011-12-01 시행이다. 문서에 미국이나 한국 제도를 참고했다는 언급이 없다. 목록의 다른 출처 중 이 문서를 옮긴 것도 없다."
+    },
+    {
+      "origin": {
+        "title": "Short Selling in Connection with a Public Offering -- Amendments to Rule 105 of Regulation M: A Small Entity Compliance Guide (SEC)",
+        "url": "https://www.sec.gov/files/divisions/marketreg/tmcompliance/regmrule105-secg.htm",
+        "published": "2008-05-21"
+      },
+      "copies": [],
+      "why": "미국 증권거래위원회가 직접 낸 Rule 105 개정 안내서다. 한국·일본 규정과 취지가 같다. 그러나 규제기관마다 자기 제도를 공표한 1차 문서이고, 서로 문장이나 숫자를 옮긴 관계가 확인되지 않아 따로 센다."
+    },
+    {
+      "origin": {
+        "title": "공매도 투자자 유상증자 참여 제한…과열종목은 하루 거래정지 (서울경제)",
+        "url": "https://www.sedaily.com/NewsView/1L3X0CYDHM",
+        "published": "2016-11-10"
+      },
+      "copies": [
+        {
+          "title": "공매도하면 유상증자 참여 제한한다 (헤럴드경제)",
+          "url": "https://biz.heraldcorp.com/article/2536949"
+        },
+        {
+          "title": "공매도 규제 관련 개정 자본시장법 시행 및 시행령 개정안 입법예고 (김·장 법률사무소)",
+          "url": "https://www.kimchang.com/ko/insights/detail.kc?sch_section=4&idx=22832"
+        },
+        {
+          "title": "'공매도 투자자 증자 참여 금지령' 덕 본 하이브 유상증자 (인베스트조선)",
+          "url": "https://www.investchosun.com/site/data/html_dir/2021/06/04/2021060486007.html"
+        }
+      ],
+      "why": "넷 다 금융위원회의 같은 정책, 곧 공매도한 투자자의 유상증자 참여 제한을 옮긴 글이다. 서울경제(2016-11-10)는 금융위의 2016년 발표를 옮겼다(공시일부터 발행가격 결정일까지, 위반 시 5억원 이하 과징금). 헤럴드경제(2021-01-13)와 김·장 뉴스레터(2021-03-12)는 둘 다 금융위의 2021-01-13 자본시장법 시행령 입법예고를 출처로 밝힌다. 대상 기간 문구도 사실상 같다: 「유상증자 계획이 공시된 다음 날부터 발행가격 산정 기간 마지막 날·기산일까지」. 인베스트조선(2021-06-04)은 같은 규정 문구를 되풀이하고 하이브 사례를 덧붙였다. 진짜 원본은 목록 밖의 금융위 보도자료라서, 목록에서 가장 이른 서울경제를 원본 자리에 놓았다. 하이브(할인율 15%, 2차 발행가 21만6000원)와 HDC현대산업개발(공시 뒤 공매도 비율 23.54%) 수치는 인베스트조선에만 있는 관찰이다. 다만 규정의 효과를 보여 주는 일화라서 같은 덩어리에 둔다."
+    },
+    {
+      "origin": {
+        "title": "공매도 31일 전면 재개…무엇이 달라지나[돌아온 공매도①] (뉴시스)",
+        "url": "https://www.newsis.com/view/NISX20250321_0003108608",
+        "published": "2025-03-22"
+      },
+      "copies": [],
+      "why": "2025년 3월 말 공매도 전면 재개를 앞두고 달라지는 점을 정리한 기사다. 무차입 공매도 중앙점검 시스템, 개인·기관 대차 상환 기간 90일(연장 포함 최장 12개월), 담보비율 105% 통일, 무차입 공매도 벌금 부당이득의 4~6배가 들어 있다. 읽은 범위에서는 유상증자 참여 제한 서술이 없어, 금융위 규정 보도 덩어리와 숫자나 문구가 겹치지 않는다. 금융위 발표를 받아쓴 기사일 수 있지만 그 원본이 목록에 없어 목록 안에서는 혼자다."
+    },
+    {
+      "origin": {
+        "title": "고려아연, 일반공모 유상증자 철회···시장·주주 우려 받아들여 (경제일보)",
+        "url": "https://www.kyungjeilbo.com/view/20241113144704008",
+        "published": "2024-11-13"
+      },
+      "copies": [
+        {
+          "title": "[ET라씨로] 이수페타시스, 대규모 유상증자 제동… 주가 20%↑ (전자신문)",
+          "url": "https://www.etnews.com/20241203000308"
+        },
+        {
+          "title": "유증 남발 막는다…금감원, 유증 '중점심사' 도입 (이데일리)",
+          "url": "https://edaily.co.kr/News/Read?mediaCodeNo=257&newsId=03112726642074784"
+        }
+      ],
+      "why": "2024년 하반기 금융감독원이 대규모 유상증자에 정정신고서를 요구해 멈춰 세운 한 흐름이다. 경제일보는 고려아연(11월 6일 정정 요구 뒤 일반공모 증자 철회)을 보도했다. 전자신문은 이수페타시스(5500억원 증자 정정 요구 뒤 주가 20.14% 상승)를 따로 보도했고, 두 기사는 서로를 언급하지 않는다. 그런데 이데일리(2025-02-27)의 금감원 「중점심사」 도입 기사가 이 두 종목을 그대로 사례로 든다. 같은 예시가 되풀이되고 셋 다 한 규제기관의 같은 조치에서 나왔으므로 한 덩어리로 셌다. 문장을 베낀 것은 아니다. 전자신문 기사는 전자신문과 금융 AI 회사가 함께 쓴 자동 생성 기사다."
+    },
+    {
+      "origin": {
+        "title": "잇따르는 '兆 단위' 유상증자…\"목적·모회사 참여가 주가 판가름\" (이데일리)",
+        "url": "https://edaily.co.kr/News/Read?mediaCodeNo=257&newsId=01669526642170232",
+        "published": "2025-05-18"
+      },
+      "copies": [
+        {
+          "title": "한화에어로스페이스 역대 최대 유상증자 마무리…21일 신주 상장 (한국경제)",
+          "url": "https://www.hankyung.com/article/202507112181i"
+        },
+        {
+          "title": "\"유증하면 주가 떨어진다?\"…75% 뛴 한화에어로가 보여준 반전 (머니투데이)",
+          "url": "https://www.mt.co.kr/industry/2026/08/11/2026081021430686194"
+        }
+      ],
+      "why": "2025년 상반기 「조 단위」 유상증자 물결에서 나온 같은 사례 묶음이다. 이데일리(2025-05-18)가 삼성SDI·한화에어로스페이스·포스코퓨처엠 세 종목을 들었다. 머니투데이(2026-08-11)는 같은 세 종목을 「증자 목적이 주가를 가른다」는 같은 틀로 다시 들었다. 한국경제(2025-07-11)는 그중 한화에어로스페이스 증자 마무리를 보도했다(최종 2조9188억원, 3월 20일 72만2000원에서 7월 10일 85만3000원). 같은 예시가 되풀이되므로 사례로서의 소스 수는 1이다. 다만 기사끼리 숫자를 옮긴 흔적은 없고 오히려 어긋난다. 한화에어로 증자 규모는 머니투데이 약 3조6000억원, 이데일리 2조3000억원, 한국경제 2조9188억원이다. 삼성SDI 는 머니투데이 2조원, 이데일리 1조7282억원이다. 받아쓴 것이 아니라 같은 사건을 서로 다른 시점 기준으로 본 것이다."
+    },
+    {
+      "origin": {
+        "title": "Hanwha Solutions Plummets 18% After Announcing Massive Rights Offering Worth 37% of Market Cap (BigGo Finance)",
+        "url": "https://finance.biggo.com/news/DVRfKp0BNZYCTTDvthaK",
+        "published": "2026-03-26"
+      },
+      "copies": [],
+      "why": "한화솔루션이 2026년 3월 시가총액의 약 37.5%에 이르는 증자를 공시한 뒤 하루 18.22% 떨어진 일을 다룬 기사다. 목록의 다른 출처는 이 사건을 다루지 않는다. 작성자는 BigGo Editorial Team 이고 원 기사 표기가 없다. 목록 밖의 한국어 기사를 번역·요약한 글일 수 있고, 그렇다면 이 자리는 원본이 아니라 복제다."
+    },
+    {
+      "origin": {
+        "title": "[팩트체크] 유상증자는 정말 주가에 악재일까 (뉴스톱)",
+        "url": "https://www.newstopkorea.com/news/articleView.html?idxno=24191",
+        "published": "2024-09-27"
+      },
+      "copies": [],
+      "why": "피피아이(주주배정 발표 뒤 6.01% 하락), 에코프로에이치엔, 유일로보틱스, 제주맥주 사례로 유상증자가 늘 악재는 아니라고 짚은 팩트체크 기사다. 이 사례들은 목록의 다른 출처에 나오지 않고, 인용한 연구도 없다. 「주주배정 할인율 20~30%, 제3자 배정 최대 10%」는 발행 관행과 규정을 적은 것이라 복제의 표지로 보지 않았다."
+    },
+    {
+      "origin": {
+        "title": "[차호중의 재테크 칼럼]유상증자 이해와 활용 (국제신문)",
+        "url": "https://v.daum.net/v/20250425162005199",
+        "published": "2025-04-25"
+      },
+      "copies": [],
+      "why": "증권사 영업이사가 쓴 유상증자 일반 해설 칼럼이다(국제신문 글을 포털에 다시 올린 것). 개별 종목 사례가 없다. 「주주배정 신주는 보통 30% 할인돼 신주 상장 때 팔면 바로 수익이 날 수 있다」는 서술이 다른 출처와 문장이나 예시로 겹치지 않는다. 포털 재게시본이지만 국제신문 원래 주소가 목록에 없어, 목록 안에서는 이 주소가 유일하다."
+    },
+    {
+      "origin": {
+        "title": "What Happens to Share Price after Rights Issue? (Event Driven Daily, Greg Aikens)",
+        "url": "https://www.eventdrivendaily.com/what-happens-to-share-price-after-rights-issue/",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "rights issue 뒤 주가가 이론 권리락가(TERP)로 맞춰진 다음, 조달한 자금을 어디에 쓰느냐에 따라 움직인다는 일반 해설이다. 사례·숫자·인용이 하나도 없어 다른 출처와 겹치는 것이 없다. 페이지에 발행일이 없다."
+    },
+    {
+      "origin": {
+        "title": "Deeply discounted rights issues (Value and Opportunity 블로그 태그 페이지, 2012-2017 글 모음)",
+        "url": "https://valueandopportunity.com/tag/deeply-discounted-rights-issues/",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "2012-11-12부터 2017-02-06까지 쓴 블로그 글을 모은 태그 페이지다. 유니크레디트(할인 43%), KPN(할인 35.1%), 몬테파스키(할인 95% 이상), Severfield-Rowen(할인 약 70%) 같은 유럽 사례를 다룬다. 학술 논문이나 Event Driven Daily 는 인용하지 않는다. 다른 출처와 사례나 숫자가 겹치지 않는다. 글 모음 페이지라 발행일이 하나로 정해지지 않는다."
+    }
+  ],
+  "independent_source_count": 23,
+  "unverified": [
+    "금융위원회 원 보도자료(2016-11-10 공매도 제도 개선 발표, 2021-01-13 자본시장법 시행령 입법예고)를 직접 열지 않았다. 공매도 투자자 증자 참여 제한 덩어리의 진짜 원본은 목록 밖에 있고, 규정 문구는 언론·법률사무소 서술로만 맞춰 봤다",
+    "시행 시점이 출처마다 다르다. 인베스트조선은 「올해(2021년) 1월부터」, 김·장 뉴스레터는 「2021-04-06 시행」이라 적었다. 1차 법령으로 확인하지 못했다. 하이브 신주발행공고(4월 2일)가 4월 6일 시행 전인데 이 규정이 적용됐는지도 확인하지 못했다",
+    "BigGo 기사에 원 기사 표기가 없어 번역·요약한 원본이 따로 있는지 모른다. 요약 도구로 읽은 발행 주식 수(720만 주)×공모가(33,300원)가 증자 총액(약 2.376조원)과 맞지 않아 원문이나 공시 대조가 필요하다",
+    "한화에어로스페이스와 삼성SDI 증자 규모가 이데일리·한국경제·머니투데이 사이에 서로 다르다. 최초 공시와 정정 공시를 1차 자료(전자공시)로 맞춰 보지 않았다",
+    "윤평식(2019, 신주인수권증서) 논문 본문은 직접 열지 않았다. 윤평식 연작에 넣은 근거는 2020·2022년 논문 참고문헌에 이 논문이 Yoon(2019)로 인용된 것이다",
+    "Gustafson(2018), Henry·Koski(2010), Dutordoir·Strong·Sun(2018)이 서로 인용하는지, 미국 증자 표본이 얼마나 겹치는지 본문으로 확인하지 않았다. 표본이 크게 겹치면 이 셋을 독립으로 센 것이 과대평가다",
+    "Eckbo·Masulis·Norli(2000)와 Brav·Geczy·Gompers(2000)는 같은 JFE 호에 실렸는데, 서로 인용하는지 확인하지 않았다",
+    "박형진·홍종운(2019), 변희섭·강상구(2019), 조준희(2008) 논문은 참고문헌을 보지 못해 윤평식 연작이나 Loughran·Ritter(1995)의 결과에 기대는지 모른다",
+    "고려아연·이수페타시스·금감원 중점심사를 한 덩어리로 묶은 것은 같은 규제 흐름이라는 판단이다. 두 사건을 별개 관측으로 세면 독립 소스 수는 24가 된다",
+    "뉴시스 2025-03-22 기사는 요약으로 읽은 범위에서 유상증자 관련 서술을 찾지 못했다. 본문 전체에 증자 참여 제한 언급이 있는지 원문 대조가 필요하다",
+    "주장 속 「할인율 30% 이상」 기준이 조준희(2008)의 30% 초과 할인 결과에서 왔는지, 국내 일반공모 할인율 한도 관행에서 왔는지 출처를 확인하지 못했다",
+    "Event Driven Daily 글의 발행일, Loughran·Ritter·Henry·Koski 등 학술지 논문의 게재 월일은 확인하지 못했다"
+  ]
+}

@@ -4,21 +4,38 @@
 그래서 인자를 만드는 일과 실행하는 일을 나눠 두었다.
 """
 
+import hashlib
 import json
 import subprocess
+import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 
 import pytest
 
 from research_lab.agent import invoke
 from research_lab.runner.steps import StepFailed
 
+# 리눅스가 명령행 인자 «하나»에 허용하는 최대 바이트 (`MAX_ARG_STRLEN` = 32 × 4,096).
+# 인자 전체의 상한(`ARG_MAX`)과는 다른 값이다
+ARGUMENT_LIMIT_BYTES: Final = 131_072
+
+# 가짜 `claude`. 받은 «표준 입력» 바이트의 해시를 답으로 낸다.
+# 인자 상한은 운영체제가 프로세스를 띄울 때 거는 것이라 `subprocess.run` 을 가로채서는
+# 재현되지 않는다 — 진짜 프로세스를 띄워야 한다
+FAKE_CLAUDE: Final = """#!{python}
+import hashlib
+import json
+import sys
+
+received = sys.stdin.buffer.read()
+print(json.dumps({{"result": hashlib.sha256(received).hexdigest()}}))
+"""
+
 
 def _command(**overrides: object) -> list[str]:
     """기본값으로 인자를 만들고 필요한 것만 바꾼다."""
     kwargs: dict[str, object] = {
-        "prompt": "무엇을 해라",
         "session_id": "11111111-2222-3333-4444-555555555555",
         "budget_usd": 2.0,
     }
@@ -257,3 +274,68 @@ def test_timeout_carries_nothing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     failed = _run_with(monkeypatch, tmp_path, subprocess.TimeoutExpired(cmd="claude", timeout=1800.0))
 
     assert failed.spent is None
+
+
+def test_prompt_goes_through_stdin_not_the_argument_list(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """
+    목적: 프롬프트를 명령행 인자가 아니라 «표준 입력»으로, UTF-8 로 넘기는 계약을 고정한다.
+
+    인자는 운영체제가 크기를 자른다(아래 테스트). 인코딩을 적는 이유는 표준 입력이
+    **로캘 인코딩**을 따르기 때문이다 — 인자는 파일시스템 인코딩(UTF-8)으로 바이트가 됐으므로,
+    적지 않으면 로캘이 UTF-8 이 아닌 호스트에서 한글 지시문이 에러 없이 다른 바이트가 된다.
+
+    Given: 한글 프롬프트
+    When: 호출한다
+    Then: 인자 목록에 프롬프트가 없고, 표준 입력으로 UTF-8 로 넘어간다
+    """
+    prompt = "무엇을 해라 — 인자가 아니라 입력으로"
+    seen: dict[str, Any] = {}
+
+    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        seen["command"] = command
+        seen.update(kwargs)
+        return subprocess.CompletedProcess(command, 0, stdout=json.dumps({"result": "{}"}), stderr="")
+
+    monkeypatch.setattr(invoke.subprocess, "run", fake_run)
+    invoke.invoke(prompt=prompt, cwd=tmp_path, env={}, budget_usd=1.0)
+
+    assert prompt not in seen["command"]
+    assert seen.get("input") == prompt
+    assert seen.get("encoding") == "utf-8"
+
+
+def test_a_prompt_over_the_single_argument_limit_reaches_the_agent(tmp_path: Path) -> None:
+    """
+    목적: [중요] 인자 하나의 상한을 넘는 프롬프트가 에이전트에 «바이트 그대로» 닿는 계약을 고정한다.
+
+    [실측 2026-09-26] 판정 프롬프트는 앞 단계 산출물을 전부 싣는다. 모델을 바꾼 뒤 그 크기가
+    118,248 · 122,343B 로 커졌고, 136,063B 가 된 회차에서 `OSError(7, 'Argument list too long')` 로
+    **에이전트를 한 번도 못 부르고** 멈췄다. 앞 일곱 단계를 마친 뒤라 근거 문서 한 장이 통째로
+    막혔고, 입력이 같아 다음 회차도 같은 자리에서 멈춘다.
+
+    진짜 CLI 는 부르지 않는다 — 받은 입력의 해시를 답하는 가짜 실행 파일을 `PATH` 에 둔다.
+
+    Given: 상한의 두 배쯤 되는 한글 프롬프트와, 받은 입력의 해시를 답하는 가짜 `claude`
+    When: 호출한다
+    Then: 돌아온 해시가 프롬프트의 UTF-8 바이트 해시와 같다
+    """
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    fake = bin_dir / invoke.CLAUDE_BINARY
+    fake.write_text(FAKE_CLAUDE.format(python=sys.executable), encoding="utf-8")
+    fake.chmod(0o755)
+
+    line = "판정에 쓸 앞 단계 산출물입니다.\n"
+    prompt = line * (2 * ARGUMENT_LIMIT_BYTES // len(line.encode("utf-8")))
+    assert len(prompt.encode("utf-8")) > ARGUMENT_LIMIT_BYTES, "전제: 프롬프트가 인자 하나의 상한을 넘어야 한다"
+
+    result = invoke.invoke(
+        prompt=prompt,
+        cwd=tmp_path,
+        env={"PATH": str(bin_dir)},
+        budget_usd=1.0,
+        # 짧게 준다. 표준 입력을 물려주는 구현이면 가짜가 테스트를 돌린 쪽의 입력을 기다리며 멈출 수 있다
+        timeout_seconds=30.0,
+    )
+
+    assert result.text == hashlib.sha256(prompt.encode("utf-8")).hexdigest()

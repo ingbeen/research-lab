@@ -87,7 +87,6 @@ class AgentResult:
 
 def build_command(
     *,
-    prompt: str,
     session_id: str,
     budget_usd: float,
     tools: Sequence[str] = DEFAULT_TOOLS,
@@ -96,9 +95,9 @@ def build_command(
     """호출 인자를 만든다.
 
     실행과 분리된 순수 함수다 — 인자 구성은 계약이고, 계약은 돌려보지 않고도 검사돼야 한다.
+    **프롬프트는 받지 않는다** — 인자가 아니라 표준 입력으로 간다(`invoke` 참고).
 
     Args:
-        prompt: 에이전트에게 줄 지시
         session_id: **미리 정한** UUID. 출력에서 긁어낼 필요가 없고, 끊겼을 때 이 값으로 되붙는다
         budget_usd: 폭주 감지용 상한. **0 을 줄 수 없다** (아래 Raises)
         tools: 줄 도구 목록
@@ -124,7 +123,6 @@ def build_command(
     command = [
         CLAUDE_BINARY,
         "-p",
-        prompt,
         "--output-format",
         "json",
         "--model",
@@ -240,7 +238,6 @@ def invoke(
 
     resolved_session = session_id or new_session_id()
     command = build_command(
-        prompt=prompt,
         session_id=resolved_session,
         budget_usd=budget_usd,
         tools=tools,
@@ -249,12 +246,19 @@ def invoke(
 
     started = time.monotonic()
     try:
+        # [중요] 프롬프트를 인자가 아니라 «표준 입력»으로 넘긴다. 리눅스는 인자 하나를
+        # 131,072B 까지만 받는데, 앞 단계 산출물을 전부 싣는 판정 프롬프트가 그 선을 넘자
+        # 에이전트를 한 번도 못 부르고 `OSError(7)` 로 회차가 멈췄다
+        # (실측은 `docs/DESIGN.md` §11.16). 인코딩을 적는 이유는 표준 입력이 로캘을 따르기
+        # 때문이다 — 인자일 때는 UTF-8 로 넘어갔다
         completed = subprocess.run(
             command,
+            input=prompt,
             cwd=cwd,
             env=dict(env),
             capture_output=True,
             text=True,
+            encoding="utf-8",
             timeout=timeout_seconds,
             check=False,
         )
