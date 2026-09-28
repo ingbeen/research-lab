@@ -88,7 +88,7 @@ PROMPT: Final = """`.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 
 **파라미터 축** (수집 단계가 낸 것. 이것이 곧 격자의 재료입니다)
 
 {params}
-
+{fixed}
 **[중요] 위를 새로 정하지 마세요.** 다르게 적으면 같은 문서의 두 칸이 서로 다른 말을 합니다.
 
 ## 무엇을 묻나
@@ -125,8 +125,16 @@ PROMPT: Final = """`.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 
 # **시장과 상품을 스스로 정하고**, 그것이 4·5번 칸과 어긋난다
 MISSING_NOTE: Final = "(앞 단계의 값을 읽지 못했습니다. 한 줄 주장에서 판단하고, 확신이 없으면 `unverified` 에 적으세요.)"
 
+# 수집이 축 대신 「값이 정해진 말」로 밝힌 표현을 싣는 절. 선언이 없으면 절째 싣지 않는다 —
+# 빈 절을 남기면 에이전트가 그 자리를 무언가로 채우려 든다
+FIXED_TERMS_SECTION: Final = """
+**값이 정해진 말** (수집 단계가 축 대신 «주장 안에 이미 정의된 말»이라고 밝힌 표현. 격자로 돌리지 않고 이 뜻 그대로 씁니다)
 
-def build_prompt(claim: str, *, market: str, instrument: str, params: list[Any]) -> str:
+{lines}
+"""
+
+
+def build_prompt(claim: str, *, market: str, instrument: str, params: list[Any], fixed_terms: list[Any]) -> str:
     """측정 설계 지시문을 만든다.
 
     Args:
@@ -134,16 +142,24 @@ def build_prompt(claim: str, *, market: str, instrument: str, params: list[Any])
         market: 실현가능성이 정한 대상 시장
         instrument: 실현가능성이 정한 살 수 있는 상품
         params: 수집이 낸 파라미터 축
+        fixed_terms: 수집이 낸 「값이 정해진 말」 선언. 안 실으면 이 단계가 그 말의 정의를 새로 짓는다
 
     Returns:
         에이전트에게 줄 지시문
     """
     listed = "\n".join(f"- {_describe(item)}" for item in params) if params else "(낸 축이 없습니다 — 값이 이미 다 정해진 주장입니다)"
+    declared = payload_helpers.declarations(fixed_terms)
+    fixed = (
+        FIXED_TERMS_SECTION.format(lines="\n".join(f"- 「{term}」: {why or '(이유가 적히지 않았습니다)'}" for term, why in declared))
+        if declared
+        else ""
+    )
     return PROMPT.format(
         claim=claim,
         market=market.strip() or MISSING_NOTE,
         instrument=instrument.strip() or MISSING_NOTE,
         params=listed,
+        fixed=fixed,
     )
 
 
@@ -178,6 +194,7 @@ def run(run_dir: Path, ask: AgentCaller) -> None:
         market=payload_helpers.as_text(feasible.get("market")),
         instrument=payload_helpers.as_text(execution.get("instrument")) if isinstance(execution, dict) else "",
         params=payload_helpers.as_list(collected.get("params")),
+        fixed_terms=payload_helpers.as_list(collected.get("fixed_terms")),
     )
     result = ask(previous_failure.with_previous_failure(prompt, run_dir, STEP_NAME))
     payload = invoke.parse_json_answer(result, what="측정 설계")

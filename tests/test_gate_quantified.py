@@ -31,7 +31,7 @@ def test_claim_without_qualitative_terms_passes_without_parameters() -> None:
     """
     claim = "11월 첫 거래일에 사서 4월 마지막 거래일에 판다"
 
-    assert quantified.shortfall_reason(claim, [], each_term=False) is None
+    assert quantified.shortfall_reason(claim, []) is None
 
 
 def test_qualitative_term_without_parameters_is_blocked() -> None:
@@ -44,7 +44,7 @@ def test_qualitative_term_without_parameters_is_blocked() -> None:
     """
     claim = "3인 이상 임원이 짧은 기간 내 동시에 자사주를 매수한 종목을 산다"
 
-    assert quantified.shortfall_reason(claim, [], each_term=False) is not None
+    assert quantified.shortfall_reason(claim, []) is not None
 
 
 def test_qualitative_term_with_a_parameter_grid_passes() -> None:
@@ -59,9 +59,9 @@ def test_qualitative_term_with_a_parameter_grid_passes() -> None:
     Then: 사유가 없다
     """
     claim = "3인 이상 임원이 짧은 기간 내 동시에 자사주를 매수한 종목을 산다"
-    parameters = [{"name": "동시 매수 판정 창", "unit": "거래일", "candidates": [5, 10, 20]}]
+    parameters = [{"name": "동시 매수 판정 창", "term": "짧은 기간", "unit": "거래일", "candidates": [5, 10, 20]}]
 
-    assert quantified.shortfall_reason(claim, parameters, each_term=False) is None
+    assert quantified.shortfall_reason(claim, parameters) is None
 
 
 def test_single_candidate_value_is_blocked() -> None:
@@ -76,9 +76,9 @@ def test_single_candidate_value_is_blocked() -> None:
     Then: 막힌다
     """
     claim = "실적이 크게 상회한 종목을 산다"
-    parameters = [{"name": "서프라이즈 하한", "unit": "%", "candidates": [10]}]
+    parameters = [{"name": "서프라이즈 하한", "term": "크게", "unit": "%", "candidates": [10]}]
 
-    assert quantified.shortfall_reason(claim, parameters, each_term=False) is not None
+    assert quantified.shortfall_reason(claim, parameters) is not None
 
 
 def test_repeated_candidate_values_do_not_count_as_a_grid() -> None:
@@ -92,9 +92,9 @@ def test_repeated_candidate_values_do_not_count_as_a_grid() -> None:
     Then: 막힌다
     """
     claim = "실적이 크게 상회한 종목을 산다"
-    parameters = [{"name": "서프라이즈 하한", "unit": "%", "candidates": [10, 10, 10]}]
+    parameters = [{"name": "서프라이즈 하한", "term": "크게", "unit": "%", "candidates": [10, 10, 10]}]
 
-    assert quantified.shortfall_reason(claim, parameters, each_term=False) is not None
+    assert quantified.shortfall_reason(claim, parameters) is not None
 
 
 def test_axis_that_cannot_be_numbered_is_blocked() -> None:
@@ -109,9 +109,16 @@ def test_axis_that_cannot_be_numbered_is_blocked() -> None:
     Then: 막힌다
     """
     claim = "상장 후 큰 폭 하락한 종목 중 옥석을 가려 매수한다"
-    parameters = [{"name": "옥석 기준", "candidates": ["좋은 것", "괜찮은 것"]}]
+    # 큰 폭은 성한 축으로 풀어 둔다 — 그래야 막히는 이유가 «옥석 축의 격자»뿐이다
+    parameters = [
+        {"name": "하락 폭 하한", "term": "큰 폭", "unit": "%", "candidates": [30, 50]},
+        {"name": "옥석 기준", "term": "옥석", "candidates": ["좋은 것", "괜찮은 것"]},
+    ]
 
-    assert quantified.shortfall_reason(claim, parameters, each_term=False) is not None
+    reason = quantified.shortfall_reason(claim, parameters)
+
+    assert reason is not None
+    assert "「옥석」" in reason and "「큰 폭」" not in reason
 
 
 def test_parameter_without_a_name_does_not_count() -> None:
@@ -125,9 +132,9 @@ def test_parameter_without_a_name_does_not_count() -> None:
     Then: 막힌다
     """
     claim = "단기 보유한다"
-    parameters = [{"name": "  ", "candidates": [5, 20]}]
+    parameters = [{"name": "  ", "term": "단기", "candidates": [5, 20]}]
 
-    assert quantified.shortfall_reason(claim, parameters, each_term=False) is not None
+    assert quantified.shortfall_reason(claim, parameters) is not None
 
 
 def test_a_name_holding_only_empty_values_does_not_count() -> None:
@@ -142,9 +149,9 @@ def test_a_name_holding_only_empty_values_does_not_count() -> None:
     Then: 모두 막힌다
     """
     for hollow in ([""], {"k": ""}, [[]]):
-        parameters = [{"name": hollow, "unit": "거래일", "candidates": [5, 20]}]
+        parameters = [{"name": hollow, "term": "단기", "unit": "거래일", "candidates": [5, 20]}]
 
-        assert quantified.shortfall_reason("단기 보유한다", parameters, each_term=False) is not None, hollow
+        assert quantified.shortfall_reason("단기 보유한다", parameters) is not None, hollow
 
 
 def test_malformed_parameters_do_not_crash_the_gate() -> None:
@@ -161,8 +168,8 @@ def test_malformed_parameters_do_not_crash_the_gate() -> None:
     """
     claim = "단기 보유한다"
 
-    assert quantified.shortfall_reason(claim, "파라미터", each_term=False) is not None
-    assert quantified.shortfall_reason(claim, [1, "둘", None], each_term=False) is not None
+    assert quantified.shortfall_reason(claim, "파라미터") is not None
+    assert quantified.shortfall_reason(claim, [1, "둘", None]) is not None
 
 
 def test_reason_names_what_was_triggered() -> None:
@@ -176,7 +183,7 @@ def test_reason_names_what_was_triggered() -> None:
     When: 검사한다
     Then: 걸린 표현이 사유에 들어 있다
     """
-    reason = quantified.shortfall_reason("신주 상장 이후 저점에서 재매수한다", [], each_term=False)
+    reason = quantified.shortfall_reason("신주 상장 이후 저점에서 재매수한다", [])
 
     assert reason is not None
     assert "저점" in reason
@@ -228,7 +235,7 @@ def test_an_expression_left_without_its_own_axis_is_named() -> None:
     """
     parameters = [_axis("하락 폭 하한", term="큰 폭"), _axis("전저점 산정 일수", term="전저점 대비")]
 
-    reason = quantified.shortfall_reason(SPAC_CLAIM, parameters, each_term=True)
+    reason = quantified.shortfall_reason(SPAC_CLAIM, parameters)
 
     assert reason is not None
     assert "「옥석」" in reason
@@ -249,7 +256,7 @@ def test_every_expression_with_its_axis_passes() -> None:
         _axis("전저점 산정 일수", term="저점"),
     ]
 
-    assert quantified.shortfall_reason(SPAC_CLAIM, parameters, each_term=True) is None
+    assert quantified.shortfall_reason(SPAC_CLAIM, parameters) is None
 
 
 def test_an_axis_name_holding_the_expression_counts() -> None:
@@ -263,7 +270,7 @@ def test_an_axis_name_holding_the_expression_counts() -> None:
     When: 엄격하게 검사한다
     Then: 사유가 없다
     """
-    assert quantified.shortfall_reason("공시 다음날 사서 단기 보유한다", [_axis("단기 보유 기간")], each_term=True) is None
+    assert quantified.shortfall_reason("공시 다음날 사서 단기 보유한다", [_axis("단기 보유 기간")]) is None
 
 
 def test_one_axis_may_answer_several_expressions() -> None:
@@ -279,7 +286,7 @@ def test_one_axis_may_answer_several_expressions() -> None:
     """
     parameters = [_axis("하락률 하한", term=["큰 폭", "저점"]), _axis("옥석 판정 기준", term="옥석")]
 
-    assert quantified.shortfall_reason(SPAC_CLAIM, parameters, each_term=True) is None
+    assert quantified.shortfall_reason(SPAC_CLAIM, parameters) is None
 
 
 def test_an_unusable_axis_does_not_answer_its_expression() -> None:
@@ -294,22 +301,7 @@ def test_an_unusable_axis_does_not_answer_its_expression() -> None:
     """
     parameters = [_axis("보유 기간", term="단기", candidates=[20])]
 
-    assert quantified.shortfall_reason("단기 보유한다", parameters, each_term=True) is not None
-
-
-def test_the_lenient_check_still_passes_with_a_single_axis() -> None:
-    """
-    목적: 탐색이 쓰는 «느슨한» 판정이 지금 그대로인 계약을 고정한다.
-
-    탐색 에이전트는 사전을 모른다. 표현마다 요구하면 그 단계에서 멀쩡한 후보가 영구
-    기각된다 — 그래서 탐색은 축 하나 이상으로 입장만 거르고, 표현마다의 해명은 걸린 표현을
-    이름으로 짚어 주는 수집이 요구한다.
-
-    Given: 세 표현이 든 주장에 저점 축 하나
-    When: 느슨하게 검사한다
-    Then: 사유가 없다
-    """
-    assert quantified.shortfall_reason(SPAC_CLAIM, [_axis("전저점 산정 일수")], each_term=False) is None
+    assert quantified.shortfall_reason("단기 보유한다", parameters) is not None
 
 
 def test_an_expression_is_not_assembled_across_term_and_name() -> None:
@@ -325,7 +317,7 @@ def test_an_expression_is_not_assembled_across_term_and_name() -> None:
     """
     parameters = [_axis("폭 하한", term="큰")]
 
-    assert quantified.shortfall_reason("상장 후 큰 폭 하락한 종목을 산다", parameters, each_term=True) is not None
+    assert quantified.shortfall_reason("상장 후 큰 폭 하락한 종목을 산다", parameters) is not None
 
 
 def test_a_spacing_variant_of_the_expression_still_counts() -> None:
@@ -341,7 +333,7 @@ def test_a_spacing_variant_of_the_expression_still_counts() -> None:
     """
     parameters = [_axis("상승 하한", term="큰폭")]
 
-    assert quantified.shortfall_reason("큰 폭 상승 후 매수한다", parameters, each_term=True) is None
+    assert quantified.shortfall_reason("큰 폭 상승 후 매수한다", parameters) is None
 
 
 @pytest.mark.parametrize(
@@ -365,4 +357,184 @@ def test_a_word_that_merely_contains_a_dictionary_entry_is_not_flagged(claim: st
     Then: 걸린 표현이 없고 사유도 없다
     """
     assert quantified.triggered_terms(claim) == ()
-    assert quantified.shortfall_reason(claim, [], each_term=True) is None
+    assert quantified.shortfall_reason(claim, []) is None
+
+
+# --------------------------------------------------------------------------
+# 「값이 정해진 말」 선언 — 사전 오탐의 탈출구
+#
+# 사전은 글자 그대로 찾으므로 이미 정의된 이름·값의 일부도 문다. 그 표현에 축만 요구하면
+# 에이전트는 가짜 축을 지어내거나 빈 목록을 내 영구 기각된다 — 기각은 다시 안 판다.
+# --------------------------------------------------------------------------
+
+# 실제 원장에 있는 주장. 원장 16개에 사전을 돌려 나온 유일한 오탐이다 [실측 2026-09-28]
+NEAR_HIGH_CLAIM = "직전 52주 신고가 대비 현재가 비율(근접도) 상위 30% 종목을 매수하고 하위 30%를 매도해 6~12개월 보유한다"
+NEAR_HIGH_REASON = "근접도는 현재가를 직전 52주 신고가로 나눈 비율의 이름이다 — 주장이 상위 30% 로 값을 정했다"
+
+
+def _declared(term: object, why: object = NEAR_HIGH_REASON) -> dict[str, object]:
+    """「값이 정해진 말」 선언 하나."""
+    return {"term": term, "why": why}
+
+
+def test_a_declaration_answers_its_expression() -> None:
+    """
+    목적: [중요] 이미 정의된 이름의 일부로 걸린 표현을 «선언»으로 풀 수 있는 계약을 고정한다.
+
+    Given: 「근접도」가 든 실제 원장 주장 · 축 없음 · 「근접」 선언
+    When: 엄격하게 검사한다
+    Then: 사유가 없다
+    """
+    assert quantified.shortfall_reason(NEAR_HIGH_CLAIM, [], fixed_terms=[_declared("근접")]) is None
+
+
+@pytest.mark.parametrize("why", ["", "   ", None, [""]])
+def test_a_declaration_without_a_reason_answers_nothing(why: object) -> None:
+    """
+    목적: 이유가 빈 선언은 «안 적힌 것»인 계약을 고정한다.
+
+    이유가 없으면 11번 칸에서 사람이 그 선언이 맞는지 가를 재료가 없다. 게이트는 이유의
+    내용은 보지 않지만 «적혔는가»는 본다.
+
+    Given: 이유가 비었거나 빈 값만 담은 「근접」 선언
+    When: 엄격하게 검사한다
+    Then: 막히고, 사유가 「근접」을 짚는다
+    """
+    reason = quantified.shortfall_reason(NEAR_HIGH_CLAIM, [], fixed_terms=[_declared("근접", why)])
+
+    assert reason is not None
+    assert "「근접」" in reason
+
+
+def test_a_declaration_answers_only_its_own_expression() -> None:
+    """
+    목적: 선언이 «자기 표현만» 푸는 계약을 고정한다.
+
+    선언 하나로 다른 표현까지 풀리면 「옥석」처럼 축 자체가 없는 표현이 해명 없이 지나간다.
+
+    Given: 「큰 폭 · 옥석 · 저점」이 든 주장에 큰 폭 축과 저점 선언
+    When: 엄격하게 검사한다
+    Then: 막히고, 사유가 옥석만 짚는다
+    """
+    reason = quantified.shortfall_reason(SPAC_CLAIM, [_axis("하락 폭 하한", term="큰 폭")], fixed_terms=[_declared("저점")])
+
+    assert reason is not None
+    assert "「옥석」" in reason
+    assert "「저점」" not in reason and "「큰 폭」" not in reason
+
+
+@pytest.mark.parametrize("term", ["옥석을 가려 장기채", "옥석을 가려 장기채 ETF 를 매수한다"])
+def test_a_declared_phrase_holding_several_expressions_answers_none(term: str) -> None:
+    """
+    목적: [중요] 선언의 글자 하나에 걸린 표현이 «둘 이상» 들면 어느 것도 풀지 않는 계약을 고정한다.
+
+    축과 달리 선언은 격자가 필요 없다. 긴 구절이나 주장 통째를 선언으로 적어 여러 표현이 한 줄로
+    풀리면, 「옥석」처럼 축 자체가 없는 표현이 해명 없이 지나간다 — 판정을 비켜 가는 길이다.
+    선언은 «정의된 말 하나»를 가리키는 자리다.
+
+    Given: 「옥석 · 장기」가 든 주장과, 둘을 한 글자열에 담은 선언
+    When: 엄격하게 검사한다
+    Then: 막히고, 사유가 둘 다 짚는다
+    """
+    reason = quantified.shortfall_reason("옥석을 가려 장기채 ETF 를 매수한다", [], fixed_terms=[_declared(term)])
+
+    assert reason is not None
+    assert "「옥석」" in reason and "「장기」" in reason
+
+
+@pytest.mark.parametrize("term", [["장기", "저가"], ["저가", "장기"]])
+def test_one_declaration_may_name_several_expressions(term: object) -> None:
+    """
+    목적: 선언의 `term` 이 «목록»이어도 그 표현들을 푸는 계약을 고정한다 — 축의 `term` 과 같은 모양이다.
+
+    Given: 「장기 · 저가」가 둘 다 정의된 이름의 일부로 걸린 주장과 둘을 담은 선언 하나
+    When: 엄격하게 검사한다
+    Then: 사유가 없다
+    """
+    claim = "전일 저가를 종가가 하향 돌파하면 미국 장기채 ETF 를 다음 날 시가에 매수한다"
+
+    assert quantified.triggered_terms(claim) == ("장기", "저가")
+    assert quantified.shortfall_reason(claim, [], fixed_terms=[_declared(term)]) is None
+
+
+def test_a_spacing_variant_in_a_declaration_still_counts() -> None:
+    """
+    목적: 선언의 표현이 띄어쓰기만 달라도 푸는 계약을 고정한다 — 축과 «같은 대조 규칙»이다.
+
+    규칙이 둘로 갈리면 같은 글자가 축에서는 풀리고 선언에서는 안 풀려, 기각은 다시 안 파므로
+    그 차이 하나로 후보가 영구히 닫힌다.
+
+    Given: 「큰 폭」이 든 주장과 `term` 「큰폭」인 선언
+    When: 엄격하게 검사한다
+    Then: 사유가 없다
+    """
+    assert quantified.shortfall_reason("큰 폭 상승 후 매수한다", [], fixed_terms=[_declared("큰폭")]) is None
+
+
+@pytest.mark.parametrize(
+    "fixed_terms",
+    [
+        "근접",
+        3,
+        {"term": "근접", "why": NEAR_HIGH_REASON},
+        [3, None, "근접"],
+        [{"term": 3, "why": NEAR_HIGH_REASON}],
+        [{"why": NEAR_HIGH_REASON}],
+    ],
+)
+def test_a_malformed_declaration_answers_nothing_and_does_not_crash(fixed_terms: object) -> None:
+    """
+    목적: 모양이 어긋난 선언이 «예외 없이» 못 푼 것으로 읽히는 계약을 고정한다.
+
+    에이전트가 낸 값이라 목록 자리에 문자열이 오는 일이 흔하다. 검사기가 죽으면 그 회차가
+    통째로 끝나고, 모양이 틀린 것을 푼 것으로 읽으면 이유 없는 통과가 된다. 축(`params`)과 같은 관용이다.
+
+    Given: 목록이 아니거나 · 항목이 사전이 아니거나 · `term` 이 없거나 문자열이 아닌 선언
+    When: 엄격하게 검사한다
+    Then: 예외 없이 막힌다
+    """
+    assert quantified.shortfall_reason(NEAR_HIGH_CLAIM, [], fixed_terms=fixed_terms) is not None
+
+
+def test_the_strict_reason_offers_the_declaration() -> None:
+    """
+    목적: 엄격 판정의 사유가 «선언의 길»도 말하는 계약을 고정한다.
+
+    이 사유는 원장의 기각 줄에 그대로 남아, 사람이 판정을 뒤집을 때 근거가 된다.
+    축의 길만 적혀 있으면 오탐으로 기각된 후보를 가를 실마리가 없다.
+
+    Given: 「근접도」 주장 · 축도 선언도 없음
+    When: 엄격하게 검사한다
+    Then: 사유가 `fixed_terms` 를 말한다
+    """
+    reason = quantified.shortfall_reason(NEAR_HIGH_CLAIM, [], fixed_terms=None)
+
+    assert reason is not None
+    assert "fixed_terms" in reason
+    assert "한 줄에 표현 하나" in reason, "원장의 기각 줄을 읽는 사람이 한 줄에 둘을 담아 기각된 것을 가를 수 있어야 한다"
+
+
+@pytest.mark.parametrize(
+    ("claim", "term"),
+    [
+        (NEAR_HIGH_CLAIM, "근접"),
+        ("미국 장기채 ETF 를 매월 마지막 거래일에 매수해 다음 달 첫 거래일에 매도한다", "장기"),
+        ("KOSPI200 단기채권 ETF 를 FOMC 발표 2거래일 전 종가에 매수한다", "단기"),
+        ("전일 저가를 종가가 하향 돌파하면 다음 날 시가에 매수한다", "저가"),
+        ("당일 고가와 저가의 중간값 위에서 마감하면 다음 날 시가에 매수한다", "저가"),
+    ],
+)
+def test_a_defined_word_caught_by_the_dictionary_passes_only_with_a_declaration(claim: str, term: str) -> None:
+    """
+    목적: [중요] 값이 다 정해진 주장이 사전 오탐에 걸려도 «선언이 있으면» 통과하는 계약을 고정한다.
+
+    첫 줄은 실제 원장의 오탐이고 나머지는 합성 예시다(지표 이름 · 상품 이름 · 시가·고가·저가·종가).
+    낱말 안 조각 가림 목록으로는 「전일 저가」처럼 문맥으로만 갈리는 것을 못 가린다.
+
+    Given: 사전이 무는 정의된 말이 든 주장
+    When: 선언 없이 · 선언과 함께 엄격하게 검사한다
+    Then: 사전은 그 말을 걸고, 선언 없이는 막히고 선언이 있으면 통과한다
+    """
+    assert quantified.triggered_terms(claim) == (term,)
+    assert quantified.shortfall_reason(claim, [], fixed_terms=None) is not None
+    assert quantified.shortfall_reason(claim, [], fixed_terms=[_declared(term)]) is None

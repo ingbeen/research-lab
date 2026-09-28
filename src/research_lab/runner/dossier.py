@@ -116,6 +116,16 @@ BODY_URL_NOTE: Final = (
     "자동 접근이 막혔을 수 있고, 본문에서 주소를 뽑을 때 앞뒤 글자가 섞였을 수도 있습니다: {url}"
 )
 
+# 수집이 파라미터 축 대신 「값이 정해진 말」로 밝힌 표현을 11번 칸에 적는 문구.
+#
+# [중요] 선언은 기계가 이유를 판정하지 않고 통과시킨 자리다 — 값이 빈 표현(「단기」)을 값 하나로
+# 못박는 남용을 기계는 못 막는다. 그래서 «확인하지 않았다»는 사실까지 한 줄에 적어, 사람이 그
+# 선언이 맞는지 볼 수 있게 한다.
+#
+# [중요] **한 줄 안에서 뜻이 닫혀야 한다** — 주소 문구와 같은 이유다. 「파라미터 축」 같은 안쪽 말
+# 대신 «무엇이 자동으로 걸렸고 · 무엇을 건너뛰었고 · 틀렸다면 무엇을 뜻하는지»를 말로 적는다
+FIXED_TERM_NOTE: Final = "「{term}」: 한 줄 주장에서 값이 비어 있을 수 있는 말로 자동 표시됐지만, 조사 단계가 «주장 안에 이미 정의된 말의 일부»라며 잴 값의 범위를 따로 정하지 않고 넘겼습니다(밝힌 이유: {why}). 그 이유가 맞는지는 확인하지 않았습니다 — 맞지 않다면 이 말의 값은 비어 있는 것입니다."
+
 
 def path_for(run_dir: Path, candidate: state.Candidate, *, dossier_dir: Path = DOSSIER_DIR) -> Path:
     """그 회차가 쓸 근거 문서의 경로를 정한다.
@@ -635,6 +645,8 @@ def _unverified_section(
     그 둘을 가를 수 없다. 그리고 **덮어쓰지 않는다** — 하나가 다른 하나를 밀어내면
     사라진 쪽은 아무 흔적도 남기지 않는다. 본문 속 주소는 그보다 뒤에, 다른 문구로 붙인다 —
     출처 칸의 주소와 달리 «뽑기»를 거친 주소라 확인 못 한 이유가 하나 더 있다.
+    수집의 「값이 정해진 말」 선언은 주소들 «앞»에 붙인다 — 기계가 이유를 판정하지 않은 자리라
+    여기 실어야 사람이 보고, 주소 문구가 맨 뒤라는 자리는 그대로 둔다.
     """
     # [중요] `as_strings` 를 쓰지 않는다. 그것은 문자열이 아닌 항목을 «버리는데**,
     # 이 칸은 「비는 게 오히려 의심스러운」 자리라 조용히 사라지면 문서가 거짓말을 한다 —
@@ -644,6 +656,10 @@ def _unverified_section(
     for found in loaded.values():
         gathered.extend(_readable(found.get("unverified")))
     gathered.extend(_readable(decision.get("unverified_extra")))
+    gathered.extend(
+        FIXED_TERM_NOTE.format(term=term, why=why or "적히지 않았습니다")
+        for term, why in payload_helpers.declarations(loaded[PRO_EVIDENCE_FILENAME].get("fixed_terms"))
+    )
     gathered.extend(UNJUDGED_URL_NOTE.format(url=url) for url in payload_helpers.as_strings(unverified_urls))
     gathered.extend(BODY_URL_NOTE.format(url=url) for url in payload_helpers.as_strings(unconfirmed_body_urls))
 

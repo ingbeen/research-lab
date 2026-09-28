@@ -484,57 +484,45 @@ def test_explore_ignores_a_string_where_a_list_was_promised(tmp_path: Path) -> N
 _GRID = [{"name": "보유 기간", "term": "단기", "unit": "거래일", "candidates": [5, 20, 60]}]
 
 
-def test_explore_keeps_a_candidate_that_explains_its_parameters(tmp_path: Path) -> None:
+def test_explore_does_not_judge_qualitative_terms(tmp_path: Path) -> None:
     """
-    목적: 해명된 정성 표현이 탐색에서 «살아남는» 계약을 고정한다.
+    목적: [중요] 탐색이 정성 표현으로 «거르지 않는» 계약을 고정한다.
 
-    이 계약이 없으면 사전을 키울 때마다 멀쩡한 후보가 함께 죽는다.
+    탐색 에이전트는 사전을 모른다. 값이 다 정해진 주장(「미국 장기채 ETF …」)에도 축을 안 내고,
+    여기서 거르면 사전 오탐이 원장에 영구 기각으로 박혀 수집의 「값이 정해진 말」 선언까지 오지
+    못한다. 판정은 걸린 표현을 글자 그대로 짚고 선언을 받는 수집 한 곳이 한다 — 못 잴 후보(「옥석」)도
+    거기서 사유와 함께 기각된다.
 
-    Given: 「단기」가 들었지만 격자를 함께 낸 후보
+    Given: 축 없이 낸 「옥석」 후보와 「장기채」 후보
     When: 탐색을 돈다
-    Then: 원장에 담긴다
-    """
-    ledger_path = tmp_path / "원장.md"
-    answer = _answer(
-        {
-            "queries": ["ㄱ", "ㄴ", "ㄷ"],
-            "candidates": [{"claim": "공시 다음날 사서 단기 보유한다", "identifier": "buyback-kr", "params": _GRID}],
-        }
-    )
-
-    explore.run(tmp_path / "run", ledger_path, lambda _: answer)
-
-    assert [entry.claim for entry in ledger.load(ledger_path)] == ["공시 다음날 사서 단기 보유한다"]
-
-
-def test_explore_rejects_a_candidate_that_cannot_be_measured(tmp_path: Path) -> None:
-    """
-    목적: 못 잴 후보가 «원장에 쌓이지 않는» 계약을 고정한다.
-
-    원장에 들어가면 그 후보는 언젠가 회차 하나를 통째로 가져간다. 실측에서 첫 탐색이 낸
-    후보 15개 중 다수가 정성적이었고, 그것이 이 게이트를 만든 이유다.
-
-    Given: 「옥석을 가려」가 들었고 파라미터가 없는 후보
-    When: 탐색을 돈다
-    Then: 팔 후보가 되지 않고, 사유가 원장과 로그에 남는다
+    Then: 둘 다 「안 판」으로 담기고, 버린 기록이 없다
     """
     run_dir = tmp_path / "run"
     ledger_path = tmp_path / "원장.md"
-    answer = _answer(
-        {
-            "queries": ["ㄱ", "ㄴ", "ㄷ"],
-            "candidates": [{"claim": "상장 후 하락한 종목 중 옥석을 가려 매수한다", "identifier": "spac-kr"}],
-        }
-    )
+    claims = [
+        "상장 후 하락한 종목 중 옥석을 가려 매수한다",
+        "미국 장기채 ETF 를 매월 마지막 거래일에 매수해 다음 달 첫 거래일에 매도한다",
+    ]
+    answer = _answer({"queries": ["ㄱ", "ㄴ", "ㄷ"], "candidates": [{"claim": claim} for claim in claims]})
 
     explore.run(run_dir, ledger_path, lambda _: answer)
 
-    # 원장에 «기각»으로 남는다 — 지우면 다음 탐색이 같은 후보를 다시 담고 또 기각한다.
-    # 루트 CLAUDE.md 가 「버릴 때는 원장에 사유와 함께 남겨 다음에 또 파지 않게 한다」고 정한 자리다
-    assert ledger.next_unexplored(ledger_path) is None
-    assert "옥석" in ledger_path.read_text(encoding="utf-8")
-    discarded = [e for e in decision_log.read(run_dir) if e["event"] == decision_log.EVENT_DISCARDED]
-    assert any("옥석" in str(entry.get("reason", "")) for entry in discarded)
+    assert all(ledger.status_of(ledger_path, claim) is ledger.Status.UNEXPLORED for claim in claims)
+    assert not [e for e in decision_log.read(run_dir) if e["event"] == decision_log.EVENT_DISCARDED]
+
+
+def test_explore_prompt_does_not_ask_for_parameter_axes() -> None:
+    """
+    목적: 탐색 지시문이 파라미터 축을 «요구하지 않는» 계약을 고정한다.
+
+    탐색이 낸 축은 원장에 담기지 않고 판정에도 쓰이지 않는다 — 요구하면 에이전트가 버려질 것을
+    만든다. 축은 걸린 표현을 짚어 주는 수집이 받는다.
+
+    Given: 탐색 지시문
+    When: 만든다
+    Then: 응답 틀에 `params` 가 없다
+    """
+    assert '"params"' not in explore.build_prompt([])
 
 
 def test_explore_stores_the_identifier(tmp_path: Path) -> None:
@@ -704,27 +692,6 @@ def test_collect_rejects_a_candidate_that_answers_only_some_expressions(tmp_path
     assert "「옥석」" in str(discarded[0].get("reason"))
 
 
-def test_explore_admits_a_candidate_with_one_axis_for_two_expressions(tmp_path: Path) -> None:
-    """
-    목적: 탐색은 «축 하나 이상»으로 입장만 거르는 계약을 고정한다(지금 그대로).
-
-    탐색 에이전트는 사전을 모른다. 표현마다 요구하면 사전에 든 줄 모르는 말(「직후」) 때문에
-    **멀쩡한 후보가 탐색에서 영구 기각된다.** 표현마다의 해명은 걸린 표현을 이름으로 짚어
-    주는 수집이 요구한다.
-
-    Given: 「직후 · 단기」가 든 후보와 단기 축 하나
-    When: 탐색을 돈다
-    Then: 원장에 담긴다
-    """
-    ledger_path = tmp_path / "원장.md"
-    claim = "자사주 매입 공시 직후 사서 단기 보유한다"
-    answer = _answer({"queries": ["ㄱ", "ㄴ", "ㄷ"], "candidates": [{"claim": claim, "params": _GRID}]})
-
-    explore.run(tmp_path / "run", ledger_path, lambda _: answer)
-
-    assert ledger.next_unexplored(ledger_path) is not None
-
-
 def test_collect_fills_in_a_missing_identifier(tmp_path: Path) -> None:
     """
     목적: 식별자가 없는 예전 후보에 식별자를 «박는» 계약을 고정한다.
@@ -775,6 +742,122 @@ def test_collect_records_the_parameter_grid(tmp_path: Path) -> None:
         (run_dir / naming.folder_name("공시 다음날 사서 단기 보유한다", None) / "찬성근거.json").read_text(encoding="utf-8")
     )
     assert written["params"] == _GRID
+
+
+# --------------------------------------------------------------------------
+# 「값이 정해진 말」 선언 — 사전 오탐의 탈출구
+# --------------------------------------------------------------------------
+
+# 실제 원장에 있는 주장. 「근접도」는 정의된 비율의 이름인데 사전이 「근접」을 문다 [실측 2026-09-28]
+_NEAR_HIGH_CLAIM = "직전 52주 신고가 대비 현재가 비율(근접도) 상위 30% 종목을 매수하고 하위 30%를 매도해 6~12개월 보유한다"
+_NEAR_HIGH_DECLARED = [{"term": "근접", "why": "근접도는 현재가를 직전 52주 신고가로 나눈 비율의 이름이다"}]
+
+
+def test_collect_prompt_offers_the_declaration_and_its_limit(tmp_path: Path) -> None:
+    """
+    목적: 수집 지시문이 선언의 길과 «그 한계»를 함께 말하는 계약을 고정한다.
+
+    길만 말하면 에이전트가 값이 빈 표현(「단기」)까지 선언으로 값 하나에 못박을 수 있다 —
+    파이프라인이 가장 피하려는 「임의로 값 하나 채우기」다.
+
+    Given: 「근접도」가 든 한 줄 주장
+    When: 지시문을 만든다
+    Then: 응답 틀에 `fixed_terms` 가 있고, 선언이 값을 고르는 자리가 아니라고 말한다
+    """
+    prompt = collect.build_prompt(_NEAR_HIGH_CLAIM)
+
+    assert '"fixed_terms"' in prompt
+    assert "값을 고르는 자리가 아닙니다" in prompt
+
+
+def test_collect_prompt_says_one_expression_per_declaration(tmp_path: Path) -> None:
+    """
+    목적: [중요] 수집 지시문이 «선언 한 줄에 표현 하나»를 말하는 계약을 고정한다.
+
+    게이트는 선언 글자 하나에 걸린 표현이 둘 이상 들면 어느 것도 풀지 않는다(긴 구절로 축 자체가
+    없는 표현까지 푸는 길을 막으려고). 그런데 에이전트가 그 규칙을 모르면 「고점 근접도」처럼
+    정당한 이름을 한 줄에 적어 **멀쩡한 후보가 영구 기각된다** — 수집은 기각 전에 다시 묻지 않는다.
+
+    Given: 「고점 · 근접」이 둘 다 걸리는 한 줄 주장
+    When: 지시문을 만든다
+    Then: 선언 한 줄에 표현 하나만 적으라고 말한다
+    """
+    assert "선언 한 줄에는 걸린 표현 하나만" in collect.build_prompt("52주 고점 근접도 상위 30% 종목을 매수해 6개월 보유한다")
+
+
+def test_collect_keeps_a_candidate_whose_false_trigger_is_declared(tmp_path: Path) -> None:
+    """
+    목적: [중요] 사전 오탐을 선언으로 푼 후보가 «기각되지 않고» 선언이 남는 계약을 고정한다.
+
+    남기지 않으면 측정 설계와 근거 문서가 그 선언을 모른다 — 사람이 그 선언이 맞는지 볼 자리가 사라진다.
+
+    Given: 「근접도」 주장 · 축 없이 「근접」 선언을 낸 답
+    When: 수집을 돈다
+    Then: 그 후보가 박히고, 찬성 근거 파일과 판정 로그 줄에 선언이 있다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    ledger.append(ledger_path, _NEAR_HIGH_CLAIM)
+
+    collect.run(
+        run_dir,
+        ledger_path,
+        lambda _: _answer(
+            {"queries": ["ㄱ", "ㄴ", "ㄷ"], "evidence": [], "params": [], "fixed_terms": _NEAR_HIGH_DECLARED}
+        ),
+    )
+
+    pinned = state.pinned_candidate(run_dir)
+    assert pinned is not None and pinned.claim == _NEAR_HIGH_CLAIM
+    stored = json.loads(next(run_dir.glob("**/찬성근거.json")).read_text(encoding="utf-8"))
+    assert stored["fixed_terms"] == _NEAR_HIGH_DECLARED
+    judged = [e for e in decision_log.read(run_dir) if e["event"] == decision_log.EVENT_JUDGED]
+    assert judged[0]["fixed_terms"] == ["근접"]
+
+
+def test_a_retried_answer_that_drops_the_declaration_falls_back(tmp_path: Path, probing: Any) -> None:
+    """
+    목적: [중요] 재질문 답이 판정을 못 넘으면 «축과 선언이 함께» 첫 답 것으로 돌아가는 계약을 고정한다.
+
+    덧붙이는 말은 「그 주소를 고치라」이지 「선언을 다시 내라」가 아니다. 둘째 답이 선언을 빠뜨렸다고
+    「잴 수 없다」로 읽으면 첫 답이 증명한 것을 부정하게 되고, 그 후보는 거짓 사유로 영구 기각된다.
+
+    Given: 첫 답은 선언을 냈지만 출처가 죽었고, 둘째 답은 출처만 고치며 선언을 안 적은 에이전트
+    When: 수집을 돈다
+    Then: 기각되지 않고, 저장된 산출물에 첫 답의 선언이 남는다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    ledger.append(ledger_path, _NEAR_HIGH_CLAIM)
+    dead_url = "https://example.com/지어낸-논문"
+    probing(dead={dead_url})
+    answers = iter(
+        [
+            _answer(
+                {
+                    "claim": _NEAR_HIGH_CLAIM,
+                    "queries": ["ㄱ", "ㄴ", "a"],
+                    "params": [],
+                    "fixed_terms": _NEAR_HIGH_DECLARED,
+                    "evidence": [{"title": "없는 논문", "url": dead_url, "kind": "primary"}],
+                }
+            ),
+            _answer(
+                {
+                    "claim": _NEAR_HIGH_CLAIM,
+                    "queries": ["ㄱ", "ㄴ", "a"],
+                    "params": [],
+                    "evidence": [{"title": "실제 논문", "url": "https://example.com/진짜", "kind": "primary"}],
+                }
+            ),
+        ]
+    )
+
+    collect.run(run_dir, ledger_path, lambda _: next(answers))
+
+    assert ledger.status_of(ledger_path, _NEAR_HIGH_CLAIM) is ledger.Status.UNEXPLORED
+    stored = json.loads(next(run_dir.glob("**/찬성근거.json")).read_text(encoding="utf-8"))
+    assert stored["fixed_terms"] == _NEAR_HIGH_DECLARED
 
 
 # --------------------------------------------------------------------------

@@ -85,6 +85,23 @@ def as_strings(value: Any) -> list[str]:
     return [item.strip() for item in as_list(value) if isinstance(item, str) and item.strip()]
 
 
+def declarations(value: Any) -> list[tuple[str, str]]:
+    """「값이 정해진 말」 선언들을 (표현, 이유) 짝으로 꺼낸다 — 수집의 `fixed_terms`.
+
+    표현이 빈 항목은 뺀다 — 무엇을 선언했는지 모르면 실을 것이 없다. **이유가 빈 항목은 남긴다.**
+    선언은 기계가 이유를 판정하지 않고 통과시킨 자리라, 사람이 보는 자리에서는 빠진 쪽보다
+    「이유가 비었다」가 보이는 쪽이 안전하다. 판정은 게이트가 따로 한다.
+
+    Args:
+        value: 에이전트가 낸 값. 무엇이든 들어올 수 있다
+
+    Returns:
+        (표현, 이유) 짝들. 나온 순서대로
+    """
+    pairs = ((as_text(item.get("term")), as_text(item.get("why"))) for item in as_list(value) if isinstance(item, dict))
+    return [(term, why) for term, why in pairs if term]
+
+
 def url_of(source: Any) -> str:
     """출처 하나의 주소. 주소 자리가 «문자열»일 때만 주소로 본다 — 아니면 빈 문자열.
 

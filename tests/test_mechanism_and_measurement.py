@@ -17,7 +17,7 @@ from typing import Any
 import pytest
 
 from research_lab.agent.invoke import AgentResult, new_session_id
-from research_lab.common_constants import MEASUREMENT_FILENAME, MECHANISM_FILENAME
+from research_lab.common_constants import MEASUREMENT_FILENAME, MECHANISM_FILENAME, PRO_EVIDENCE_FILENAME
 from research_lab.runner import decision_log, ledger, measurement, mechanism
 from research_lab.runner.steps import StepQualityFailed
 
@@ -260,6 +260,56 @@ def test_measurement_prompt_carries_params_and_instrument(prepared: Any) -> None
     assert "보유 기간" in seen[0]
     assert "코스닥150" in seen[0]
     assert "국내" in seen[0]
+
+
+def test_measurement_prompt_carries_the_declared_words(prepared: Any) -> None:
+    """
+    목적: 수집이 축 대신 «값이 정해진 말»로 밝힌 표현이 이유와 함께 지시문에 실리는 계약을 고정한다.
+
+    안 실으면 측정 설계가 그 말의 정의를 새로 짓고(「근접도」를 다른 비율로), 같은 후보의 두 칸이
+    서로 다른 말을 한다.
+
+    Given: 수집이 「근접」 선언을 남긴 후보 폴더
+    When: 단계를 돈다
+    Then: 지시문에 그 표현과 이유가 있다
+    """
+    ready = prepared(through=BEFORE_MEASUREMENT)
+    evidence_path = ready.output_dir / PRO_EVIDENCE_FILENAME
+    collected = json.loads(evidence_path.read_text(encoding="utf-8"))
+    collected["fixed_terms"] = [{"term": "근접", "why": "근접도는 현재가를 직전 52주 신고가로 나눈 비율의 이름이다"}]
+    evidence_path.write_text(json.dumps(collected, ensure_ascii=False), encoding="utf-8")
+    seen: list[str] = []
+
+    def ask(prompt: str) -> AgentResult:
+        seen.append(prompt)
+        return _answer(_measurement_payload())
+
+    measurement.run(ready.run_dir, ask)
+
+    assert "「근접」" in seen[0]
+    assert "직전 52주 신고가로 나눈 비율" in seen[0]
+
+
+def test_measurement_prompt_has_no_declaration_section_without_declarations(prepared: Any) -> None:
+    """
+    목적: 선언이 없으면 그 절이 지시문에 «없는» 계약을 고정한다.
+
+    빈 절을 남기면 에이전트가 「정해진 말이 없다」를 무언가로 채우려 든다.
+
+    Given: 선언이 없는 후보 폴더
+    When: 단계를 돈다
+    Then: 지시문에 선언 절의 제목이 없다
+    """
+    ready = prepared(through=BEFORE_MEASUREMENT)
+    seen: list[str] = []
+
+    def ask(prompt: str) -> AgentResult:
+        seen.append(prompt)
+        return _answer(_measurement_payload())
+
+    measurement.run(ready.run_dir, ask)
+
+    assert "값이 정해진 말" not in seen[0]
 
 
 def test_measurement_writes_its_own_file(prepared: Any) -> None:

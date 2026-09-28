@@ -13,7 +13,6 @@ from typing import Any, Final
 from research_lab.agent import invoke
 from research_lab.agent.invoke import AgentResult
 from research_lab.common_constants import EXPLORE_RESULT_FILENAME
-from research_lab.gate import quantified
 from research_lab.gate import queries as query_gate
 from research_lab.runner import decision_log, ledger
 from research_lab.runner import payload as payload_helpers
@@ -27,7 +26,7 @@ AgentCaller = Callable[[str], AgentResult]
 # 한 회차에 담을 후보 수의 상한. 많이 담는 것이 목적이 아니라 **수집이 팔 재고**를 만드는 것이라,
 # 한 번에 너무 많이 담으면 오래된 후보가 계속 뒤로 밀린다.
 #
-# [중요] 세는 것은 **원장에 새로 적는 줄**(담김 + 기각)이다. 중복 · 빈 주장은 자리를 먹지 않는다 —
+# [중요] 세는 것은 **원장에 새로 적는 줄**이다. 중복 · 빈 주장은 자리를 먹지 않는다 —
 # 거르기 «전» 목록에 걸면 원장에 이미 있는 주장이 앞자리를 먹고 **새 주장이 「상한 초과」로
 # 버려진다.** 원장이 커질수록 에이전트가 아는 후보를 되풀이할 공산이 커지므로 그만큼 새 후보가
 # 들어올 길이 좁아진다
@@ -40,7 +39,6 @@ class _Stored:
 
     added: int = 0
     duplicates: list[str] = field(default_factory=list)
-    rejected: list[tuple[str, str]] = field(default_factory=list)
     empty: list[str] = field(default_factory=list)
     # 상한을 넘어 «보지도 않고» 버린 새 주장 — 에이전트가 낸 글자 그대로
     overflow: list[str] = field(default_factory=list)
@@ -60,17 +58,14 @@ PROMPT: Final = """`.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 
 - 최대 {max_candidates}개까지만 담습니다
 - 검색어는 한국어와 영어를 모두 돌리고, **던진 검색어를 하나도 빼지 않고** 적습니다
 
-## 값이 비어 있는 표현에는 «파라미터 축»을 붙입니다
+## 잴 수 있는 후보만 적습니다
 
-「짧은 기간」·「단기」·「크게 상회」처럼 값이 비어 있는 말을 써도 됩니다.
-다만 그럴 때는 **무엇을 얼마로 바꿀 수 있는지**를 `params` 에 적으세요 —
-축 이름과 단위, 그리고 **서로 다른 숫자 후보값 2개 이상**입니다.
+「짧은 기간」·「단기」·「크게 상회」처럼 값이 비어 있는 말을 써도 됩니다 — 그 말마다
+무엇을 얼마로 바꿔 잴지는 후보를 깊게 파는 단계가 따로 받습니다.
 
-- 「짧은 기간 내 동시 매수」 → `{{"name": "동시 매수 판정 창", "unit": "거래일", "candidates": [5, 10, 20]}}`
-- 「전저점 대비」 → `{{"name": "전저점 산정 일수", "unit": "거래일", "candidates": [20, 60]}}`
-
-**축을 못 정하겠으면 그 후보를 적지 마세요.** 「옥석을 가려」처럼 무엇을 채울지조차
-없는 말과, 「(미래) 저점에서 산다」처럼 판정 시점에 알 수 없는 값이 여기 걸립니다.
+**다만 무엇을 채울지 정할 수 없는 말이 든 후보는 적지 마세요.** 「옥석을 가려」처럼 무엇을
+채울지조차 없는 말, 「(미래) 저점에서 산다」처럼 판정 시점에 알 수 없는 값, 「편입이 예상되는」처럼
+누가 언제 무엇을 보고 예상하는지 없는 말이 여기 걸립니다.
 임의로 값 하나를 채우면 **어떤 값을 넣느냐가 결론을 만듭니다.**
 
 ## 이미 본 후보 (다시 담지 마세요)
@@ -81,7 +76,7 @@ PROMPT: Final = """`.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 
 
 다른 말 없이 **JSON 하나만** 출력하세요.
 
-{{"queries": ["던진 검색어 전부"], "candidates": [{{"claim": "한 줄 주장", "identifier": "짧은-영문-이름", "why": "왜 후보로 볼 만한가", "market": "국내|미국", "params": [{{"name": "축 이름", "unit": "단위", "candidates": [숫자, 숫자]}}]}}]}}
+{{"queries": ["던진 검색어 전부"], "candidates": [{{"claim": "한 줄 주장", "identifier": "짧은-영문-이름", "why": "왜 후보로 볼 만한가", "market": "국내|미국"}}]}}
 """
 
 
@@ -141,7 +136,6 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
         added=stored.added,
         proposed=len(candidates),
         overflow=len(stored.overflow),
-        rejected=len(stored.rejected),
     )
     if stored.duplicates:
         decision_log.record(
@@ -153,10 +147,6 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
         )
     if stored.empty:
         decision_log.record(run_dir, "explore", decision_log.EVENT_DISCARDED, reason="주장이 비어 있다", claims=stored.empty)
-    for claim, why in stored.rejected:
-        # 기각은 후보마다 사유가 다르므로 한 줄씩 남긴다. 묶어서 세면
-        # 「무엇이 왜 걸렸나」가 사라져 사전을 고칠 재료가 없어진다
-        decision_log.record(run_dir, "explore", decision_log.EVENT_DISCARDED, claim=claim, reason=why)
     if stored.overflow:
         # 상한 밖은 보지도 않고 버린다. 기록 없이 자르면 에이전트가 무엇을 냈는지가 로그에서 사라진다
         decision_log.record(
@@ -176,10 +166,13 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
 
 
 def _store(ledger_path: Path, candidates: list[Any]) -> _Stored:
-    """후보를 원장에 담고, 담은 수와 중복·기각·빈 주장 · 상한 초과로 버린 것을 돌려준다.
+    """후보를 원장에 담고, 담은 수와 중복·빈 주장 · 상한 초과로 버린 것을 돌려준다.
 
-    [중요] **기각된 후보도 원장에 남긴다.** 지우면 다음 탐색이 같은 후보를 새 후보로
-    다시 담고 그 회차가 또 기각한다 — 기각은 「본 적 없다」가 아니다.
+    [중요] **정성 표현으로 거르지 않는다.** 탐색 에이전트는 사전을 모르므로 값이 다 정해진
+    주장(「미국 장기채 ETF …」)에도 축을 안 내고, 여기서 거르면 사전 오탐이 원장에 영구 기각으로
+    박혀 수집의 「값이 정해진 말」 선언까지 오지 못한다. 판정은 걸린 표현을 글자 그대로 짚고 선언을
+    받는 수집 한 곳이 한다. 대가는 못 잴 후보가 담겨 수집 호출 한 번을 쓰고 기각되는 것이며,
+    수집의 회차당 기각 상한이 그 폭을 묶는다.
 
     [중요] 주장은 **원장의 정규 형태로 맞춘 뒤** 다룬다. 원장이 정규 형태로 읽히므로
     여기서 에이전트가 낸 글자 그대로 비교하면 줄바꿈 하나에 중복 판정이 어긋난다.
@@ -189,8 +182,8 @@ def _store(ledger_path: Path, candidates: list[Any]) -> _Stored:
     # 중복은 «여기서» 먼저 걸러 낸다. 그래야 같은 후보를 두 번 낸 응답이 파일을 두 번
     # 건드리지 않는다.
     #
-    # [주의] 이것이 원장 읽기를 «한 번»으로 만들지는 않는다 — `append` 는 호출마다 다시 읽고
-    # `mark_rejected` 는 다시 쓴다. 한 회차의 후보 수가 `MAX_CANDIDATES` 로 묶여 있어 실제
+    # [주의] 이것이 원장 읽기를 «한 번»으로 만들지는 않는다 — `append` 는 호출마다 다시 읽는다.
+    # 한 회차의 후보 수가 `MAX_CANDIDATES` 로 묶여 있어 실제
     # 비용은 작지만, **원장이 아주 커지면 여기가 먼저 느려진다.** 그때는 줄 단위 손질을
     # 한 번에 모아 쓰는 쪽으로 바꾼다
     seen = {entry.claim for entry in ledger.load(ledger_path)}
@@ -205,7 +198,7 @@ def _store(ledger_path: Path, candidates: list[Any]) -> _Stored:
         if claim in seen:
             stored.duplicates.append(claim)
             continue
-        if stored.added + len(stored.rejected) >= MAX_CANDIDATES:
+        if stored.added >= MAX_CANDIDATES:
             # 거른 «뒤»에 센다 — 이 자리에 온 것은 원장에 없는 새 주장이다.
             # 같은 주장을 두 번 낸 답이면 한 번만 남긴다 — 로그의 수로 상한을 가늠한다.
             # `seen` 에 넣지 않는 것은 「이미 원장에 있는 후보」로 잘못 적히지 않게 하려는 것이다
@@ -219,17 +212,7 @@ def _store(ledger_path: Path, candidates: list[Any]) -> _Stored:
             continue
 
         seen.add(claim)
-        # 탐색은 «축 하나 이상»만 본다. 탐색 에이전트는 이 사전을 모르므로 표현마다 요구하면
-        # 사전에 든 줄 모르는 말 때문에 멀쩡한 후보가 여기서 영구 기각된다 — 표현마다의 해명은
-        # 걸린 표현을 글자 그대로 짚어 주는 수집이 요구한다
-        shortfall = quantified.shortfall_reason(claim, _params_of(candidate), each_term=False)
-        if shortfall is None:
-            stored.added += 1
-            continue
-
-        # 담은 «뒤에» 기각으로 돌린다. 중복 방지는 담겨 있어야 작동하기 때문이다
-        ledger.mark_rejected(ledger_path, claim, shortfall)
-        stored.rejected.append((claim, shortfall))
+        stored.added += 1
 
     return stored
 
@@ -241,8 +224,3 @@ def _text_of(candidate: Any, key: str) -> str:
     if isinstance(candidate, str) and key == "claim":
         return candidate.strip()
     return ""
-
-
-def _params_of(candidate: Any) -> Any:
-    """후보 항목에서 파라미터 축을 꺼낸다. 모양 검사는 게이트가 한다."""
-    return candidate.get("params") if isinstance(candidate, dict) else None

@@ -96,6 +96,20 @@ PROMPT: Final = """`.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 
 - 「짧은 기간 내 동시 매수」 → `{{"name": "동시 매수 판정 창", "term": "짧은 기간", "unit": "거래일", "candidates": [5, 10, 20]}}`
 - 「전저점 대비」 → `{{"name": "전저점 산정 일수", "term": "전저점 대비", "unit": "거래일", "candidates": [20, 60]}}`
 
+**걸린 표현이 주장 안에 이미 정의된 이름·값의 일부이면 축 대신 선언합니다** — 지표 이름(「근접도」의
+「근접」) · 상품 이름(「장기채」의 「장기」) · 시가·고가·저가·종가(「전일 저가」의 「저가」)처럼
+그 말이 가리키는 값이 주장 안에서 이미 정해진 경우입니다. `fixed_terms` 에 그 표현과 **왜 값이 이미
+정해졌는지**를 적습니다.
+
+- 「직전 52주 신고가 대비 현재가 비율(근접도) 상위 30%」 → `{{"term": "근접", "why": "근접도는 현재가를 직전 52주 신고가로 나눈 비율의 이름이고, 주장이 상위 30% 로 값을 정했다"}}`
+
+**선언 한 줄에는 걸린 표현 하나만** 적습니다 — 한 줄에 걸린 표현이 둘 이상 들면(「고점 근접도」)
+어느 것도 풀린 것으로 보지 않습니다. 둘이면 두 줄로 나눕니다(「52주 고점」 줄 · 「근접도」 줄).
+
+**선언은 값을 고르는 자리가 아닙니다.** 「단기」·「크게」처럼 값이 빈 말을 선언으로 값 하나(「20거래일」)에
+못박으면 어떤 값을 넣느냐가 결론을 만듭니다 — 그런 말에는 축을 냅니다. 선언은 근거 문서의 미검증 칸에
+이유와 함께 실려 사람이 봅니다.
+
 **축을 못 정하겠으면 빈 목록으로 두세요.** 「옥석을 가려」처럼 무엇을 채울지조차 없는 말과,
 「(미래) 저점에서 산다」처럼 판정 시점에 알 수 없는 값이 여기 걸립니다.
 그 후보는 잴 수 없는 것으로 판정되어 사유와 함께 기록되며, **그것도 정상 결과입니다** —
@@ -105,7 +119,7 @@ PROMPT: Final = """`.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 
 
 다른 말 없이 **JSON 하나만** 출력하세요.
 
-{{"claim": "받은 한 줄 주장 그대로", "identifier": "짧은-영문-이름", "queries": ["던진 검색어 전부"], "params": [{{"name": "축 이름", "term": "이 축이 푸는 표현", "unit": "단위", "candidates": [숫자, 숫자]}}], "evidence": [{{"title": "", "url": "", "published": "YYYY-MM-DD 또는 unknown", "kind": "primary|secondary", "says": "이 출처가 주장을 어떻게 뒷받침하나"}}], "unverified": ["확인하지 못한 것"]}}
+{{"claim": "받은 한 줄 주장 그대로", "identifier": "짧은-영문-이름", "queries": ["던진 검색어 전부"], "params": [{{"name": "축 이름", "term": "이 축이 푸는 표현", "unit": "단위", "candidates": [숫자, 숫자]}}], "fixed_terms": [{{"term": "이미 정의된 말의 일부로 걸린 표현", "why": "왜 값이 이미 정해졌나"}}], "evidence": [{{"title": "", "url": "", "published": "YYYY-MM-DD 또는 unknown", "kind": "primary|secondary", "says": "이 출처가 주장을 어떻게 뒷받침하나"}}], "unverified": ["확인하지 못한 것"]}}
 """
 
 # 출처가 실재하지 않아 «다시» 물을 때 지시문 뒤에 붙이는 말.
@@ -138,7 +152,7 @@ def build_prompt(claim: str, *, source_problem: str | None = None) -> str:
     「이 주장은 값이 다 정해졌다」고 넘어가는 모양이 나왔다. 그러면 그 후보는 기각되는데,
     **탐색에서 한 번 통과했던 후보가 수집에서 죽는** 일이 된다.
 
-    [중요] 이 단계는 **표현마다** 축을 요구하고(탐색은 축 하나 이상), 축이 표현을 푸는지는
+    [중요] 이 단계가 정성 표현을 판정하는 유일한 자리다(탐색은 거르지 않는다). **표현마다** 축을 요구하고, 축이 표현을 푸는지는
     축의 `term` 으로 가른다. 그래서 짚어 준 글자를 `term` 에 «그대로» 적으라고 한다 —
     옮겨 적다 말을 바꾸면 멀쩡한 후보가 영구 기각된다.
 
@@ -153,10 +167,11 @@ def build_prompt(claim: str, *, source_problem: str | None = None) -> str:
     terms = quantified.triggered_terms(claim)
     if terms:
         demand = (
-            f"이 주장에는 값이 비어 있는 표현이 있습니다 — **{' · '.join(terms)}**.\n"
+            f"이 주장에서 값이 비어 있을 수 있는 표현을 찾았습니다 — **{' · '.join(terms)}**.\n"
             f"**표현마다** 그것을 푸는 축을 내고, 그 축의 `term` 에 그 표현을 위 글자 그대로 적습니다 "
             f"(한 축이 여러 표현을 함께 풀면 `term` 에 모두 적습니다). "
-            f"**한 표현이라도** 풀지 못하면 그 후보는 잴 수 없는 것으로 판정되어 사유와 함께 기록됩니다."
+            f"그 표현이 이미 정의된 이름·값의 일부로 걸린 것이면 축 대신 `fixed_terms` 에 선언합니다(아래). "
+            f"**한 표현이라도** 축도 선언도 없으면 그 후보는 잴 수 없는 것으로 판정되어 사유와 함께 기록됩니다."
         )
     else:
         demand = "이 주장은 값이 다 정해져 있습니다. 그래도 잴 때 갈릴 축이 있으면 적고, 없으면 `params` 는 빈 목록입니다."
@@ -229,7 +244,9 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
 
         payload = _ask_about(run_dir, candidate.claim, ask)
 
-        shortfall = quantified.shortfall_reason(candidate.claim, payload.get("params"), each_term=True)
+        shortfall = quantified.shortfall_reason(
+            candidate.claim, payload.get("params"), fixed_terms=payload.get("fixed_terms")
+        )
         if shortfall is not None:
             _reject(run_dir, ledger_path, candidate.claim, shortfall)
             rejections += 1
@@ -322,6 +339,8 @@ def _carry_forward(payload: dict[str, Any], previous: dict[str, Any], *, claim: 
     **누락이지 판정이 아니다.** 그것을 「잴 수 없다」로 읽으면 첫 답이 이미 증명한 것을
     둘째 답이 부정하게 되고, 그 후보는 «거짓 사유»로 원장에 영구 기각된다 —
     기각은 다시 안 파므로 사람이 손으로 고치기 전까지 살아나지 않는다.
+    **선언(`fixed_terms`)도 축과 «함께»** 되돌린다 — 둘은 한 판정의 재료라, 한쪽만 되돌리면
+    첫 답이 증명한 조합이 깨진다.
 
     Args:
         payload: 방금 받은 산출물. **제자리에서 고친다**
@@ -339,8 +358,9 @@ def _carry_forward(payload: dict[str, Any], previous: dict[str, Any], *, claim: 
 
     # 빈 목록도 반쯤 적은 축도 여기서 같게 다뤄진다 — 가르는 것은 «모양»이 아니라
     # 「이 답만으로 격자를 짤 수 있나」이고, 그 판정은 게이트가 이미 안다
-    if quantified.shortfall_reason(claim, payload.get("params"), each_term=True) is not None:
+    if quantified.shortfall_reason(claim, payload.get("params"), fixed_terms=payload.get("fixed_terms")) is not None:
         payload["params"] = payload_helpers.as_list(previous.get("params"))
+        payload["fixed_terms"] = payload_helpers.as_list(previous.get("fixed_terms"))
 
 
 def _give_up_on_deferred(run_dir: Path, deferred: Sequence[str]) -> NoReturn:
@@ -465,6 +485,7 @@ def _store(run_dir: Path, ledger_path: Path, candidate: ledger.Entry, payload: d
     evidence = payload_helpers.as_list(payload.get("evidence"))
     unverified = payload_helpers.as_list(payload.get("unverified"))
     params = payload_helpers.as_list(payload.get("params"))
+    fixed_terms = payload_helpers.as_list(payload.get("fixed_terms"))
     queries = payload_helpers.as_strings(payload.get("queries"))
 
     # [중요] 산출물은 «후보별 폴더»에 넣는다. 실행 폴더 바로 아래에 고정 이름으로 쓰면
@@ -475,7 +496,13 @@ def _store(run_dir: Path, ledger_path: Path, candidate: ledger.Entry, payload: d
     # 반쯤 쓰다 끊기면 완성본 자리에 잘린 파일이 남는다
     with atomic_write(output_dir / PRO_EVIDENCE_FILENAME) as file:
         json.dump(
-            {"claim": candidate.claim, "params": params, "evidence": evidence, "unverified": unverified},
+            {
+                "claim": candidate.claim,
+                "params": params,
+                "fixed_terms": fixed_terms,
+                "evidence": evidence,
+                "unverified": unverified,
+            },
             file,
             ensure_ascii=False,
             indent=2,
@@ -491,6 +518,9 @@ def _store(run_dir: Path, ledger_path: Path, candidate: ledger.Entry, payload: d
         identifier=identifier,
         evidence_count=len(evidence),
         unverified_count=len(unverified),
+        # 선언은 기계가 이유를 판정하지 않고 통과시킨 자리다. 어떤 말이 얼마나 선언됐는지를
+        # 나중에 로그에서 훑어야 값이 빈 말을 선언으로 못박는 남용을 찾아낼 수 있다
+        fixed_terms=[term for term, _ in payload_helpers.declarations(fixed_terms)],
         # 「찬성 근거 0건」은 고장이 아니라 **실체 없음이라는 정상 결과**다.
         # 그 판정을 나중에 기계가 골라낼 수 있게 이름을 붙여 둔다
         verdict="실체 없음" if not evidence else "근거 있음",

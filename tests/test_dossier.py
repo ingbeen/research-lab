@@ -26,6 +26,7 @@ from research_lab.common_constants import (
     REBUTTAL_FILENAME,
 )
 from research_lab.gate import measurement as measurement_gate
+from research_lab.gate import selfcontained
 from research_lab.runner import dossier, state
 from research_lab.runner.steps import StepQualityFailed
 
@@ -731,6 +732,78 @@ def test_a_paraphrase_is_not_folded(prepared: Any) -> None:
 
     assert "PDF 추출 실패로 확인하지 못했다" in written
     assert "본문의 초과수익률은 미확인이다" in written
+
+
+def test_declared_words_land_in_the_unverified_slot_before_the_url_notes(prepared: Any) -> None:
+    """
+    목적: [중요] 수집이 축 대신 «값이 정해진 말»로 밝힌 표현이 11번 칸에 이유와 함께 실리는 계약을 고정한다.
+
+    선언은 기계가 이유를 판정하지 않고 통과시킨 자리다 — 값이 빈 표현을 값 하나로 못박는 남용을
+    기계는 못 막는다. 사람이 그것을 볼 자리가 여기뿐이다. 주소 문구보다 앞에 두는 것은 그 문구들이
+    「맨 뒤」라는 자리 약속을 지키기 위해서다.
+
+    Given: 「근접」 선언을 남긴 수집 산출물 · 판정 못 한 주소 하나
+    When: 조립한다
+    Then: 11번 칸에 표현과 이유가 있고, 그 줄이 주소 줄보다 앞에 있다
+    """
+    ready = prepared()
+    _rewrite(
+        ready,
+        PRO_EVIDENCE_FILENAME,
+        fixed_terms=[{"term": "근접", "why": "근접도는 현재가를 직전 52주 신고가로 나눈 비율의 이름이다"}],
+    )
+
+    written = dossier.assemble(
+        ready.run_dir,
+        ready.candidate,
+        VERDICT_PAYLOAD,
+        dossier_dir=ready.dossier_dir,
+        unverified_urls=[BLOCKED_URL],
+    ).read_text(encoding="utf-8")
+    slot = written.split("## 11.")[-1]
+
+    assert "「근접」" in slot
+    assert "직전 52주 신고가로 나눈 비율" in slot
+    assert slot.index("「근접」") < slot.index(BLOCKED_URL)
+
+
+def test_no_declaration_line_without_declarations(prepared: Any) -> None:
+    """
+    목적: 선언이 없으면 그 문구가 11번 칸에 «없는» 계약을 고정한다 — 옛 산출물에는 그 열쇠 자체가 없다.
+
+    Given: 선언이 없는 수집 산출물
+    When: 조립한다
+    Then: 11번 칸에 선언 문구가 없다
+    """
+    ready = prepared()
+
+    slot = _assembled(ready).split("## 11.")[-1]
+
+    # 문구를 글자로 박지 않고 상수에서 가져온다 — 문구가 바뀌면 이 검사가 저절로 통과하게 된다
+    fragment = "이미 정의된 말의 일부"
+    assert fragment in dossier.FIXED_TERM_NOTE
+    assert fragment not in slot
+
+
+def test_the_declaration_line_stands_on_its_own(prepared: Any) -> None:
+    """
+    목적: [중요] 선언 줄이 «자립 서술»인 계약을 고정한다 — 1순위 제약.
+
+    근거 문서는 이 파이프라인을 열 수 없는 곳에서 읽힌다. 「파라미터 축 없이 넘어갔다」처럼 안쪽 말로
+    적으면 받는 사람은 무엇이 건너뛰어졌고 그래서 무엇을 의심해야 하는지 모른다.
+
+    Given: 「근접」 선언을 남긴 수집 산출물
+    When: 조립한다
+    Then: 그 줄에 가리키는 말이 없고, 자동 표시 · 건너뛴 것 · 확인 안 한 것이 말로 적혀 있다
+    """
+    ready = prepared()
+    _rewrite(ready, PRO_EVIDENCE_FILENAME, fixed_terms=[{"term": "근접", "why": "근접도는 정의된 비율의 이름이다"}])
+
+    line = next(item for item in _assembled(ready).split("## 11.")[-1].splitlines() if "「근접」" in item)
+
+    assert selfcontained.pointers_in(line) == ()
+    assert "파라미터 축" not in line
+    assert "자동" in line and "확인하지 않았습니다" in line
 
 
 def _rewrite(ready: Any, filename: str, **fields: Any) -> None:

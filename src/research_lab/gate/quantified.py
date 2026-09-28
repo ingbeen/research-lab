@@ -16,29 +16,38 @@
 낼 수 없어 자연히 걸린다 — **가르는 것은 사전이 아니라 「파라미터를 낼 수 있는가」다.**
 
 그래서 사전에 걸려도 버리지 않고 **축과 후보값을 내라고 요구한다.** 오탐의 대가는 축 한 줄이라
-사전을 넉넉히 키워도 좋은 후보가 죽지 않는다. 다만 수집은 걸린 표현 «마다» 한 줄을 요구하므로,
-낱말 안에 우연히 든 조각(「상장기업」의 「장기」)은 판정 전에 가린다(`INCIDENTAL_COMPOUNDS`).
+사전을 넉넉히 키워도 좋은 후보가 죽지 않는다. 다만 수집은 걸린 표현 «마다» 한 줄을 요구하므로
+오탐 하나가 영구 기각이 될 수 있어, 오탐을 두 겹으로 받는다. 낱말 안에 우연히 든 조각(「상장기업」의
+「장기」)은 판정 전에 가리고(`INCIDENTAL_COMPOUNDS`), 이미 정의된 이름·값의 일부로 걸린 표현
+(「근접도」의 「근접」 · 「장기채」의 「장기」 · 전일 「저가」)은 판정받는 쪽이 **「값이 정해진 말」로
+이유와 함께 선언**한다(`fixed_terms`). 가림 목록만으로는 「전일 저가」처럼 문맥으로만 갈리는 것을
+못 가린다. 걸린 표현을 짚어 한 번 더 묻는 길은 버렸다 — 오탐에는 같은 요구를 되풀이해 축을
+지어내게 밀 뿐이다. [실측 2026-09-28] 원장 주장 16개에 사전을 돌려 나온 오탐은 「근접도」 1건이다.
 
 [중요] 게이트는 **적혔는가만** 본다. 그 축이 옳은지 · 그 값이 판정 시점에 관측 가능한지는
 판정하지 않는다 — 판정하려 들면 게이트가 또 하나의 판단자가 된다.
 
-[중요] **판정이 두 갈래다 — 수집은 표현 «마다» 축을, 탐색은 축 «하나 이상»을 요구한다**
-(`each_term`). 하나로 두면 「옥석을 가려 … 전저점 대비」가 전저점 축만으로 지나가, 축 자체가
-없는 표현이 해명 없이 근거 문서까지 간다. 그렇다고 탐색에도 표현마다 요구하면 안 된다 —
-탐색 에이전트는 이 사전을 모르므로 사전에 든 줄 모르는 말(「직후」)에 축을 안 내고, 기각은
-다시 안 파므로 **멀쩡한 후보가 영구히 닫힌다.** 수집 지시문은 걸린 표현을 글자 그대로 짚어
-주므로 그 자리에서 요구한다.
+[중요] **판정은 수집 한 곳에서, 걸린 표현 «마다» 축이나 선언을 요구한다.** 축 하나로 모든 표현이
+풀린 것으로 치면 「옥석을 가려 … 전저점 대비」가 전저점 축만으로 지나가, 축 자체가 없는 표현이
+해명 없이 근거 문서까지 간다. 탐색은 거르지 않는다 — 탐색 에이전트는 이 사전을 모르므로 값이 다
+정해진 주장(「미국 장기채 ETF …」)에도 축을 안 내고, 거기서 거르면 사전 오탐이 영구 기각으로 박혀
+선언까지 오지 못한다. 수집 지시문은 걸린 표현을 글자 그대로 짚어 주므로 그 자리에서 요구한다.
 
 [중요] 축이 표현을 «푸는지»는 축의 `term`(그 축이 푸는 표현) **또는 이름**에 그 표현이 들어
 있는지로 본다. 이름만으로 맞추지 않는 것은 축 이름에 표현이 안 들어가는 것이 정상이기
 때문이다(「크게 상회」→ 「서프라이즈 하한」). 이름도 보는 것은 `term` 을 빠뜨렸지만 이름에 그
 말이 든 축(「단기 보유 기간」)까지 기각하지 않기 위해서다.
 
-[주의] 못 막는 것 셋을 알고 쓴다 — ① 사전에 없는 정성 표현 ② 「미래 저점」을 「전저점」인
+[주의] 못 막는 것 다섯을 알고 쓴다 — ① 사전에 없는 정성 표현 ② 「미래 저점」을 「전저점」인
 척 포장한 격자 ③ 한 축의 `term` 에 표현을 몰아 적어 그 축이 풀지 않는 표현까지 푼 것으로 적은 것
-(한 축이 여러 표현을 함께 푸는 정당한 경우와 글자로는 갈리지 않는다). 셋 다 나중에 사람이 보는 자리다.
+(한 축이 여러 표현을 함께 푸는 정당한 경우와 글자로는 갈리지 않는다) ④ 값이 빈 표현을 「값이 정해진
+말」이라며 값 하나로 못박은 선언(「단기 = 20거래일」) — 선언의 이유는 «적혔는가»만 본다 ⑤ 같은 글자가
+주장에 두 번 나올 때 정의된 말로 한 선언(「장기채」)이 값이 빈 다른 쓰임(「장기 보유」)까지 푸는 것 —
+판정이 표현 단위라 축도 같고, 글자로 가르면 에이전트가 다른 꼴로 적는 순간 멀쩡한 후보가 영구 기각된다.
+다섯 다 나중에 사람이 보는 자리다 — 선언은 근거 문서 11번 칸에 이유와 함께 실린다.
 """
 
+from collections.abc import Sequence
 from typing import Any, Final
 
 from research_lab.gate.filled import is_filled
@@ -89,9 +98,10 @@ QUALITATIVE_TERMS: Final = (
 # 사전의 말이 «우연히 든» 흔한 낱말 — 판정 전에 가린다.
 #
 # [중요] 사전은 글자 그대로 찾으므로 낱말 안의 조각도 문다(「상장기업」의 「장기」 · 「매수일」의
-# 「수일」 · 「매수주문」의 「수주」). 탐색에서는 축 하나면 통과해 대가가 없지만, **수집은 걸린 표현
-# 마다 축을 요구하고 그 기각은 다시 안 판다** — 가리지 않으면 값이 다 정해진 후보가 없는 표현
-# 때문에 영구히 닫힌다. 낱말 앞머리로만 찾는 길은 버렸다 — 「전저점」의 「저점」 · 「최고점」의
+# 「수일」 · 「매수주문」의 「수주」). **수집은 걸린 표현 마다 축을 요구하고 그 기각은 다시 안
+# 판다** — 가리지 않으면 값이 다 정해진 후보마다 에이전트가 선언(`fixed_terms`)을 적어야 하고,
+# 빠뜨리면 없는 표현 때문에 영구히 닫힌다. 흔한 낱말은 여기서 먼저 가리고, 여기서 못 가리는 것이
+# 선언의 자리다. 낱말 앞머리로만 찾는 길은 버렸다 — 「전저점」의 「저점」 · 「최고점」의
 # 「고점」처럼 낱말 안에 든 «진짜» 표현을 놓친다
 INCIDENTAL_COMPOUNDS: Final = ("상장기", "매수일", "매수주")
 
@@ -117,7 +127,7 @@ def triggered_terms(claim: str) -> tuple[str, ...]:
     return tuple(term for term in QUALITATIVE_TERMS if term.casefold() in lowered)
 
 
-def shortfall_reason(claim: str, parameters: Any, *, each_term: bool) -> str | None:
+def shortfall_reason(claim: str, parameters: Any, *, fixed_terms: Any = None) -> str | None:
     """해명이 모자라면 그 사유를, 충분하면 None 을 돌려준다.
 
     사유를 «문자열로» 돌리는 것은 원장의 기각 줄에 그대로 적기 위해서다.
@@ -130,32 +140,17 @@ def shortfall_reason(claim: str, parameters: Any, *, each_term: bool) -> str | N
     Args:
         claim: 후보의 한 줄 주장
         parameters: 에이전트가 낸 파라미터 축들. 모양이 어긋나 있어도 된다
-        each_term: 걸린 표현 «마다» 축을 요구할지(수집), 축 하나 이상이면 될지(탐색).
-            **기본값을 두지 않는다** — 두 판정은 기각의 무게가 달라 부르는 쪽이 골라야 한다
+        fixed_terms: 「값이 정해진 말」 선언들(`{"term", "why"}`). 선언된 표현은 걸린 표현에서
+            빠진다. 모양이 어긋나 있어도 된다. `None` 은 선언이 없다는 뜻이다
 
     Returns:
         모자랄 때의 사유, 충분하면 None
     """
-    terms = triggered_terms(claim)
-    if not terms:
-        return None
-
+    flagged = triggered_terms(claim)
+    terms = [term for term in flagged if not _is_declared(term, fixed_terms, flagged)]
     axes = _usable_axes(parameters)
-    if each_term:
-        uncovered = [term for term in terms if not any(_answers(axis, term) for axis in axes)]
-        return _uncovered_reason(uncovered) if uncovered else None
-
-    if axes:
-        return None
-
-    return (
-        f"한 줄 주장에 값이 비어 있는 표현이 있습니다: {list(terms)}. "
-        f"그 표현마다 «무엇을 얼마로 바꿀 수 있는지»를 파라미터 축으로 적고, "
-        f"축마다 서로 다른 숫자 후보값을 {MIN_DISTINCT_CANDIDATES}개 이상 주세요 "
-        f"(예: 보유 기간 · 거래일 · [5, 20, 60]). "
-        f"축을 못 정하겠다면 그 후보는 잴 수 없습니다 — 임의로 값을 채우면 "
-        f"어떤 값을 넣느냐가 결론을 만듭니다."
-    )
+    uncovered = [term for term in terms if not any(_answers(axis, term) for axis in axes)]
+    return _uncovered_reason(uncovered) if uncovered else None
 
 
 def _uncovered_reason(uncovered: list[str]) -> str:
@@ -166,10 +161,13 @@ def _uncovered_reason(uncovered: list[str]) -> str:
     """
     named = " · ".join(f"「{term}」" for term in uncovered)
     return (
-        f"한 줄 주장의 값이 비어 있는 표현 중 축으로 풀지 못한 것이 있습니다: {named}. "
+        f"한 줄 주장의 값이 비어 있을 수 있는 표현 중 축으로도 선언으로도 풀지 못한 것이 있습니다: {named}. "
         f"표현마다 그 표현을 `term` 에 그대로 적은 축을 내고, 축마다 서로 다른 숫자 후보값을 "
         f"{MIN_DISTINCT_CANDIDATES}개 이상 주세요 "
         f"(예: 「단기」 → 이름 「보유 기간」 · 단위 거래일 · 후보값 [5, 20, 60] · term 「단기」). "
+        f"그 표현이 주장 안에 이미 정의된 이름·값의 일부로 걸린 것이면(「근접도」의 「근접」) 축 대신 "
+        f"`fixed_terms` 에 그 표현과 왜 값이 정해졌는지를 적습니다 — 선언은 한 줄에 표현 하나이고, "
+        f"한 줄에 둘 이상 담으면 어느 것도 풀리지 않습니다. "
         f"축을 못 정하겠다면 그 후보는 잴 수 없습니다 — 임의로 값을 채우면 "
         f"어떤 값을 넣느냐가 결론을 만듭니다."
     )
@@ -190,6 +188,31 @@ def _answers(axis: dict[str, Any], term: str) -> bool:
     """
     folded = _squeezed(term)
     return any(folded in _squeezed(written) for written in _strings(axis.get("term")) + _strings(axis.get("name")))
+
+
+def _is_declared(term: str, fixed_terms: Any, flagged: Sequence[str]) -> bool:
+    """그 표현이 「값이 정해진 말」로 선언됐나 — 선언의 `term` 글자 하나에 그 표현이 들고 이유가 적혔나.
+
+    [중요] 이유는 «적혔는가»만 본다. 맞는지를 판정하면 게이트가 또 하나의 판단자가 된다 —
+    선언은 근거 문서 11번 칸에 이유와 함께 실려 사람이 본다. 모양이 어긋난 선언(목록이 아님 ·
+    항목이 사전이 아님)은 «안 적힌 것»이다 — 축과 같은 관용이다.
+
+    [중요] 선언의 글자 하나에 걸린 표현이 «둘 이상» 들면 어느 것도 풀지 않는다. 축과 달리 선언은
+    격자가 필요 없어, 긴 구절(「옥석을 가려 장기채」)이나 주장 통째를 적으면 축 자체가 없는
+    표현까지 한 줄로 풀린다. 선언은 «정의된 말 하나»를 가리키는 자리다. 표현을 가르는 규칙
+    (띄어쓰기 무시 · 목록 허용)은 축과 같다 — 갈리면 같은 글자가 한쪽에서만 풀린다.
+    """
+    if not isinstance(fixed_terms, list):
+        return False
+    folded = _squeezed(term)
+    others = [_squeezed(other) for other in flagged if other != term]
+    for item in fixed_terms:
+        if not isinstance(item, dict) or not is_filled(item.get("why")):
+            continue
+        for written in (_squeezed(text) for text in _strings(item.get("term"))):
+            if folded in written and not any(other in written for other in others):
+                return True
+    return False
 
 
 def _squeezed(text: str) -> str:
