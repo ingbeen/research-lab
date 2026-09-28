@@ -41,6 +41,7 @@ def _finish(runs_dir: Path, cycle_id: str, *, exit_code: int = 0) -> None:
         stop_reason="예산이 모자랍니다",
         last_run_dir_name="20260915_1200",
         tokens=None,
+        dossier_tokens=None,
     )
 
 
@@ -181,6 +182,7 @@ def test_tokens_ride_on_the_finish_line(tmp_path: Path) -> None:
         stop_reason="요청한 2장을 냈습니다",
         last_run_dir_name="20260915_1200",
         tokens=usage.Tokens(input=10, output=20, cache_creation=30, cache_read=40),
+        dossier_tokens=usage.Tokens(input=10, output=20, cache_creation=30, cache_read=40),
     )
 
     finished = [entry for entry in cycle_log.read(tmp_path) if entry["event"] == cycle_log.EVENT_FINISHED][0]
@@ -220,3 +222,105 @@ def test_a_line_cut_mid_character_does_not_raise(tmp_path: Path) -> None:
 
     assert cycle_log.unfinished_ids(tmp_path) == ["cyc-1"], "잘린 종료 줄은 «끝»으로 세지 않는다"
     assert len(cycle_log.read(tmp_path)) == 1
+
+
+def _finished_line(runs_dir: Path) -> dict[str, object]:
+    """그 뿌리의 마지막 종료 줄."""
+    return [entry for entry in cycle_log.read(runs_dir) if entry["event"] == cycle_log.EVENT_FINISHED][-1]
+
+
+def test_the_per_dossier_share_comes_from_the_whole_folders(tmp_path: Path) -> None:
+    """
+    목적: [중요] 「한 장당 한도 비율」의 분자가 «문서를 낸 폴더 전체»의 토큰인 계약을 고정한다.
+
+    회차 비율은 차분(이번 회차가 더한 만큼)이 맞지만, 이어받은 회차에서 그 차분을 장수로
+    나누면 **앞 회차가 쓴 단계들이 통째로 빠진다.** [실측 2026-09-28] 이어받기 회차가
+    한 장당 4.1% 로 적었는데 그 폴더 전체는 약 29.3% 였다 — 「한 장이 창의 몇 %인가」로
+    회차당 장수를 정하는데 그 값이 일곱 배 작게 나온 것이다.
+
+    Given: 이번 회차의 차분은 작고, 문서를 낸 폴더 전체의 토큰은 큰 회차
+    When: 종료를 적는다
+    Then: 한 장당 비율과 그 분자는 폴더 전체로, 회차 비율은 차분으로 적힌다
+    """
+    from research_lab.runner import usage
+
+    this_cycle = usage.Tokens(input=1, output=1_000, cache_creation=9_000)
+    whole_folder = usage.Tokens(input=10, output=100_000, cache_creation=500_000)
+    calibration = usage.calibrated()
+    assert calibration is not None, "보정값이 있어야 비율을 견줄 수 있다"
+
+    cycle_log.finished(
+        tmp_path,
+        cycle_id="cyc-1",
+        exit_code=0,
+        produced=1,
+        spent_usd=1.0,
+        stop_reason="요청한 1장을 냈습니다",
+        last_run_dir_name="20260926_0940",
+        tokens=this_cycle,
+        dossier_tokens=whole_folder,
+    )
+
+    finished = _finished_line(tmp_path)
+    assert finished["dossier_tokens_new_total"] == whole_folder.new_total
+    assert finished["per_dossier_window_share_percent"] == usage.window_share_percent(
+        whole_folder, calibration=calibration
+    )
+    assert finished["window_share_percent"] == usage.window_share_percent(this_cycle, calibration=calibration)
+
+
+def test_the_old_per_dossier_key_is_not_written(tmp_path: Path) -> None:
+    """
+    목적: 뜻이 바뀐 값을 «옛 열쇠»로 적지 않는 계약을 고정한다.
+
+    같은 이름에 다른 뜻을 담으면 과거 줄과 새 줄이 한 열로 섞여 **비교가 조용히 틀린다.**
+    덧붙이기 전용 파일이라 과거 줄은 고치지 않으므로, 새 뜻은 새 이름으로 적는다.
+
+    Given: 문서를 한 장 낸 회차
+    When: 종료를 적는다
+    Then: 옛 열쇠가 없다
+    """
+    from research_lab.runner import usage
+
+    spent = usage.Tokens(input=1, output=2, cache_creation=3)
+    cycle_log.finished(
+        tmp_path,
+        cycle_id="cyc-1",
+        exit_code=0,
+        produced=1,
+        spent_usd=1.0,
+        stop_reason="요청한 1장을 냈습니다",
+        last_run_dir_name="20260926_0940",
+        tokens=spent,
+        dossier_tokens=spent,
+    )
+
+    assert "window_share_per_dossier_percent" not in _finished_line(tmp_path)
+
+
+def test_a_cycle_without_a_dossier_has_no_per_dossier_share(tmp_path: Path) -> None:
+    """
+    목적: 문서를 못 낸 회차는 한 장당 비율이 «비어» 있는 계약을 고정한다.
+
+    0 으로 적으면 「한 장이 한도를 안 먹는다」로 읽힌다. 못 낸 회차는 정상으로 있다
+    (원장 포화 · 막힘으로 접힌 폴더를 닫기만 한 회차).
+
+    Given: 문서를 한 장도 못 낸 회차
+    When: 종료를 적는다
+    Then: 한 장당 비율이 None 이다
+    """
+    from research_lab.runner import usage
+
+    cycle_log.finished(
+        tmp_path,
+        cycle_id="cyc-1",
+        exit_code=1,
+        produced=0,
+        spent_usd=1.0,
+        stop_reason="미완성으로 끝났습니다",
+        last_run_dir_name="20260926_0940",
+        tokens=usage.Tokens(input=1, output=2, cache_creation=3),
+        dossier_tokens=usage.Tokens(),
+    )
+
+    assert _finished_line(tmp_path)["per_dossier_window_share_percent"] is None

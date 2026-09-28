@@ -217,7 +217,9 @@ def per_dossier_percent(share_percent: float | None, *, produced: int) -> float 
     """근거 문서 «한 장»이 한도의 몇 %였나. 낸 장이 없으면 None.
 
     Args:
-        share_percent: 그 회차 전체의 비율
+        share_percent: 근거 문서를 낸 실행 폴더들의 «전체» 토큰이 한 창의 몇 %인가.
+            [중요] 회차 비율(이번 회차가 더한 만큼)을 넘기지 않는다 — 이어받은 회차에서
+            그 장을 만든 앞 단계들이 빠져 한 장이 실제보다 가볍게 읽힌다
         produced: 그 회차가 낸 근거 문서의 장수
 
     Returns:

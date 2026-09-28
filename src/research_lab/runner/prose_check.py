@@ -36,7 +36,8 @@ GATE_NAME: Final = "selfcontained"
 # | `claim` | 단계마다 **원장의 한 줄 주장을 그대로 되받아 적는다.** 원장은 append-only 라 그 단계가 고칠 수 없다 |
 # | `queries` | 던진 검색어 기록이다. 문서에 실리지 않고, 남의 글 제목이 그대로 들어온다 |
 # | `url` · `identifier` | 주소와 짧은 이름이다. 사람이 읽는 산문이 아니다 |
-SKIPPED_KEYS: Final = frozenset({"claim", "queries", "url", "identifier"})
+# | `title` | 남의 글 제목을 그대로 옮긴 값이라 **에이전트가 고칠 수 없다.** 제목에 「…카탈로그의 …」가 든 출처를 인용하면 회차마다 같은 자리에서 막혀 세 번이면 후보가 걷힌다. 제목이 이 저장소의 문서를 가리킬 수는 없다 |
+SKIPPED_KEYS: Final = frozenset({"claim", "queries", "url", "identifier", "title"})
 
 # 중첩을 훑을 깊이 상한. 산출물은 「절 안의 목록 안의 사전」 정도라 이 깊이면 넉넉하다
 _MAX_DEPTH: Final = 8

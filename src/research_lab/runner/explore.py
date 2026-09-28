@@ -6,6 +6,7 @@
 
 import json
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Final
 
@@ -24,8 +25,26 @@ from research_lab.runner.steps import StepQualityFailed
 AgentCaller = Callable[[str], AgentResult]
 
 # 한 회차에 담을 후보 수의 상한. 많이 담는 것이 목적이 아니라 **수집이 팔 재고**를 만드는 것이라,
-# 한 번에 너무 많이 담으면 오래된 후보가 계속 뒤로 밀린다
+# 한 번에 너무 많이 담으면 오래된 후보가 계속 뒤로 밀린다.
+#
+# [중요] 세는 것은 **원장에 새로 적는 줄**(담김 + 기각)이다. 중복 · 빈 주장은 자리를 먹지 않는다 —
+# 거르기 «전» 목록에 걸면 원장에 이미 있는 주장이 앞자리를 먹고 **새 주장이 「상한 초과」로
+# 버려진다.** 원장이 커질수록 에이전트가 아는 후보를 되풀이할 공산이 커지므로 그만큼 새 후보가
+# 들어올 길이 좁아진다
 MAX_CANDIDATES: Final = 15
+
+
+@dataclass
+class _Stored:
+    """한 번의 탐색 답이 원장에 무엇을 남기고 무엇을 버렸나."""
+
+    added: int = 0
+    duplicates: list[str] = field(default_factory=list)
+    rejected: list[tuple[str, str]] = field(default_factory=list)
+    empty: list[str] = field(default_factory=list)
+    # 상한을 넘어 «보지도 않고» 버린 새 주장 — 에이전트가 낸 글자 그대로
+    overflow: list[str] = field(default_factory=list)
+
 
 PROMPT: Final = """`.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 그 규율을 그대로 따르세요.
 
@@ -113,40 +132,39 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
     with atomic_write(run_dir / EXPLORE_RESULT_FILENAME) as file:
         json.dump(payload, file, ensure_ascii=False, indent=2)
 
-    considered, overflow = candidates[:MAX_CANDIDATES], candidates[MAX_CANDIDATES:]
-    added, duplicates, rejected, empty = _store(ledger_path, considered)
+    stored = _store(ledger_path, candidates)
 
     decision_log.record(
         run_dir,
         "explore",
         decision_log.EVENT_JUDGED,
-        added=added,
+        added=stored.added,
         proposed=len(candidates),
-        considered=len(considered),
-        rejected=len(rejected),
+        overflow=len(stored.overflow),
+        rejected=len(stored.rejected),
     )
-    if duplicates:
+    if stored.duplicates:
         decision_log.record(
             run_dir,
             "explore",
             decision_log.EVENT_DISCARDED,
             reason="이미 원장에 있는 후보",
-            claims=duplicates,
+            claims=stored.duplicates,
         )
-    if empty:
-        decision_log.record(run_dir, "explore", decision_log.EVENT_DISCARDED, reason="주장이 비어 있다", claims=empty)
-    for claim, why in rejected:
+    if stored.empty:
+        decision_log.record(run_dir, "explore", decision_log.EVENT_DISCARDED, reason="주장이 비어 있다", claims=stored.empty)
+    for claim, why in stored.rejected:
         # 기각은 후보마다 사유가 다르므로 한 줄씩 남긴다. 묶어서 세면
         # 「무엇이 왜 걸렸나」가 사라져 사전을 고칠 재료가 없어진다
         decision_log.record(run_dir, "explore", decision_log.EVENT_DISCARDED, claim=claim, reason=why)
-    if overflow:
+    if stored.overflow:
         # 상한 밖은 보지도 않고 버린다. 기록 없이 자르면 에이전트가 무엇을 냈는지가 로그에서 사라진다
         decision_log.record(
             run_dir,
             "explore",
             decision_log.EVENT_DISCARDED,
             reason=f"한 회차에 담는 후보 상한(MAX_CANDIDATES={MAX_CANDIDATES})을 넘었다",
-            claims=[_text_of(candidate, "claim") for candidate in overflow],
+            claims=stored.overflow,
         )
 
     # [중요] 후보를 «담은 뒤에» 검사한다. 찾은 후보를 버리면 그 회차가 통째로 헛돌고,
@@ -157,8 +175,8 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
         raise StepQualityFailed(f"탐색 검색어 부족 — {shortfall}")
 
 
-def _store(ledger_path: Path, candidates: list[Any]) -> tuple[int, list[str], list[tuple[str, str]], list[str]]:
-    """후보를 원장에 담고, 담은 수와 중복·기각·빈 주장으로 버린 것을 돌려준다.
+def _store(ledger_path: Path, candidates: list[Any]) -> _Stored:
+    """후보를 원장에 담고, 담은 수와 중복·기각·빈 주장 · 상한 초과로 버린 것을 돌려준다.
 
     [중요] **기각된 후보도 원장에 남긴다.** 지우면 다음 탐색이 같은 후보를 새 후보로
     다시 담고 그 회차가 또 기각한다 — 기각은 「본 적 없다」가 아니다.
@@ -167,10 +185,7 @@ def _store(ledger_path: Path, candidates: list[Any]) -> tuple[int, list[str], li
     여기서 에이전트가 낸 글자 그대로 비교하면 줄바꿈 하나에 중복 판정이 어긋난다.
     정규 형태가 비는 주장은 원장이 거부하므로 담기 «전»에 걸러 에이전트가 낸 글자 그대로 돌려준다.
     """
-    added = 0
-    duplicates: list[str] = []
-    rejected: list[tuple[str, str]] = []
-    empty: list[str] = []
+    stored = _Stored()
     # 중복은 «여기서» 먼저 걸러 낸다. 그래야 같은 후보를 두 번 낸 응답이 파일을 두 번
     # 건드리지 않는다.
     #
@@ -179,32 +194,44 @@ def _store(ledger_path: Path, candidates: list[Any]) -> tuple[int, list[str], li
     # 비용은 작지만, **원장이 아주 커지면 여기가 먼저 느려진다.** 그때는 줄 단위 손질을
     # 한 번에 모아 쓰는 쪽으로 바꾼다
     seen = {entry.claim for entry in ledger.load(ledger_path)}
+    overflowed: set[str] = set()
 
     for candidate in candidates:
         written = _text_of(candidate, "claim")
         claim = ledger.canonical_claim(written)
         if not claim:
-            empty.append(written)
+            stored.empty.append(written)
             continue
         if claim in seen:
-            duplicates.append(claim)
+            stored.duplicates.append(claim)
+            continue
+        if stored.added + len(stored.rejected) >= MAX_CANDIDATES:
+            # 거른 «뒤»에 센다 — 이 자리에 온 것은 원장에 없는 새 주장이다.
+            # 같은 주장을 두 번 낸 답이면 한 번만 남긴다 — 로그의 수로 상한을 가늠한다.
+            # `seen` 에 넣지 않는 것은 「이미 원장에 있는 후보」로 잘못 적히지 않게 하려는 것이다
+            if claim not in overflowed:
+                overflowed.add(claim)
+                stored.overflow.append(written)
             continue
 
         if not ledger.append(ledger_path, claim, identifier=_text_of(candidate, "identifier") or None):
-            duplicates.append(claim)
+            stored.duplicates.append(claim)
             continue
 
         seen.add(claim)
-        shortfall = quantified.shortfall_reason(claim, _params_of(candidate))
+        # 탐색은 «축 하나 이상»만 본다. 탐색 에이전트는 이 사전을 모르므로 표현마다 요구하면
+        # 사전에 든 줄 모르는 말 때문에 멀쩡한 후보가 여기서 영구 기각된다 — 표현마다의 해명은
+        # 걸린 표현을 글자 그대로 짚어 주는 수집이 요구한다
+        shortfall = quantified.shortfall_reason(claim, _params_of(candidate), each_term=False)
         if shortfall is None:
-            added += 1
+            stored.added += 1
             continue
 
         # 담은 «뒤에» 기각으로 돌린다. 중복 방지는 담겨 있어야 작동하기 때문이다
         ledger.mark_rejected(ledger_path, claim, shortfall)
-        rejected.append((claim, shortfall))
+        stored.rejected.append((claim, shortfall))
 
-    return added, duplicates, rejected, empty
+    return stored
 
 
 def _text_of(candidate: Any, key: str) -> str:

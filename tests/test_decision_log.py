@@ -10,6 +10,7 @@ from pathlib import Path
 
 from research_lab.agent import invoke
 from research_lab.runner import decision_log
+from research_lab.runner.failures import FailureKind
 
 
 def test_missing_log_reads_as_empty(tmp_path: Path) -> None:
@@ -240,3 +241,86 @@ def test_broken_line_does_not_hide_the_rest(tmp_path: Path) -> None:
         decision_log.EVENT_READ,
         decision_log.EVENT_JUDGED,
     ]
+
+
+# --------------------------------------------------------------------------
+# 그 단계의 «마지막 품질 실패» — 다음 시도의 지시문에 싣는 재료
+# --------------------------------------------------------------------------
+
+
+def _failed(run_dir: Path, step: str, kind: FailureKind, raw: str, *, answered: bool = True) -> None:
+    """러너가 한 시도를 실패로 적는 줄을 흉내 낸다. `answered` 면 그 시도에서 에이전트가 답을 냈다(비용 줄)."""
+    if answered:
+        decision_log.record(run_dir, step, decision_log.EVENT_COST, cost_usd=0.1, tokens=10, elapsed_seconds=1.0)
+    decision_log.record(run_dir, step, decision_log.EVENT_FAILED, kind=kind.value, attempt=1, max_retries=3, raw=raw)
+
+
+def test_the_last_quality_failure_of_the_step_is_returned(tmp_path: Path) -> None:
+    """
+    목적: [중요] 그 단계의 «마지막» 품질 실패 원문을 돌려주는 계약을 고정한다.
+
+    품질 실패는 회차 안에서 재시도되지 않는다. 사유가 다음 시도의 지시문에 안 실리면
+    **같은 표현 · 같은 주소를 다시 내어 같은 자리에서 막히고, 세 번이면 후보가 걷힌다.**
+    앞선 것이 아니라 마지막 것이어야 그 사이에 고친 자리를 다시 짚지 않는다.
+
+    Given: 같은 단계의 품질 실패 둘
+    When: 묻는다
+    Then: 나중 것의 원문
+    """
+    _failed(tmp_path, "mechanism", FailureKind.QUALITY, "앞선 사유")
+    _failed(tmp_path, "mechanism", FailureKind.QUALITY, "나중 사유")
+
+    assert decision_log.last_quality_failure(tmp_path, "mechanism") == "나중 사유"
+
+
+def test_other_kinds_and_other_steps_are_not_returned(tmp_path: Path) -> None:
+    """
+    목적: 품질이 아닌 실패와 «다른 단계»의 실패는 안 돌려주는 계약을 고정한다.
+
+    한도 · 그 외 실패는 에이전트가 고칠 사유가 아니다. 다른 단계의 사유를 실으면
+    **그 단계가 모르는 자리를 고치라는 말**이 된다 — 반증에 계보 사유가 가면
+    반증 세션을 떼어 둔 뜻도 흐려진다.
+
+    Given: 이 단계의 한도 · 그 외 실패와, 다른 단계의 품질 실패
+    When: 이 단계를 묻는다
+    Then: 없다
+    """
+    _failed(tmp_path, "rebut", FailureKind.LIMIT, "한도")
+    _failed(tmp_path, "rebut", FailureKind.OTHER, "JSON 깨짐")
+    _failed(tmp_path, "lineage", FailureKind.QUALITY, "계보 사유")
+
+    assert decision_log.last_quality_failure(tmp_path, "rebut") is None
+
+
+def test_a_later_non_quality_failure_does_not_hide_the_quality_reason(tmp_path: Path) -> None:
+    """
+    목적: 품질 실패 «뒤»에 한도로 끊긴 시도가 있어도 그 사유를 돌려주는 계약을 고정한다.
+
+    새벽 회차는 한도에 자주 걸린다. 한도로 끊긴 시도는 고친 것이 아니라 **말할 기회를
+    못 얻은 것**이라, 그 앞의 품질 사유는 여전히 고칠 거리다.
+
+    Given: 품질 실패 뒤의 한도 실패
+    When: 묻는다
+    Then: 품질 실패의 원문
+    """
+    _failed(tmp_path, "verdict", FailureKind.QUALITY, "판정 칸 미달")
+    _failed(tmp_path, "verdict", FailureKind.LIMIT, "한도")
+
+    assert decision_log.last_quality_failure(tmp_path, "verdict") == "판정 칸 미달"
+
+
+def test_a_failure_before_the_agent_answered_is_not_returned(tmp_path: Path) -> None:
+    """
+    목적: [중요] 에이전트가 «답하기 전»에 막힌 품질 실패는 돌려주지 않는 계약을 고정한다.
+
+    판정 단계는 부르기 전에 앞 단계 산출물을 확인하고, 없으면 품질 실패로 막는다. 그 사유는
+    에이전트가 답으로 고칠 것이 아니다 — 「사유대로 고치라」와 함께 실으면 파일을 쓸 수 있는
+    에이전트가 **그 산출물을 직접 써 넣어** 앞 단계의 게이트를 통째로 비켜 갈 수 있다.
+
+    Given: 비용 줄 없이 끝난 품질 실패(부르기 전에 막힘)
+    When: 묻는다
+    Then: 없다
+    """
+    _failed(tmp_path, "verdict", FailureKind.QUALITY, "근거 문서를 조립할 수 없습니다 — 산출물이 없습니다", answered=False)
+
+    assert decision_log.last_quality_failure(tmp_path, "verdict") is None

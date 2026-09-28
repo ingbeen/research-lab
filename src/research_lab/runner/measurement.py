@@ -32,7 +32,7 @@ from research_lab.common_constants import (
     PRO_EVIDENCE_FILENAME,
 )
 from research_lab.gate import measurement as measurement_gate
-from research_lab.runner import decision_log, naming, outputs, prose_check, state
+from research_lab.runner import decision_log, naming, outputs, previous_failure, prose_check, state
 from research_lab.runner import payload as payload_helpers
 from research_lab.runner.atomic import atomic_write
 from research_lab.runner.steps import StepQualityFailed
@@ -170,17 +170,16 @@ def run(run_dir: Path, ask: AgentCaller) -> None:
     feasible = outputs.read(output_dir, FEASIBILITY_FILENAME) or {}
     execution: Any = feasible.get("execution")
 
-    result = ask(
-        build_prompt(
-            candidate.claim,
-            # [중요] `str()` 을 바로 쓰지 않는다. 예전 판이나 손으로 고친 파일에 `null` 이
-            # 들어 있으면 `str(None)` 이 **`"None"` 이라는 «내용이 있는» 문자열**이 되어
-            # 「못 읽었다」 안내가 안 나가고, 에이전트가 그 말을 **시장 이름으로 읽는다**
-            market=payload_helpers.as_text(feasible.get("market")),
-            instrument=payload_helpers.as_text(execution.get("instrument")) if isinstance(execution, dict) else "",
-            params=payload_helpers.as_list(collected.get("params")),
-        )
+    prompt = build_prompt(
+        candidate.claim,
+        # [중요] `str()` 을 바로 쓰지 않는다. 예전 판이나 손으로 고친 파일에 `null` 이
+        # 들어 있으면 `str(None)` 이 **`"None"` 이라는 «내용이 있는» 문자열**이 되어
+        # 「못 읽었다」 안내가 안 나가고, 에이전트가 그 말을 **시장 이름으로 읽는다**
+        market=payload_helpers.as_text(feasible.get("market")),
+        instrument=payload_helpers.as_text(execution.get("instrument")) if isinstance(execution, dict) else "",
+        params=payload_helpers.as_list(collected.get("params")),
     )
+    result = ask(previous_failure.with_previous_failure(prompt, run_dir, STEP_NAME))
     payload = invoke.parse_json_answer(result, what="측정 설계")
 
     entry_size = measurement_gate.distinct_size(payload.get("entry_grid"))

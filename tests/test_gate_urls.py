@@ -13,6 +13,7 @@
 """
 
 import email.message
+import socket
 import urllib.error
 import urllib.request
 from typing import Any
@@ -285,9 +286,9 @@ def test_tally_counts_every_verdict() -> None:
     """
     목적: 회차마다 판정 분포가 남는 계약을 고정한다.
 
-    「404·410 만 죽음으로 본다」는 **가정**이고, 남는 구멍은 가짜 도메인이 DNS 실패로
-    통과하는 것이다. 그 가정을 나중에 다시 보려면 **무엇이 얼마나 판정 못 됐는지**가
-    쌓여 있어야 한다 — `failures.PATTERNS` 를 원문으로 가르치는 것과 같은 방식이다.
+    「무엇을 죽음으로 보나」는 **가정**이다. 그 가정을 나중에 다시 보려면 **무엇이 얼마나
+    판정 못 됐는지**가 쌓여 있어야 한다 — `failures.PATTERNS` 를 원문으로 가르치는 것과
+    같은 방식이다.
 
     Given: 살아 있음·죽음·판정 못 함이 하나씩
     When: 센다
@@ -576,6 +577,145 @@ def test_http_error_becomes_a_verdict(monkeypatch: pytest.MonkeyPatch) -> None:
     assert probed.status == 404
 
 
+def _network(*, target_errno: int, control_reachable: bool, asked: list[str]) -> Any:
+    """인용된 주소는 그 `errno` 로 이름 해석에 실패하고, 대조 주소는 닿거나 못 닿는 `urlopen`.
+
+    못 닿는 대조는 «끊긴 네트워크의 mac» 모양이다 — 대조 이름이 캐시에서 풀려도 실제 요청은 못 나간다.
+    """
+
+    def fake_urlopen(request: Any, timeout: float | None = None) -> _FakeResponse:
+        if request.full_url == urls.CONTROL_URL:
+            asked.append("control")
+            if control_reachable:
+                return _FakeResponse(200)
+        raise urllib.error.URLError(socket.gaierror(target_errno, "name resolution failed"))
+
+    return fake_urlopen
+
+
+def _lookup(*, host_missing: bool, asked: list[str]) -> Any:
+    """인용된 호스트를 다시 물을 때의 답을 흉내 낸다. 무엇을 물었는지 `asked` 에 남긴다."""
+
+    def fake_getaddrinfo(host: str, *_: Any, **__: Any) -> list[Any]:
+        asked.append(host)
+        if host_missing:
+            raise socket.gaierror(socket.EAI_NONAME, "Name or service not known")
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.215.14", 443))]
+
+    return fake_getaddrinfo
+
+
+@pytest.mark.real_prober
+def test_a_domain_that_does_not_exist_is_dead(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    목적: [중요] **이름이 없는 도메인**을 죽음으로 보는 계약을 고정한다.
+
+    지어낸 출처가 「진짜 도메인 + 가짜 경로」면 404 로 잡히지만, **도메인까지 지어내면**
+    이름 해석에서 떨어져 「판정 못 함」으로 통과해 왔다. 그런데 이름 해석 실패를 통째로
+    죽음으로 보면 **네트워크가 한 번 끊긴 회차가 통째로 죽는다.** 그래서 「그런 이름이 없다」는
+    답이고, 인용된 호스트를 다시 물어도 없고, 대조 주소에 실제로 닿을 때만 죽음이다.
+
+    Given: 「그런 이름 없음」으로 실패하는 요청 · 다시 물어도 없는 호스트 · 닿는 대조 주소
+    When: 찔러 본다
+    Then: 죽음이고, 사유에서 이름 없는 도메인임이 보인다
+    """
+    asked: list[str] = []
+    monkeypatch.setattr(
+        urllib.request, "urlopen", _network(target_errno=socket.EAI_NONAME, control_reachable=True, asked=asked)
+    )
+    monkeypatch.setattr(socket, "getaddrinfo", _lookup(host_missing=True, asked=asked))
+
+    probed = urls.probe_url("https://no-such-journal.example/paper")
+
+    assert probed.liveness is urls.Liveness.DEAD
+    assert "NXDOMAIN" in probed.detail
+
+
+@pytest.mark.real_prober
+def test_a_missing_name_is_not_judged_when_the_control_cannot_be_reached(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    목적: [중요] 대조 주소에 «실제로» 못 닿으면 판정 못 함으로 떨어지는 계약을 고정한다.
+
+    끊긴 네트워크의 mac 은 캐시에 없는 이름마다 「그런 이름 없음」을 낸다. 대조를 이름 해석으로
+    하면 자주 묻는 대조 이름은 캐시에서 풀려 **멀쩡한 출처가 지어낸 것으로 몰린다.** 그래서 대조는
+    실제 요청으로 한다 — 모를 때는 안전한 쪽으로 떨어진다.
+
+    Given: 「그런 이름 없음」으로 실패하는 요청 · 다시 물어도 없는 호스트 · 못 닿는 대조 주소
+    When: 찔러 본다
+    Then: 판정 못 함이다
+    """
+    asked: list[str] = []
+    monkeypatch.setattr(
+        urllib.request, "urlopen", _network(target_errno=socket.EAI_NONAME, control_reachable=False, asked=asked)
+    )
+    monkeypatch.setattr(socket, "getaddrinfo", _lookup(host_missing=True, asked=asked))
+
+    assert urls.probe_url("https://no-such-journal.example/paper").liveness is urls.Liveness.UNKNOWN
+
+
+@pytest.mark.real_prober
+def test_a_missing_name_on_a_redirect_is_not_charged_to_the_cited_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    목적: [중요] 넘겨받은(redirect) «다음 자리»의 이름이 없을 때 인용된 주소를 죽음으로 몰지 않는 계약을 고정한다.
+
+    `urllib` 은 넘겨주기를 따라간다. DOI 나 짧은 주소가 없어진 출판사 도메인으로 넘겨 주면
+    「그런 이름 없음」이 오는데, **인용된 식별자는 실재한다** — 지어낸 것으로 몰면 안 된다.
+
+    Given: 「그런 이름 없음」으로 실패하는 요청과, 다시 물으면 풀리는 인용된 호스트
+    When: 찔러 본다
+    Then: 판정 못 함이고, 대조를 묻지 않았다
+    """
+    asked: list[str] = []
+    monkeypatch.setattr(
+        urllib.request, "urlopen", _network(target_errno=socket.EAI_NONAME, control_reachable=True, asked=asked)
+    )
+    monkeypatch.setattr(socket, "getaddrinfo", _lookup(host_missing=False, asked=asked))
+
+    probed = urls.probe_url("https://doi.example/10.1000/xyz")
+
+    assert probed.liveness is urls.Liveness.UNKNOWN
+    assert "control" not in asked
+
+
+@pytest.mark.real_prober
+def test_a_temporary_name_failure_is_not_judged(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    목적: 「일시적 실패」는 다시 묻지도 대조하지도 않고 판정 못 함인 계약을 고정한다.
+
+    일시적 실패는 «이름이 없다»는 답이 아니라 **답을 못 받았다**는 뜻이다.
+
+    Given: 일시적 실패로 끝나는 이름 해석
+    When: 찔러 본다
+    Then: 판정 못 함이고, 호스트도 대조도 묻지 않았다
+    """
+    asked: list[str] = []
+    monkeypatch.setattr(
+        urllib.request, "urlopen", _network(target_errno=socket.EAI_AGAIN, control_reachable=True, asked=asked)
+    )
+    monkeypatch.setattr(socket, "getaddrinfo", _lookup(host_missing=True, asked=asked))
+
+    assert urls.probe_url("https://example.org/a").liveness is urls.Liveness.UNKNOWN
+    assert asked == []
+
+
+@pytest.mark.real_prober
+def test_a_refused_connection_is_not_judged(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    목적: 이름 해석이 아닌 연결 실패는 판정 못 함인 계약을 고정한다.
+
+    Given: 연결이 거부되는 요청
+    When: 찔러 본다
+    Then: 판정 못 함이다
+    """
+
+    def fake_urlopen(request: Any, timeout: float | None = None) -> _FakeResponse:
+        raise urllib.error.URLError(ConnectionRefusedError("refused"))
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+
+    assert urls.probe_url("https://example.org/a").liveness is urls.Liveness.UNKNOWN
+
+
 @pytest.mark.real_prober
 def test_url_without_a_scheme_does_not_raise() -> None:
     """
@@ -664,3 +804,185 @@ def test_tally_names_no_urls_when_everything_was_judged() -> None:
     probed = urls.probe_all(["https://example.com/a", "https://example.com/b"], probe=_probe_of({}))
 
     assert urls.tally(probed)[urls.KEY_UNKNOWN_URLS] == []
+
+
+def test_tally_names_the_dead_urls() -> None:
+    """
+    목적: 죽은 «주소»도 판정 분포와 함께 남는 계약을 고정한다.
+
+    출처 칸의 죽음은 그 단계를 막으며 사유에 주소가 실리지만, 근거 문서 «본문»의 주소는
+    막지 않고 표시만 한다. 그 자리에는 실패 줄이 없어서, 분포에 주소가 없으면
+    **무엇이 죽었는지가 어디에도 안 남는다.**
+
+    Given: 살아 있음 하나와 죽음 둘
+    When: 센다
+    Then: 죽은 주소가 «정렬돼» 남는다
+    """
+    probed = urls.probe_all(
+        ["https://example.com/열림", "https://example.com/z", "https://example.com/b"],
+        probe=_probe_of({"https://example.com/z": _dead(), "https://example.com/b": _dead(410)}),
+    )
+
+    assert urls.tally(probed)[urls.KEY_DEAD_URLS] == ["https://example.com/b", "https://example.com/z"]
+
+
+# --------------------------------------------------------------------------
+# 본문에서 주소 뽑기 — 출처 칸 밖의 주소도 찌르기 위해
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        (
+            "근거는 NBER 워킹페이퍼(https://www.nber.org/papers/w1234)에 있다. 또 https://example.com/a.",
+            ["https://www.nber.org/papers/w1234", "https://example.com/a"],
+        ),
+        (
+            "「https://example.com/q?x=1」 과 'http://example.org/b' 를 보라",
+            ["https://example.com/q?x=1", "http://example.org/b"],
+        ),
+        ("[표본] https://example.com/list; 이어서 https://example.com/list", ["https://example.com/list"]),
+    ],
+)
+def test_urls_are_picked_out_of_prose(text: str, expected: list[str]) -> None:
+    """
+    목적: 산문 속 주소를 «감싼 글자와 끝 문장부호 없이» 뽑는 계약을 고정한다.
+
+    괄호 · 낫표 · 따옴표 · 끝의 마침표가 주소에 붙어 나오면 **멀쩡한 주소가 없는 문서로**
+    찔리고, 그 판정이 근거 문서에 「없었다」로 실린다.
+
+    Given: 괄호 · 낫표 · 따옴표 · 문장부호에 둘러싸인 주소, 같은 주소 두 번
+    When: 뽑는다
+    Then: 주소만, 나온 순서대로, 한 번씩
+    """
+    assert urls.urls_in_text(text) == expected
+
+
+def test_a_korean_path_is_not_cut() -> None:
+    """
+    목적: 한글 경로를 가진 주소를 «자르지 않는» 계약을 고정한다.
+
+    국내 매매법을 다루는 저장소라 한글 경로 주소는 드문 입력이 아니다. 한글에서 끊으면
+    `…/w/` 만 남아 **엉뚱한 문서를 찌른다.**
+
+    Given: 한글 경로 주소가 든 문장
+    When: 뽑는다
+    Then: 경로 전체가 나온다
+    """
+    assert urls.urls_in_text("나무위키 https://namu.wiki/w/1월_효과 참고") == ["https://namu.wiki/w/1월_효과"]
+
+
+@pytest.mark.parametrize("value", [None, 3, ["https://example.com/a"], {"url": "https://example.com/a"}])
+def test_non_text_yields_no_urls(value: Any) -> None:
+    """
+    목적: 문자열이 아닌 값에 «예외 없이» 빈 목록을 내는 계약을 고정한다.
+
+    검사기가 죽으면 고칠 수 있었던 것까지 그 회차를 끝낸다.
+
+    Given: 문자열이 아닌 값
+    When: 뽑는다
+    Then: 빈 목록
+    """
+    assert urls.urls_in_text(value) == []
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("출처는 https://www.krx.co.kr：참고", ["https://www.krx.co.kr"]),
+        ("https://example.com？", ["https://example.com"]),
+        ("공시는 https://www.krx.co.kr에서 받는다", ["https://www.krx.co.kr"]),
+        ("**https://example.com/a** 를 보라", ["https://example.com/a"]),
+        ("DOI https://doi.org/10.1016/0304-405X(93)90023-5 참고", ["https://doi.org/10.1016/0304-405X(93)90023-5"]),
+        (
+            "(https://en.wikipedia.org/wiki/Momentum_(finance))에 있다",
+            ["https://en.wikipedia.org/wiki/Momentum_(finance)"],
+        ),
+        ("https://[x]/a", []),
+    ],
+)
+def test_awkward_neighbours_do_not_break_extraction(text: str, expected: list[str]) -> None:
+    """
+    목적: [중요] 주소에 붙은 «이상한 이웃»이 예외도 거짓 주소도 만들지 않는 계약을 고정한다.
+
+    - 호스트 뒤 전각 부호는 `urlsplit` 이 예외로 거부한다 — 뽑기가 터지면 판정 단계가 비용을
+      치른 뒤 깨지고, 매 회차 같은 자리에서 되풀이돼 후보가 걷힌다
+    - 호스트에 붙은 한글은 조사다 — 그대로 두면 없는 도메인이 되어 멀쩡한 주소를 두고
+      「열리지 않는다」가 적힌다
+    - 괄호는 짝으로 가른다 — 괄호에서 끊으면 DOI 같은 출처가 잘린 채 다시 찔린다
+
+    Given: 전각 부호 · 붙은 조사 · 마크다운 강조 · 괄호 짝 · 쪼갤 수 없는 호스트
+    When: 뽑는다
+    Then: 예외 없이 주소만 나온다
+    """
+    assert urls.urls_in_text(text) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("https://한국은행.kr/stat 도", ["https://한국은행.kr/stat"]),
+        ("https://example.한국/a 참고", ["https://example.한국/a"]),
+        ("https://x.com/a… 그리고", ["https://x.com/a"]),
+    ],
+)
+def test_korean_domains_survive_and_trailing_marks_are_dropped(text: str, expected: list[str]) -> None:
+    """
+    목적: 한글 도메인은 «그대로», 끝의 말줄임 · 줄표는 «떼고» 뽑는 계약을 고정한다.
+
+    호스트에 붙은 한글을 조사로 보고 자르되, 한글로 시작하는 호스트나 한글 최상위 도메인까지
+    자르면 주소가 통째로 사라져 **찔리지도 표시되지도 않은 채** 문서에 남는다.
+
+    Given: 한글 호스트 · 한글 최상위 도메인 · 말줄임이 붙은 주소
+    When: 뽑는다
+    Then: 도메인은 온전하고 끝 부호는 빠진다
+    """
+    assert urls.urls_in_text(text) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("“https://example.com/report”를 보라", ["https://example.com/report"]),
+        ("《https://example.com/b》 참고", ["https://example.com/b"]),
+        ("HTTPS://Example.com/A 참고", ["HTTPS://Example.com/A"]),
+        ("https://www.kb증권.com/research/1 참고", ["https://www.kb증권.com/research/1"]),
+    ],
+)
+def test_typographic_marks_and_mixed_hosts_are_handled(text: str, expected: list[str]) -> None:
+    """
+    목적: 굽은 따옴표 · 겹화살괄호에서 끊고, 대문자 스킴을 뽑고, 한글이 섞인 호스트를 자르지 않는 계약을 고정한다.
+
+    굽은 따옴표가 붙은 채 뽑히면 멀쩡한 주소가 「열리지 않는다」로 적히고, 대문자 스킴을 놓치면
+    그 주소는 찔리지 않은 채 확인된 것처럼 남는다. 한글이 섞인 호스트(`kb증권.com`)를 조사로 보고
+    자르면 없는 주소가 찔린다.
+
+    Given: 굽은 따옴표 · 겹화살괄호 · 대문자 스킴 · 한글이 섞인 호스트
+    When: 뽑는다
+    Then: 주소만 온전히 나온다
+    """
+    assert urls.urls_in_text(text) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("_https://x.com/a_ 참고", ["https://x.com/a"]),
+        ("~~https://x.com/a~~ 는 옛 주소", ["https://x.com/a"]),
+        ("| https://x.com/a\\|b | 다음 칸", ["https://x.com/a"]),
+        ("https://en.wikipedia.org/wiki/Foo_ 참고", ["https://en.wikipedia.org/wiki/Foo_"]),
+    ],
+)
+def test_markdown_around_a_url_is_not_part_of_it(text: str, expected: list[str]) -> None:
+    """
+    목적: 주소를 감싼 마크다운(강조 · 취소선 · 표의 이스케이프)을 주소에 넣지 않는 계약을 고정한다.
+
+    붙은 채 뽑히면 다른 경로로 찔려 멀쩡한 주소가 「열리지 않는다」로 적힌다. 다만 앞에 짝이 없는
+    끝 밑줄은 떼지 않는다 — 밑줄로 끝나는 주소가 있다.
+
+    Given: 밑줄 강조 · 취소선 · 이스케이프한 세로선 · 밑줄로 끝나는 주소
+    When: 뽑는다
+    Then: 마크다운 없이 주소만 나온다
+    """
+    assert urls.urls_in_text(text) == expected

@@ -221,7 +221,7 @@ def test_candidates_over_the_cap_are_recorded_as_discarded(tmp_path: Path) -> No
 
     Given: 상한보다 둘 많은 후보를 낸 응답
     When: 탐색을 돈다
-    Then: 상한만큼만 담기고, 잘린 둘이 버린 기록으로 남고, 받은 수와 본 수가 갈려 적힌다
+    Then: 상한만큼만 담기고, 잘린 둘이 버린 기록으로 남고, 받은 수와 넘친 수가 갈려 적힌다
     """
     run_dir = tmp_path / "run"
     ledger_path = tmp_path / "원장.md"
@@ -236,7 +236,57 @@ def test_candidates_over_the_cap_are_recorded_as_discarded(tmp_path: Path) -> No
     assert any(entry.get("claims") == claims[explore.MAX_CANDIDATES :] for entry in discarded)
     judged = [e for e in entries if e["event"] == decision_log.EVENT_JUDGED]
     assert judged[0]["proposed"] == len(claims)
-    assert judged[0]["considered"] == explore.MAX_CANDIDATES
+    assert judged[0]["overflow"] == 2
+
+
+def test_a_claim_repeated_past_the_cap_is_counted_once(tmp_path: Path) -> None:
+    """
+    목적: 상한을 넘은 주장을 답이 «두 번» 내도 한 번만 세는 계약을 고정한다.
+
+    상한 초과의 수로 상한이 적절한지 가늠한다. 같은 주장을 두 번 세면 못 담은 후보가
+    실제보다 많아 보인다.
+
+    Given: 상한만큼의 새 주장 뒤에 같은 새 주장을 두 번 붙인 답
+    When: 탐색을 돈다
+    Then: 상한 초과가 1건이다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    claims = [f"{index}번 후보를 상장 첫날 종가에 사서 20거래일 뒤 판다" for index in range(explore.MAX_CANDIDATES)]
+    repeated = "넘친 후보를 공시 다음날 종가에 사서 60거래일 뒤 판다"
+    answer = _answer({"queries": ["ㄱ", "ㄴ", "ㄷ"], "candidates": [{"claim": c} for c in [*claims, repeated, repeated]]})
+
+    explore.run(run_dir, ledger_path, lambda _: answer)
+
+    judged = [e for e in decision_log.read(run_dir) if e["event"] == decision_log.EVENT_JUDGED]
+    assert judged[0]["overflow"] == 1
+
+
+def test_known_claims_do_not_take_a_place_under_the_cap(tmp_path: Path) -> None:
+    """
+    목적: [중요] 상한이 «원장에 새로 적는 줄»에만 걸리는 계약을 고정한다.
+
+    상한을 중복을 거르기 «전» 목록에 걸면, 원장에 이미 있는 주장이 앞자리를 먹고
+    **새 주장이 「상한 초과」로 버려진다.** 원장이 커질수록 에이전트가 아는 후보를 되풀이할
+    공산이 커지므로, 그만큼 새 후보가 들어올 길이 좁아진다.
+
+    Given: 원장에 이미 상한만큼의 주장이 있고, 응답이 그것들 뒤에 새 주장 셋을 붙였다
+    When: 탐색을 돈다
+    Then: 새 셋이 모두 담기고, 상한 초과로 버린 기록이 없다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    known = [f"{index}번 기존 후보를 상장 첫날 종가에 사서 20거래일 뒤 판다" for index in range(explore.MAX_CANDIDATES)]
+    for claim in known:
+        ledger.append(ledger_path, claim)
+    fresh = [f"{index}번 새 후보를 공시 다음날 종가에 사서 60거래일 뒤 판다" for index in range(3)]
+    answer = _answer({"queries": ["ㄱ", "ㄴ", "ㄷ"], "candidates": [{"claim": claim} for claim in known + fresh]})
+
+    explore.run(run_dir, ledger_path, lambda _: answer)
+
+    assert [entry.claim for entry in ledger.load(ledger_path)] == known + fresh
+    judged = [e for e in decision_log.read(run_dir) if e["event"] == decision_log.EVENT_JUDGED]
+    assert judged[0]["overflow"] == 0
 
 
 # --------------------------------------------------------------------------
@@ -429,7 +479,9 @@ def test_explore_ignores_a_string_where_a_list_was_promised(tmp_path: Path) -> N
 # **파라미터를 낼 수 있는가**이므로, 게이트는 그것이 적혔는지만 본다.
 # --------------------------------------------------------------------------
 
-_GRID = [{"name": "보유 기간", "unit": "거래일", "candidates": [5, 20, 60]}]
+# `term` 은 이 축이 푸는 표현이다. 수집은 걸린 표현마다 그것을 요구한다 — 축 이름
+# 「보유 기간」에는 「단기」가 안 들어 있어, 그 칸 없이는 표현을 푼 것으로 못 본다
+_GRID = [{"name": "보유 기간", "term": "단기", "unit": "거래일", "candidates": [5, 20, 60]}]
 
 
 def test_explore_keeps_a_candidate_that_explains_its_parameters(tmp_path: Path) -> None:
@@ -604,6 +656,73 @@ def test_collect_prompt_names_the_triggered_terms(tmp_path: Path) -> None:
     prompt = collect.build_prompt("공시 다음날 사서 단기 보유한다")
 
     assert "단기" in prompt
+
+
+def test_collect_prompt_asks_each_axis_for_the_expression_it_answers(tmp_path: Path) -> None:
+    """
+    목적: 수집 지시문이 축마다 «푸는 표현»(`term`)을 적으라고 요구하는 계약을 고정한다.
+
+    축 이름에는 표현이 안 들어가는 것이 정상이다(「크게 상회」→ 「서프라이즈 하한」).
+    그 칸을 요구하지 않고 표현마다 축을 따지면 **에이전트는 무엇을 적어야 통과하는지 모른 채**
+    멀쩡한 후보가 기각된다.
+
+    Given: 「단기」가 든 한 줄 주장
+    When: 지시문을 만든다
+    Then: 응답 틀에 `term` 이 있다
+    """
+    assert '"term"' in collect.build_prompt("공시 다음날 사서 단기 보유한다")
+
+
+def test_collect_rejects_a_candidate_that_answers_only_some_expressions(tmp_path: Path) -> None:
+    """
+    목적: [중요] 수집이 «걸린 표현마다» 축을 요구하는 계약을 고정한다.
+
+    예전에는 축 하나로 모든 표현이 풀린 것으로 쳐서 「옥석을 가려 … 저점」이 저점 축만으로
+    통과했다. **축 자체가 없는 표현이 해명 없이 근거 문서까지 가는** 구멍이었다.
+
+    Given: 「큰 폭 · 옥석 · 저점」이 든 첫 후보와 값이 다 정해진 둘째 후보, 옥석 축을 빠뜨리는 답
+    When: 수집을 돈다
+    Then: 첫 후보가 옥석을 짚은 사유로 기각되고, 둘째가 그 회차의 후보가 된다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    ledger.append(ledger_path, "상장 후 큰 폭 하락한 종목 중 옥석을 가려 저점 매수한다")
+    ledger.append(ledger_path, "11월 첫 거래일에 사서 4월 마지막 거래일에 판다")
+    partial = [
+        {"name": "하락 폭 하한", "term": "큰 폭", "unit": "%", "candidates": [30, 50]},
+        {"name": "전저점 산정 일수", "term": "저점", "unit": "거래일", "candidates": [20, 60]},
+    ]
+
+    collect.run(
+        run_dir, ledger_path, lambda _: _answer({"queries": ["ㄱ", "ㄴ", "ㄷ"], "evidence": [], "params": partial})
+    )
+
+    pinned = state.pinned_candidate(run_dir)
+    assert pinned is not None
+    assert pinned.claim == "11월 첫 거래일에 사서 4월 마지막 거래일에 판다"
+    discarded = [e for e in decision_log.read(run_dir) if e["event"] == decision_log.EVENT_DISCARDED]
+    assert "「옥석」" in str(discarded[0].get("reason"))
+
+
+def test_explore_admits_a_candidate_with_one_axis_for_two_expressions(tmp_path: Path) -> None:
+    """
+    목적: 탐색은 «축 하나 이상»으로 입장만 거르는 계약을 고정한다(지금 그대로).
+
+    탐색 에이전트는 사전을 모른다. 표현마다 요구하면 사전에 든 줄 모르는 말(「직후」) 때문에
+    **멀쩡한 후보가 탐색에서 영구 기각된다.** 표현마다의 해명은 걸린 표현을 이름으로 짚어
+    주는 수집이 요구한다.
+
+    Given: 「직후 · 단기」가 든 후보와 단기 축 하나
+    When: 탐색을 돈다
+    Then: 원장에 담긴다
+    """
+    ledger_path = tmp_path / "원장.md"
+    claim = "자사주 매입 공시 직후 사서 단기 보유한다"
+    answer = _answer({"queries": ["ㄱ", "ㄴ", "ㄷ"], "candidates": [{"claim": claim, "params": _GRID}]})
+
+    explore.run(tmp_path / "run", ledger_path, lambda _: answer)
+
+    assert ledger.next_unexplored(ledger_path) is not None
 
 
 def test_collect_fills_in_a_missing_identifier(tmp_path: Path) -> None:

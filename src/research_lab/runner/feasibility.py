@@ -34,7 +34,7 @@ from research_lab.agent import invoke
 from research_lab.agent.invoke import AgentResult
 from research_lab.common_constants import DATA_CATALOG_PATH, FEASIBILITY_FILENAME
 from research_lab.gate import feasibility as feasibility_gate
-from research_lab.runner import decision_log, naming, prose_check, state, url_check
+from research_lab.runner import decision_log, naming, previous_failure, prose_check, state, url_check
 from research_lab.runner import payload as payload_helpers
 from research_lab.runner.atomic import atomic_write
 from research_lab.runner.steps import StepQualityFailed
@@ -197,7 +197,7 @@ def run(
         raise RuntimeError(f"내부 불변조건 위반: 그 회차의 후보가 상태에 없습니다 — {run_dir}")
 
     catalog = load_catalog(catalog_path)
-    result = ask(build_prompt(candidate.claim, catalog))
+    result = ask(previous_failure.with_previous_failure(build_prompt(candidate.claim, catalog), run_dir, STEP_NAME))
     payload = invoke.parse_json_answer(result, what="실현가능성")
 
     known = catalog_ids(catalog)

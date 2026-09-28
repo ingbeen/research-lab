@@ -31,7 +31,7 @@ from research_lab.common_constants import (
     REBUTTAL_FILENAME,
 )
 from research_lab.gate import mechanism as mechanism_gate
-from research_lab.runner import decision_log, naming, outputs, prose_check, state, url_check
+from research_lab.runner import decision_log, naming, outputs, previous_failure, prose_check, state, url_check
 from research_lab.runner import payload as payload_helpers
 from research_lab.runner.atomic import atomic_write
 from research_lab.runner.steps import StepQualityFailed
@@ -164,7 +164,7 @@ def run(run_dir: Path, ask: AgentCaller) -> None:
     output_dir = run_dir / naming.folder_name(candidate.claim, candidate.identifier)
     sources = _gathered_sources(output_dir)
 
-    result = ask(build_prompt(candidate.claim, sources))
+    result = ask(previous_failure.with_previous_failure(build_prompt(candidate.claim, sources), run_dir, STEP_NAME))
     payload = invoke.parse_json_answer(result, what="메커니즘")
 
     queries = payload_helpers.as_strings(payload.get("queries"))

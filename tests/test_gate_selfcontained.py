@@ -15,9 +15,14 @@
 다음 회차가 다시 쓴다. 놓치면 **판단 불가능한 문서가 저장소 밖으로 나가고 되돌릴 수 없다.**
 """
 
+from pathlib import Path
 from typing import Any
 
+import pytest
+
 from research_lab.gate import selfcontained
+from research_lab.runner import prose_check
+from research_lab.runner.steps import StepQualityFailed
 
 
 def test_a_clean_document_passes() -> None:
@@ -219,3 +224,39 @@ def test_naming_the_catalog_without_a_particle_is_not_caught() -> None:
     """
     for text in ("----- 데이터 카탈로그 시작 -----", "쓴 카탈로그 항목 이름"):
         assert selfcontained.pointers_in(text) == (), text
+
+
+# --------------------------------------------------------------------------
+# 단계가 부르는 검사 — 에이전트가 «고칠 수 없는» 자리는 빼고 본다
+# --------------------------------------------------------------------------
+
+
+def test_a_source_title_is_not_scanned(tmp_path: Path) -> None:
+    """
+    목적: [중요] 출처의 «제목»을 자립성 검사에서 빼는 계약을 고정한다.
+
+    제목은 남의 글 제목을 그대로 옮긴 값이라 **에이전트가 고칠 수 없다.** 제목에
+    「…카탈로그의 …」가 들어간 출처를 인용하면 그 단계가 회차마다 같은 자리에서 막히고,
+    세 번이면 멀쩡한 후보가 원장에서 걷힌다. 제목이 이 저장소의 문서를 가리킬 수는 없다.
+
+    Given: 제목에 「카탈로그의」가 든 반증 출처
+    When: 반증 산출물을 검사한다
+    Then: 막히지 않는다
+    """
+    payload = {"rebuttals": [{"title": "미국 거래소 공시 카탈로그의 한계", "says": "공시 누락이 잦다"}]}
+
+    prose_check.assert_self_contained(tmp_path, "rebut", payload, what="반증 산출물")
+
+
+def test_the_same_words_in_prose_are_still_caught(tmp_path: Path) -> None:
+    """
+    목적: 제목을 빼도 «산문»의 같은 말은 여전히 막는 계약을 고정한다.
+
+    Given: 「카탈로그에」가 산문(`says`)에 든 반증 출처
+    When: 반증 산출물을 검사한다
+    Then: 막힌다
+    """
+    payload = {"rebuttals": [{"title": "공시 연구", "says": "이는 카탈로그에 없어 이번에 확인했다"}]}
+
+    with pytest.raises(StepQualityFailed):
+        prose_check.assert_self_contained(tmp_path, "rebut", payload, what="반증 산출물")

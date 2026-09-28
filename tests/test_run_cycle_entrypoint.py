@@ -31,6 +31,20 @@ def entrypoint(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     return module
 
 
+def _ledger_of(module: Any) -> Path:
+    """이어받기 판정이 볼 원장 — 실행 폴더 뿌리 옆의 임시 파일이다.
+
+    [중요] 진짜 원장을 넘기지 않는다. 그 파일은 회차가 쓰는 것이라, 테스트가 거기 적힌
+    후보에 따라 판정이 달라지면 **초록과 빨강이 원장 내용에 묶인다.**
+    """
+    return module.RUNS_DIR.parent / "원장.md"
+
+
+def _resolve(module: Any, explicit: Path | None = None) -> Path:
+    """격리된 원장으로 이번 실행 폴더를 고른다."""
+    return module._resolve_run_dir(explicit, ledger_path=_ledger_of(module))
+
+
 def _make_run(module: Any, name: str, settled: list[str]) -> Path:
     """상태 파일이 든 실행 폴더를 만든다."""
     from research_lab.runner import state
@@ -54,7 +68,7 @@ def test_resume_picks_up_the_unfinished_cycle(entrypoint: Any) -> None:
     """
     unfinished = _make_run(entrypoint, "20260101_0100", ["explore"])
 
-    assert entrypoint._resolve_run_dir(None) == unfinished
+    assert _resolve(entrypoint) == unfinished
 
 
 def test_finished_cycle_is_not_resumed(entrypoint: Any) -> None:
@@ -71,7 +85,7 @@ def test_finished_cycle_is_not_resumed(entrypoint: Any) -> None:
 
     finished = _make_run(entrypoint, "20260101_0100", list(steps.STEPS))
 
-    assert entrypoint._resolve_run_dir(None) != finished
+    assert _resolve(entrypoint) != finished
 
 
 def test_newest_unfinished_cycle_wins(entrypoint: Any) -> None:
@@ -85,7 +99,7 @@ def test_newest_unfinished_cycle_wins(entrypoint: Any) -> None:
     _make_run(entrypoint, "20260101_0100", [])
     newer = _make_run(entrypoint, "20260102_0100", [])
 
-    assert entrypoint._resolve_run_dir(None) == newer
+    assert _resolve(entrypoint) == newer
 
 
 def test_locked_cycle_is_skipped(entrypoint: Any) -> None:
@@ -103,7 +117,7 @@ def test_locked_cycle_is_skipped(entrypoint: Any) -> None:
     locked = _make_run(entrypoint, "20260101_0100", [])
 
     with state.lock(locked):
-        assert entrypoint._resolve_run_dir(None) != locked
+        assert _resolve(entrypoint) != locked
 
 
 def test_cycle_with_a_leftover_lock_file_is_resumed(entrypoint: Any) -> None:
@@ -125,7 +139,7 @@ def test_cycle_with_a_leftover_lock_file_is_resumed(entrypoint: Any) -> None:
     leftover = _make_run(entrypoint, "20260101_0100", ["explore"])
     (leftover / LOCK_FILENAME).write_text("죽은 회차가 남긴 것", encoding="utf-8")
 
-    assert entrypoint._resolve_run_dir(None) == leftover
+    assert _resolve(entrypoint) == leftover
 
 
 def test_stale_step_names_do_not_stop_the_pipeline(entrypoint: Any) -> None:
@@ -141,7 +155,7 @@ def test_stale_step_names_do_not_stop_the_pipeline(entrypoint: Any) -> None:
     """
     stale = _make_run(entrypoint, "20260101_0100", ["옛날에_있던_단계"])
 
-    assert entrypoint._resolve_run_dir(None) != stale
+    assert _resolve(entrypoint) != stale
 
 
 def test_unfinished_cycle_without_a_candidate_is_skipped(entrypoint: Any) -> None:
@@ -159,7 +173,7 @@ def test_unfinished_cycle_without_a_candidate_is_skipped(entrypoint: Any) -> Non
     """
     stale = _make_run(entrypoint, "20260101_0100", ["explore", "collect"])
 
-    assert entrypoint._resolve_run_dir(None) != stale
+    assert _resolve(entrypoint) != stale
 
 
 def test_unfinished_cycle_with_a_candidate_is_resumed(entrypoint: Any) -> None:
@@ -170,16 +184,17 @@ def test_unfinished_cycle_with_a_candidate_is_resumed(entrypoint: Any) -> None:
     후보가 박혀 있으므로 반드시 이어받아야 한다. 다시 돌면 수집을 처음부터 하게 되어
     **그 후보의 찬성 근거를 한 번 더 사게 된다.**
 
-    Given: 수집까지 끝나고 후보가 박힌 실행 폴더
+    Given: 수집까지 끝나고 후보가 박혔으며, 그 후보가 원장에서 아직 안 판 실행 폴더
     When: 인자 없이 실행 폴더를 고른다
     Then: 그 폴더가 돌아온다
     """
-    from research_lab.runner import state
+    from research_lab.runner import ledger, state
 
     unfinished = _make_run(entrypoint, "20260101_0100", ["explore", "collect"])
     state.pin_candidate(unfinished, state.Candidate(claim="그 회차가 판 후보", identifier="pinned"))
+    ledger.append(_ledger_of(entrypoint), "그 회차가 판 후보", identifier="pinned")
 
-    assert entrypoint._resolve_run_dir(None) == unfinished
+    assert _resolve(entrypoint) == unfinished
 
 
 def test_closed_cycle_is_not_resumed(entrypoint: Any) -> None:
@@ -201,7 +216,61 @@ def test_closed_cycle_is_not_resumed(entrypoint: Any) -> None:
     state.pin_candidate(closed, state.Candidate(claim="막힌 후보", identifier="stuck"))
     state.close(closed, "반증 단계가 세 회차 연속 막혔다")
 
-    assert entrypoint._resolve_run_dir(None) != closed
+    assert _resolve(entrypoint) != closed
+
+
+@pytest.mark.parametrize("mark", ["explored", "rejected", "blocked", "missing"])
+def test_a_folder_whose_candidate_is_no_longer_open_is_not_resumed(entrypoint: Any, mark: str) -> None:
+    """
+    목적: [중요] 박힌 후보가 원장에서 «이미 닫힌» 폴더를 이어받지 않는 계약을 고정한다.
+
+    단계를 하나 더하면 **그 전에 끝난 폴더가 전부 「미완성」으로 보인다** — 끝난 단계는 다
+    마쳤는데 새 단계만 남아 있기 때문이다. 그 폴더를 이어받으면 모든 단계가 「더 물을 자리가
+    아니다」로 건너뛰어져 **한 장도 못 낸 반복**이 되고, 회차 루프가 거기서 멈춘다 —
+    원장에 안 판 후보가 남아 있는데도. 예약 회차는 한 장을 요청하므로 그 회차가 통째로 버려지고,
+    다음 회차는 그 다음으로 오래된 폴더에서 같은 일을 반복한다.
+
+    Given: 후보가 박힌 미완성 폴더, 그 후보가 원장에서 판 것 · 기각 · 막힘이거나 원장에 없다
+    When: 인자 없이 실행 폴더를 고른다
+    Then: 그 폴더가 아니라 새 폴더가 돌아온다
+    """
+    from research_lab.runner import ledger, state
+
+    claim = "이미 닫힌 후보"
+    stale = _make_run(entrypoint, "20260101_0100", ["explore", "collect"])
+    state.pin_candidate(stale, state.Candidate(claim=claim, identifier="closed"))
+    ledger_path = _ledger_of(entrypoint)
+    if mark != "missing":
+        ledger.append(ledger_path, claim, identifier="closed")
+    if mark == "explored":
+        ledger.mark_explored(ledger_path, claim)
+    elif mark == "rejected":
+        ledger.mark_rejected(ledger_path, claim, "잴 수 없다")
+    elif mark == "blocked":
+        ledger.mark_blocked(ledger_path, claim, "세 회차 연속 막혔다")
+
+    assert _resolve(entrypoint) != stale
+
+
+def test_a_folder_is_still_resumed_when_the_ledger_cannot_be_read(entrypoint: Any) -> None:
+    """
+    목적: 원장을 «못 읽으면» 지금처럼 이어받는 계약을 고정한다.
+
+    판정을 못 한 것이지 닫혔다고 판정한 것이 아니다. 여기서 건너뛰면 **멀쩡한 미완성이
+    버려지고** 그 후보의 수집을 다시 산다 — 원장이 정말 망가졌다면 이어받은 회차가
+    그 자리에서 드러낸다.
+
+    Given: 후보가 박힌 미완성 폴더와, UTF-8 로 못 읽는 원장
+    When: 인자 없이 실행 폴더를 고른다
+    Then: 그 폴더가 돌아온다
+    """
+    from research_lab.runner import state
+
+    unfinished = _make_run(entrypoint, "20260101_0100", ["explore", "collect"])
+    state.pin_candidate(unfinished, state.Candidate(claim="그 회차가 판 후보", identifier="pinned"))
+    _ledger_of(entrypoint).write_bytes("- [ ] 그 회차가 판 후보".encode()[:-2])
+
+    assert _resolve(entrypoint) == unfinished
 
 
 def test_explicit_run_dir_wins(entrypoint: Any) -> None:
@@ -215,7 +284,7 @@ def test_explicit_run_dir_wins(entrypoint: Any) -> None:
     _make_run(entrypoint, "20260101_0100", [])
     chosen = Path("/tmp/사람이-고른-폴더")
 
-    assert entrypoint._resolve_run_dir(chosen) == chosen
+    assert _resolve(entrypoint, chosen) == chosen
 
 
 def test_a_run_folder_with_broken_encoding_does_not_stop_the_resume(entrypoint: Any) -> None:
@@ -236,7 +305,7 @@ def test_a_run_folder_with_broken_encoding_does_not_stop_the_resume(entrypoint: 
     broken_dir.mkdir(parents=True)
     (broken_dir / STATE_FILENAME).write_bytes(('{"settled": ["explore"], "claim": "한 후보"'.encode())[:-2])
 
-    assert entrypoint._resolve_run_dir(None) != broken_dir
+    assert _resolve(entrypoint) != broken_dir
 
 
 def test_an_unresolvable_dossier_path_is_recorded(entrypoint: Any, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -427,7 +496,12 @@ def _failed(kind: Any) -> Any:
 
 
 def _stub_cycle(
-    entrypoint: Any, monkeypatch: pytest.MonkeyPatch, *, outcomes: list[Any], cost_usd: float
+    entrypoint: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    outcomes: list[Any],
+    cost_usd: float,
+    components: list[dict[str, int]] | None = None,
 ) -> list[Path]:
     """회차 실행을 미리 정한 결과로 바꾸고, 어느 폴더가 돌았는지 돌려준다.
 
@@ -437,18 +511,28 @@ def _stub_cycle(
 
     [주의] 루프가 「한 장을 냈나」를 보는 자리는 `CycleResult.produced` 이지 이 로그 줄이
     아니다. 줄을 함께 남기는 것은 **그 폴더가 진짜 회차와 같은 모양이 되게** 하기 위해서다.
+
+    `components` 를 주면 반복마다 그 차례의 토큰 성분을 비용 줄에 싣는다 — 한도 비율을
+    보는 테스트가 쓴다.
     """
     from research_lab.runner import cycle, decision_log, state, steps
 
     seen: list[Path] = []
     queue = list(outcomes)
+    token_queue = list(components or [])
 
     def run_cycle(*, run_dir: Path, ledger_path: Path, execute: Any) -> Any:
         seen.append(run_dir)
         outcome = queue.pop(0) if queue else outcomes[-1]
         state.save(run_dir, {"settled": list(outcome.settled), "skipped": list(outcome.skipped)})
         decision_log.record(
-            run_dir, "collect", decision_log.EVENT_COST, cost_usd=cost_usd, tokens=1, elapsed_seconds=1.0
+            run_dir,
+            "collect",
+            decision_log.EVENT_COST,
+            cost_usd=cost_usd,
+            tokens=1,
+            elapsed_seconds=1.0,
+            **(token_queue.pop(0) if token_queue else {}),
         )
         if outcome.produced:
             decision_log.record(
@@ -934,6 +1018,83 @@ def test_the_end_line_carries_the_token_components(entrypoint: Any, monkeypatch:
 
     assert finished["tokens_input"] == 100
     assert finished["tokens_cache_read"] == 90_000, "성분은 그대로 남긴다 — 가중치가 바뀌면 다시 계산할 재료가 이것뿐이다"
+
+
+def _last_finished_line(entrypoint: Any) -> dict[str, Any]:
+    """그 회차의 종료 줄."""
+    from research_lab.runner import cycle_log
+
+    return [e for e in cycle_log.read(entrypoint.RUNS_DIR) if e["event"] == cycle_log.EVENT_FINISHED][-1]
+
+
+def test_the_per_dossier_share_counts_the_whole_folder_that_produced(
+    entrypoint: Any, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """
+    목적: [중요] 이어받아 한 장을 낸 회차의 「한 장당 비율」이 «그 폴더 전체»의 토큰으로 나오는 계약을 고정한다.
+
+    회차 비율은 차분(이번 회차가 더한 만큼)이다 — 지난 회차의 소비를 이번 것으로 세면
+    안 된다. 그런데 한 장당 비율까지 차분으로 나누면 **그 장을 만든 앞 단계들이 통째로
+    빠진다.** [실측 2026-09-28] 이어받기 회차가 4.1% 로 적었는데 그 폴더 전체는 약 29.3% 였다.
+    회차당 장수를 정하는 근거가 이 값이라, 일곱 배 작게 나오면 한 창에 몇 장 들어가는지를
+    통째로 잘못 읽는다.
+
+    Given: 지난 회차가 비용 줄을 남긴 폴더를 이어받아 한 장을 내는 회차
+    When: 회차를 돈다
+    Then: 한 장당 비율의 분자는 폴더 전체, 회차의 토큰은 이번 회차분이고, 화면도 같은 값을 말한다
+    """
+    from research_lab.runner import decision_log, usage
+
+    earlier = {"tokens_input": 10, "tokens_output": 100_000, "tokens_cache_creation": 600_000}
+    this_cycle = {"tokens_input": 1, "tokens_output": 20_000, "tokens_cache_creation": 100_000}
+    resumed = _make_run(entrypoint, "20260101_0100", ["explore", "collect"])
+    decision_log.record(resumed, "collect", decision_log.EVENT_COST, cost_usd=10.0, tokens=1, **earlier)
+    _stub_cycle(entrypoint, monkeypatch, outcomes=[_finished()], cost_usd=1.0, components=[this_cycle])
+
+    entrypoint.main(["--run-dir", str(resumed), "--cycle-dossiers", "1"])
+
+    whole = usage.Tokens(input=11, output=120_000, cache_creation=700_000)
+    expected = usage.window_share_percent(whole, calibration=usage.calibrated())
+    assert expected is not None, "보정값이 있어야 비율을 견줄 수 있다"
+    finished = _last_finished_line(entrypoint)
+    assert finished["tokens_new_total"] == 120_001
+    assert finished["dossier_tokens_new_total"] == whole.new_total
+    assert finished["per_dossier_window_share_percent"] == expected
+    assert f"근거 문서 한 장당 약 {expected:.1f}%" in capsys.readouterr().out
+
+
+def test_a_folder_that_produced_nothing_is_left_out_of_the_per_dossier_share(
+    entrypoint: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    목적: 문서를 «못 낸» 폴더의 토큰은 한 장당 비율에 안 들어가는 계약을 고정한다.
+
+    한 장을 낸 뒤 다음 폴더가 미완성으로 끝나면, 그 폴더의 소비는 **아직 어느 장의 것도
+    아니다.** 섞으면 한 장이 실제보다 무겁게 읽힌다 — 그 폴더는 다음 회차가 이어받아
+    그때의 한 장에 들어간다.
+
+    Given: 첫 폴더는 한 장을 내고, 둘째 폴더는 미완성으로 끝나는 회차
+    When: 두 장을 요청해 돈다
+    Then: 한 장당 비율의 분자는 첫 폴더뿐이고, 회차의 토큰은 둘 다다
+    """
+    from research_lab.runner.failures import FailureKind
+
+    first = {"tokens_input": 1, "tokens_output": 1_000, "tokens_cache_creation": 9_000}
+    second = {"tokens_input": 2, "tokens_output": 2_000, "tokens_cache_creation": 18_000}
+    _stub_cycle(
+        entrypoint,
+        monkeypatch,
+        outcomes=[_finished(), _failed(FailureKind.OTHER)],
+        cost_usd=1.0,
+        components=[first, second],
+    )
+
+    entrypoint.main(["--cycle-dossiers", "2"])
+
+    finished = _last_finished_line(entrypoint)
+    assert finished["produced"] == 1
+    assert finished["dossier_tokens_new_total"] == 10_001
+    assert finished["tokens_new_total"] == 10_001 + 20_002
 
 
 def test_an_already_finished_run_dir_does_not_count_as_a_dossier(

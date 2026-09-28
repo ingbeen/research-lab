@@ -4,8 +4,8 @@
 「없는 출처」**이고, 그것은 **읽어서는 구별되지 않는다.** 사람이 판단할 일이 아니라
 기계가 막을 일이다.
 
-[중요] 「죽음」은 **404·410 뿐**이고, 그것도 **GET 으로 확인한 뒤에야** 확정한다.
-403·429·5xx·타임아웃·DNS 실패는 「판정 못 함」으로 통과시킨다. 학술지·뉴스 사이트는 봇을
+[중요] 「죽음」은 **404·410 과 이름 없는 도메인뿐**이고, 404·410 은 **GET 으로 확인한 뒤에야**
+확정한다. 403·429·5xx·타임아웃·일시적인 이름 해석 실패는 「판정 못 함」으로 통과시킨다. 학술지·뉴스 사이트는 봇을
 막으므로 차단을 죽음으로 보면 **멀쩡한 출처가 든 회차가 매번 죽는다** — 판정을
 «못 하는 것»과 «실패로 판정하는 것»은 다르다.
 
@@ -13,16 +13,20 @@ GET 확인을 붙인 이유는 그 구분이 **메서드에서도 갈리기 때�
 GET 에는 200 을 주는 서버가 있어(국내 언론사의 `articleView.html` CMS), HEAD 하나로 확정하면
 **살아 있는 출처를 지어낸 것으로 몬다** [실측 2026-09-16].
 
-[주의] 그래서 남는 구멍이 하나 있다 — **도메인 자체가 가짜인 URL 은 DNS 실패로 떨어져
-통과한다.** 실제 위조는 대개 「진짜 도메인 + 가짜 경로」 모양이라 404 로 잡히지만,
-DNS 실패를 죽음으로 보면 **네트워크가 한 번 끊긴 회차가 통째로 죽는다.** 그래서 판정 못 한
-사유를 `tally` 가 회차마다 남긴다. 분포가 쌓이면 그때 이 가정을 다시 본다 —
-`failures.PATTERNS` 를 원문으로 가르치는 것과 같은 방식이다.
+[중요] **도메인까지 지어낸 URL** 은 이름 해석에서 떨어진다. 이름 해석 실패를 통째로 죽음으로
+보면 **네트워크가 한 번 끊긴 회차가 통째로 죽는다.** 그래서 「그런 이름이 없다」(`EAI_NONAME`)는
+답이고, 인용된 호스트를 다시 물어도 없으며, **같은 순간 대조 주소에 실제로 닿을 때만** 죽음으로
+본다 — 네트워크가 끊겼으면 대조에 못 닿으므로 「판정 못 함」으로 떨어진다(`_unreached`).
+[실측 2026-09-28] 그때까지 실제 회차의 URL 판정 42건에서 이름 해석 실패는 0건이었다 —
+드문 갈래라 대조 한 번의 비용도 거의 0 이다. 판정 못 한 사유는 여전히 `tally` 가 회차마다
+남기므로, 새 모양이 쌓이면 그 원문으로 이 가정을 다시 본다.
 
 [중요] 네트워크를 찌르는 쪽을 **주입으로 받는다.** 게이트는 「값을 받아 사유를 돌려준다」는
 계층 계약을 지키고, 테스트는 네트워크 없이 결정적으로 돈다.
 """
 
+import re
+import socket
 import urllib.error
 import urllib.request
 from collections import Counter
@@ -104,6 +108,19 @@ MAX_LISTED_DEAD: Final = 5
 
 KEY_UNKNOWN_DETAILS: Final = "unknown_details"
 
+# 죽은 «주소» 자체가 실리는 자리. 출처 칸의 죽음은 단계를 막으며 사유에 주소가 실리지만,
+# 근거 문서 «본문»의 주소는 막지 않고 표시만 해서 실패 줄이 없다 — 여기 없으면
+# 무엇이 죽었는지가 어디에도 안 남는다
+KEY_DEAD_URLS: Final = "dead_urls"
+
+# 「그런 이름이 없다」를 믿을지 가를 때 «실제로 닿아 보는» 주소. 언제나 열려야 하는 곳이라
+# (IANA 가 예시용으로 운영한다) 여기에 못 닿으면 탓은 그 URL 이 아니라 이 기계의 네트워크다.
+#
+# [중요] 이름 해석만으로 대조하지 않는다 — **캐시가 그 대조를 속인다.** 네트워크가 끊긴 mac 은
+# 캐시에 없는 이름마다 「그런 이름 없음」을 내는데, 자주 묻는 대조 이름은 캐시에서 풀려 버린다.
+# 그러면 끊긴 네트워크가 멀쩡한 출처를 지어낸 것으로 몬다 — 대조가 막으려던 바로 그 고장이다
+CONTROL_URL: Final = "https://example.com/"
+
 # 판정 못 한 «주소» 자체가 실리는 자리.
 #
 # [중요] 사유(`HEAD 403`)만 남기면 **어느 주소가 확인 안 됐는지 알 수 없다.** 그러면
@@ -119,6 +136,33 @@ KEY_UNKNOWN_URLS: Final = "unknown_urls"
 # 지어낸 출처를 잡으려던 검사가 진짜 출처를 지어낸 것으로 몰아붙이는 셈이다
 SAFE_PATH_CHARS: Final = "/%:@!$&'()*+,;=~"
 SAFE_QUERY_CHARS: Final = "/%:@!$&'()*+,;=?~"
+
+# 산문에서 주소를 뽑는 모양. 공백 · 따옴표(곧은 것 · 굽은 것) · 대괄호 · 낫표 · 겹화살괄호 ·
+# 전각 문장부호에서 끊는다. 스킴은 대소문자를 가리지 않는다 — `HTTPS://` 도 주소다.
+#
+# [중요] 둥근 괄호는 여기서 끊지 «않고» 짝으로 가른다(`_trimmed`). 괄호가 든 주소가 흔하다 —
+# 학술지 DOI(`…0304-405X(93)90023-5`) · 위키백과(`…_(동음이의)`). 괄호에서 끊으면 **이미 확인한
+# 출처가 잘린 채 다시 찔려 「열리지 않는다」로 적히고**, 지어낸 주소가 잘린 앞부분(살아 있는
+# 문서)으로 찔려 확인된 것처럼 보인다.
+#
+# [중요] 전각 문장부호(：？ 등)에서 끊는 것은 뽑기의 정확성만이 아니라 **예외를 막기** 위해서다 —
+# 호스트 뒤에 붙은 전각 부호는 `urlsplit` 이 `ValueError` 로 거부한다.
+#
+# 한글에서는 끊지 «않는다» — 한글 경로 주소는 이 저장소에서 드문 입력이 아니다. 다만 호스트에
+# 붙은 한글은 조사다(`…co.kr에서`) — 그쪽은 `_trimmed` 가 뗀다
+URL_IN_TEXT_PATTERN: Final = re.compile(r"(?i)https?://[^\s<>\"'`|\\\[\]{}「」『』《》〈〉“”‘’（）：；，。、！？]+")
+
+# 뽑은 주소 끝에서 떼는 글자 — 문장부호 · 말줄임 · 줄표와 마크다운 강조. 문장 끝의 마침표가
+# 붙으면 멀쩡한 주소가 없는 문서로 찔린다. 역슬래시는 아예 주소에 넣지 않는다(위 모양) —
+# 근거 문서의 표가 세로선을 `\|` 로 이스케이프하므로, 넣으면 표 칸의 주소 끝에 붙는다
+TRAILING_PUNCTUATION: Final = ".,;:!?*~…—–"
+
+# 주소 «바로 앞»에 붙은 마크다운 강조 글자. 같은 글자가 주소 끝에 붙어 있으면 짝이라 뗀다 —
+# `_https://…/a_` 의 끝 밑줄은 주소가 아니다. 앞에 없으면 떼지 않는다(밑줄로 끝나는 주소가 있다)
+EMPHASIS_MARKS: Final = "*_~"
+
+# 호스트 안의 한글 — 주소가 아니라 붙어 버린 조사다
+HANGUL_PATTERN: Final = re.compile(r"[가-힣ㄱ-ㅎㅏ-ㅣ]")
 
 
 def liveness_for_status(status: int) -> Liveness:
@@ -240,7 +284,65 @@ def tally(probed: Mapping[str, Probe]) -> dict[str, Any]:
             {result.detail for result in probed.values() if result.liveness is Liveness.UNKNOWN}
         ),
         KEY_UNKNOWN_URLS: sorted(url for url, result in probed.items() if result.liveness is Liveness.UNKNOWN),
+        KEY_DEAD_URLS: sorted(url for url, result in probed.items() if result.liveness is Liveness.DEAD),
     }
+
+
+def urls_in_text(text: Any) -> list[str]:
+    """산문에서 주소를 뽑는다 — 출처 칸 밖에 적힌 주소도 찌르기 위해서다.
+
+    Args:
+        text: 산문. 모양이 어긋나 있어도 된다
+
+    Returns:
+        나온 순서대로, 한 번씩. 문자열이 아니면 빈 목록 — 검사기가 죽으면 고칠 수 있었던
+        것까지 그 회차를 끝낸다
+    """
+    if not isinstance(text, str):
+        return []
+    found: dict[str, None] = {}
+    for match in URL_IN_TEXT_PATTERN.finditer(text):
+        before = text[: match.start()]
+        opening = before[len(before.rstrip(EMPHASIS_MARKS)) :]
+        url = _trimmed(match.group(0).rstrip(opening) if opening else match.group(0))
+        try:
+            host = urlsplit(url).netloc
+        except ValueError:
+            # 주소로 쪼갤 수 없는 글자다. 검사기가 죽으면 판정 단계가 비용을 치른 뒤 깨진다
+            continue
+        # 문장부호를 떼고 나니 호스트가 없는 꼴(`https://.`)은 주소가 아니다
+        if host:
+            found.setdefault(url, None)
+    return list(found)
+
+
+def _trimmed(url: str) -> str:
+    """뽑은 글자에서 주소가 아닌 앞뒤를 뗀다 — 짝 없는 닫는 괄호 · 호스트에 붙은 조사 · 끝 문장부호."""
+    # 짝 없는 닫는 괄호에서 자른다 — 「(https://…)에 있다」의 닫는 괄호와 그 뒤다
+    depth = 0
+    for index, char in enumerate(url):
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            if depth == 0:
+                url = url[:index]
+                break
+            depth -= 1
+
+    # 호스트에 붙은 한글에서 자른다 — 단 그 앞이 «이미 끝난 호스트»이고 그 뒤에 도메인이 더
+    # 이어지지 않을 때만(`…co.kr에서`). 한글로 시작하는 호스트(`한국은행.kr`) · 한글 최상위
+    # 도메인(`example.한국`) · 한글이 섞인 이름(`www.kb증권.com`)은 한글 도메인이라, 자르면
+    # 주소가 통째로 사라지거나 엉뚱한 주소가 된다. 경로의 한글은 그대로 둔다
+    start = url.find("://") + len("://")
+    end = min((index for index in (url.find(mark, start) for mark in "/?#") if index != -1), default=len(url))
+    glued = HANGUL_PATTERN.search(url, start, end)
+    if glued is not None:
+        host_before = url[start : glued.start()]
+        continues = "." in url[glued.start() : end]
+        if "." in host_before and not host_before.endswith(".") and not continues:
+            url = url[: glued.start()]
+
+    return url.rstrip(TRAILING_PUNCTUATION)
 
 
 def to_ascii_url(url: str) -> str:
@@ -286,6 +388,7 @@ def _request(url: str, *, method: str) -> Probe:
     [중요] **어떤 예외도 밖으로 내보내지 않는다.** 못 닿은 것은 「판정 못 함」이지 죽음이
     아니고, 그 구분이 이 모듈의 전부다.
     """
+    target = url
     try:
         target = to_ascii_url(url)
         if urlsplit(target).scheme not in ALLOWED_SCHEMES:
@@ -306,9 +409,62 @@ def _request(url: str, *, method: str) -> Probe:
         # 그대로 밖으로 나가고, 「어떤 예외도 내보내지 않는다」는 약속이 깨진다
         with suppress(Exception):
             error.close()
+    except urllib.error.URLError as unreached:
+        # [주의] `HTTPError` 의 상위 클래스라 **그 갈래 뒤에** 와야 한다. 앞에 두면 404 가 여기로 샌다
+        return _unreached(method, unreached, target)
     except Exception as unexpected:
         # 이름 해석 실패·타임아웃·연결 거부·잘못된 URL 이 여기 온다.
         # 예외 «이름»만 남긴다 — 메시지에는 호스트가 통째로 들어와 로그가 길어진다
         return Probe(liveness=Liveness.UNKNOWN, detail=f"{method} {type(unexpected).__name__}")
 
     return Probe(liveness=liveness_for_status(status), detail=f"{method} {status}", status=status)
+
+
+def _unreached(method: str, unreached: urllib.error.URLError, target: str) -> Probe:
+    """서버에 닿지도 못한 요청을 판정으로 옮긴다.
+
+    죽음은 셋이 다 맞을 때뿐이다 — 「그런 이름이 없다」는 답이고, **그 주소의 호스트를 다시 물어도**
+    없다고 하고, **대조 주소에는 실제로 닿는다.**
+
+    - 호스트를 다시 묻는 것은 `urllib` 이 넘겨주기(redirect)를 따라가기 때문이다. 없는 이름이
+      넘겨받은 다음 자리의 것이면 인용된 주소는 살아 있다 — 그것을 지어낸 것으로 몰면 안 된다
+    - 대조에 못 닿으면 탓은 그 URL 이 아니라 이 기계의 네트워크라 「판정 못 함」이다
+    """
+    reason = unreached.reason
+    if not (isinstance(reason, socket.gaierror) and reason.errno == socket.EAI_NONAME):
+        return Probe(liveness=Liveness.UNKNOWN, detail=f"{method} {type(unreached).__name__}")
+    if not _name_missing(urlsplit(target).hostname):
+        # 인용된 호스트는 풀린다 — 없는 이름은 넘겨받은 다음 자리의 것이다
+        return Probe(liveness=Liveness.UNKNOWN, detail=f"{method} NXDOMAIN-redirect")
+    if not _control_reachable():
+        # 대조에 못 닿았다는 사실을 사유에 남긴다 — 그냥 `URLError` 로 적으면 「이름이 없다고
+        # 답했지만 믿을 수 없었다」가 다른 연결 실패와 구별되지 않는다
+        return Probe(liveness=Liveness.UNKNOWN, detail=f"{method} NXDOMAIN-unconfirmed")
+    return Probe(liveness=Liveness.DEAD, detail=f"{method} NXDOMAIN")
+
+
+def _name_missing(host: str | None) -> bool:
+    """그 호스트를 다시 물었을 때 «그런 이름이 없다»는 답이 오나. 다른 답 · 실패는 전부 False 다."""
+    if not host:
+        return False
+    try:
+        socket.getaddrinfo(host, None)
+    except socket.gaierror as missing:
+        return missing.errno == socket.EAI_NONAME
+    except Exception:
+        return False
+    return False
+
+
+def _control_reachable() -> bool:
+    """대조 주소에 지금 실제로 닿나 — 어떤 HTTP 답이든 오면 닿은 것이다. 어떤 예외도 밖으로 내지 않는다."""
+    request = urllib.request.Request(CONTROL_URL, method="HEAD", headers={"User-Agent": USER_AGENT})
+    try:
+        with urllib.request.urlopen(request, timeout=PROBE_TIMEOUT_SECONDS):
+            return True
+    except urllib.error.HTTPError as answered:
+        with suppress(Exception):
+            answered.close()
+        return True
+    except Exception:
+        return False

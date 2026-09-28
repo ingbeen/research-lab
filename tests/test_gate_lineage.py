@@ -13,6 +13,7 @@
 """
 
 from research_lab.gate import lineage
+from research_lab.runner import payload as payload_helpers
 
 
 def _group(origin: str, copies: list[str]) -> dict[str, object]:
@@ -156,3 +157,147 @@ def test_malformed_payload_does_not_crash_the_gate() -> None:
     payload = {"groups": "한 덩어리", "independent_source_count": "셋"}
 
     assert lineage.shortfall_reason(payload, source_urls=["https://example.com/원본"]) is not None
+
+
+# --------------------------------------------------------------------------
+# 한 원본은 한 덩어리에만 — 독립 소스 수가 부풀지 않게
+# --------------------------------------------------------------------------
+
+ORIGIN = "https://example.com/원논문"
+MIRROR = "https://mirror.example/원논문.pdf"
+DIGEST = "https://blog.example/두-논문-정리"
+OTHER = "https://example.com/다른-논문"
+
+
+def test_an_origin_in_two_groups_is_blocked() -> None:
+    """
+    목적: [중요] 한 원본이 «두 덩어리의 원본»이면 막는 계약을 고정한다.
+
+    독립 소스 수는 주소가 있는 덩어리 수다. 같은 원본이 두 덩어리로 나뉘면 **그 수가 하나
+    부풀고, 6번 칸 맨 앞의 숫자가 틀린 채 나간다** — 표는 그럴듯해 보여 에러가 없다.
+
+    Given: 같은 원본(표기만 다름)을 원본으로 둔 덩어리 둘
+    When: 검사한다
+    Then: 막히고, 사유가 그 주소를 짚는다
+    """
+    payload = {"groups": [_group(ORIGIN, [MIRROR]), _group("https://EXAMPLE.com/원논문/", [])]}
+
+    reason = lineage.shortfall_reason(payload, source_urls=[ORIGIN, MIRROR])
+
+    assert reason is not None
+    assert "원논문" in reason
+
+
+def test_an_origin_that_reappears_as_a_copy_is_blocked() -> None:
+    """
+    목적: 원본이 «다른 덩어리의 복제»로 또 나오면 막는 계약을 고정한다.
+
+    「A 는 B 를 베꼈다」와 「A 는 독립 원본이다」가 한 표에 함께 있으면, A 의 덩어리는
+    B 에 합쳐져야 하는데 **따로 세어진다.**
+
+    Given: 한 덩어리의 원본이 다른 덩어리의 복제로도 적힌 표
+    When: 검사한다
+    Then: 막힌다
+    """
+    payload = {"groups": [_group(ORIGIN, [MIRROR]), _group(OTHER, [ORIGIN])]}
+
+    assert lineage.shortfall_reason(payload, source_urls=[ORIGIN, MIRROR, OTHER]) is not None
+
+
+def test_a_digest_copying_two_origins_may_sit_in_both_groups() -> None:
+    """
+    목적: 두 원본을 모은 글이 «두 덩어리의 복제»로 나오는 것은 통과하는 계약을 고정한다.
+
+    모음 글은 서로 독립인 두 원본을 함께 옮긴다. 두 덩어리에 다 적어도 **덩어리 수는
+    그대로라** 독립 소스 수가 부풀지 않는다 — 막으면 정당한 표를 지어낸 것처럼 몬다.
+
+    Given: 원본이 다른 두 덩어리가 같은 모음 글을 복제로 든다
+    When: 검사한다
+    Then: 사유가 없다
+    """
+    payload = {"groups": [_group(ORIGIN, [DIGEST]), _group(OTHER, [DIGEST])]}
+
+    assert lineage.shortfall_reason(payload, source_urls=[ORIGIN, OTHER, DIGEST]) is None
+
+
+def test_an_origin_listed_again_in_its_own_group_passes() -> None:
+    """
+    목적: 원본이 «제 덩어리의 복제»로 또 적힌 것은 통과하는 계약을 고정한다.
+
+    한 덩어리 안의 중복은 덩어리 수를 바꾸지 않는다. 막으면 수가 옳은 표를 오탐으로 막는다.
+
+    Given: 원본이 제 덩어리의 복제 목록에도 있다
+    When: 검사한다
+    Then: 사유가 없다
+    """
+    payload = {"groups": [_group(ORIGIN, [ORIGIN, MIRROR])]}
+
+    assert lineage.shortfall_reason(payload, source_urls=[ORIGIN, MIRROR]) is None
+
+
+def test_a_dropped_source_and_a_repeated_origin_are_named_together() -> None:
+    """
+    목적: 빠진 출처와 원본 중복을 «한 사유에 함께» 돌려주는 계약을 고정한다.
+
+    한 번에 하나씩 알리면 걸린 자리 수만큼 회차가 들고, 세 번이면 후보가 걷힌다.
+
+    Given: 출처 하나가 빠졌고 원본 하나가 두 덩어리에 든 표
+    When: 검사한다
+    Then: 사유에 빠진 주소와 중복된 원본이 둘 다 있다
+    """
+    payload = {"groups": [_group(ORIGIN, []), _group(ORIGIN, [])]}
+
+    reason = lineage.shortfall_reason(payload, source_urls=[ORIGIN, OTHER])
+
+    assert reason is not None
+    assert "다른-논문" in reason
+    assert "원논문" in reason
+
+
+def test_normalizing_never_raises() -> None:
+    """
+    목적: 대조용 정규화가 «어떤 입력에도» 예외를 올리지 않는 계약을 고정한다.
+
+    이 함수는 게이트와 근거 문서 조립이 함께 쓴다. 쪼갤 수 없는 호스트(대괄호가 든 꼴) 하나로
+    여기서 터지면 비용을 다 치른 단계가 마지막에 깨진다.
+
+    Given: 대괄호가 든 호스트
+    When: 정규화한다
+    Then: 예외 없이 값이 나온다
+    """
+    assert lineage.normalize_url("https://[x]/a")
+
+
+def test_a_hash_route_keeps_two_articles_apart() -> None:
+    """
+    목적: 해시로 페이지를 가르는 주소는 «서로 다른 글»로 남기는 계약을 고정한다.
+
+    조각을 통째로 버리면 `#/글/101` 과 `#/글/202` 가 한 주소가 되어, 둘을 각자 원본으로 적은
+    옳은 표가 「한 원본이 두 덩어리에」로 막힌다. 문서 안의 절을 가리키는 조각은 여전히 버린다.
+
+    Given: 해시 경로만 다른 두 주소 · 절 조각만 다른 두 주소
+    When: 정규화한다
+    Then: 앞의 둘은 다르고, 뒤의 둘은 같다
+    """
+    assert lineage.normalize_url("https://site.example/#/article/101") != lineage.normalize_url(
+        "https://site.example/#/article/202"
+    )
+    assert lineage.normalize_url("https://site.example/a#1") == lineage.normalize_url("https://site.example/a#2")
+
+
+def test_only_a_string_is_an_address() -> None:
+    """
+    목적: 주소 자리에 «문자열»만 주소로 보는 계약을 고정한다 — 러너와 같은 열쇠다.
+
+    목록이 든 주소 자리를 게이트는 파이썬 표기로, 러너는 편 문자열로 읽으면 열쇠가 갈려 게이트는
+    「빠졌다」, 러너는 「이미 모았다」로 읽는다 — 그 단계는 매 회차 같은 자리에서 막힌다.
+
+    Given: 원본의 주소 자리에 목록이 든 표와, 그것을 모은 출처로 세지 않은 러너
+    When: 검사한다
+    Then: 사유가 없다
+    """
+    source = {"url": ["https://a.example/x"]}
+    payload = {"groups": [{"origin": source, "copies": []}]}
+
+    assert payload_helpers.url_of(source) == ""
+    assert lineage.shortfall_reason(payload, source_urls=[payload_helpers.url_of(source)]) is None

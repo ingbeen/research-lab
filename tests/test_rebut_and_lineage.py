@@ -594,20 +594,20 @@ def test_lineage_is_blocked_when_a_url_does_not_exist(tmp_path: Path, probing: A
     assert not (output_dir / LINEAGE_FILENAME).exists()
 
 
-def test_lineage_probes_both_the_origin_and_its_copies(tmp_path: Path, probing: Any) -> None:
+def test_lineage_probes_every_address_it_introduces(tmp_path: Path, probing: Any) -> None:
     """
-    목적: 원본과 복제를 «둘 다» 찌르는 계약을 고정한다.
+    목적: 계보가 «새로 든» 주소는 원본이든 복제든 빠짐없이 찌르는 계약을 고정한다.
 
     복제 쪽을 빼면 「저 글을 베꼈다」는 주장 자체의 근거가 안 찔러진다 —
     그 자리가 비면 계보표는 검증되지 않은 주장을 담은 표가 된다.
 
-    Given: 원본 하나와 복제 하나를 묶은 계보 응답
+    Given: 모은 출처 하나를 원본으로, 새 주소 둘을 복제로 묶은 계보 응답
     When: 계보를 돈다
-    Then: 두 주소를 다 찔렀다
+    Then: 새 주소 둘을 찔렀고, 앞 단계가 모은 원본은 다시 안 찔렀다
     """
     run_dir = tmp_path / "run"
     output_dir = _pin(run_dir, tmp_path / "원장.md")
-    _write_pro_evidence(output_dir, ["https://example.com/원본", "https://example.com/복제"])
+    _write_pro_evidence(output_dir, ["https://example.com/원본"])
     probed = probing()
 
     lineage.run(
@@ -617,16 +617,40 @@ def test_lineage_probes_both_the_origin_and_its_copies(tmp_path: Path, probing: 
                 "groups": [
                     {
                         "origin": {"url": "https://example.com/원본"},
-                        "copies": [{"url": "https://example.com/복제"}],
+                        "copies": [{"url": "https://example.com/새-복제-1"}, {"url": "https://example.com/새-복제-2"}],
                         "why": "같은 숫자가 반복된다",
                     }
                 ],
-                "independent_source_count": 1,
             }
         ),
     )
 
-    assert sorted(probed) == sorted(["https://example.com/원본", "https://example.com/복제"])
+    assert sorted(probed) == sorted(["https://example.com/새-복제-1", "https://example.com/새-복제-2"])
+
+
+def test_a_collected_address_is_not_judged_twice(tmp_path: Path, probing: Any) -> None:
+    """
+    목적: [중요] 앞 단계가 모아 이미 찌른 주소를 계보가 «다시 찌르지 않는» 계약을 고정한다.
+
+    그 주소는 계보 게이트가 «반드시 넣으라»고 요구한다. 앞에서 판정 못 함(봇 차단 · 이름 해석의
+    일시 실패)이던 것이 여기서 죽음으로 나오면 게이트 둘이 서로 반대를 요구해 **통과할 길이
+    없는 단계**가 되고, 같은 자리에서 세 번이면 멀쩡한 후보가 걷힌다.
+
+    Given: 모은 출처 하나를 원본으로 둔 계보 응답과, 그 주소를 지금 찌르면 죽음이 나오는 네트워크
+    When: 계보를 돈다
+    Then: 막히지 않고 계보 파일이 쓰인다
+    """
+    run_dir = tmp_path / "run"
+    output_dir = _pin(run_dir, tmp_path / "원장.md")
+    _write_pro_evidence(output_dir, ["https://example.com/원본"])
+    probing(dead={"https://example.com/원본"})
+
+    lineage.run(
+        run_dir,
+        lambda _: _answer({"groups": [{"origin": {"url": "https://example.com/원본"}, "copies": [], "why": "혼자"}]}),
+    )
+
+    assert (output_dir / LINEAGE_FILENAME).is_file()
 
 
 def test_lineage_does_not_probe_when_a_cheaper_gate_already_blocked(tmp_path: Path, probing: Any) -> None:
@@ -693,3 +717,91 @@ def test_a_step_is_blocked_when_its_prose_points_outside(tmp_path: Path) -> None
         )
 
     assert not (output_dir / LINEAGE_FILENAME).exists()
+
+
+# --------------------------------------------------------------------------
+# 목록으로 온 값 · 양쪽에 같은 주소
+# --------------------------------------------------------------------------
+
+
+def test_a_list_shaped_not_found_reason_is_stored_as_prose(tmp_path: Path) -> None:
+    """
+    목적: [중요] 「못 찾은 이유」가 «목록»으로 와도 파이썬 표기로 저장되지 않는 계약을 고정한다.
+
+    이 값은 파일을 거쳐 근거 문서의 반증 칸으로 그대로 나간다. 저장하는 자리가 `str()` 을 타면
+    `['…']` 가 파일에 박히고, 조립부가 아무리 잘 펴도 **이미 문자열이 된 표기는 못 편다.**
+
+    Given: 반증이 0건이고 이유가 목록인 응답
+    When: 반증을 돈다
+    Then: 저장된 이유가 사람이 읽는 한 줄이다
+    """
+    run_dir = tmp_path / "run"
+    output_dir = _pin(run_dir, tmp_path / "원장.md")
+
+    rebut.run(
+        run_dir,
+        lambda _: _answer({"queries": QUERIES, "rebuttals": [], "not_found_reason": ["한국어로 찾았으나 없었다", "영어로도 없었다"]}),
+    )
+
+    written = json.loads((output_dir / REBUTTAL_FILENAME).read_text(encoding="utf-8"))
+    assert written["not_found_reason"] == "한국어로 찾았으나 없었다 · 영어로도 없었다"
+
+
+def test_a_source_on_both_sides_is_listed_once_in_the_lineage_prompt(tmp_path: Path) -> None:
+    """
+    목적: [중요] 찬성과 반증에 «같은 주소»가 있으면 계보 지시문에 한 줄로 싣는 계약을 고정한다.
+
+    [실측 2026-09-28] 열 회차 중 여섯에서 같은 URL 이 양쪽에 있었고, 지시문은 그것을 두 줄로
+    실었다. 두 줄을 받은 에이전트가 그것을 두 덩어리로 나누면 **한 원본이 두 번 세어진다** —
+    계보 게이트가 그 모양을 막으므로, 지시문이 먼저 그 유인을 없앤다.
+
+    Given: 찬성과 반증이 표기만 다른 같은 주소를 하나씩 든 후보 폴더
+    When: 계보를 돈다
+    Then: 지시문에 그 주소의 줄이 하나이고, 양쪽에서 왔다고 적혀 있다
+    """
+    run_dir = tmp_path / "run"
+    output_dir = _pin(run_dir, tmp_path / "원장.md")
+    _write_pro_evidence(output_dir, ["https://example.com/같은글"])
+    rebuttal = {"claim": CLAIM, "rebuttals": [{"url": "https://EXAMPLE.com/같은글/"}], "unverified": []}
+    (output_dir / REBUTTAL_FILENAME).write_text(json.dumps(rebuttal, ensure_ascii=False), encoding="utf-8")
+    seen: list[str] = []
+
+    def ask(prompt: str) -> AgentResult:
+        seen.append(prompt)
+        return _answer({"groups": [{"origin": {"url": "https://example.com/같은글"}, "copies": [], "why": "혼자"}]})
+
+    lineage.run(run_dir, ask)
+
+    listed = [line for line in seen[0].splitlines() if "같은글" in line and line.startswith("- [")]
+    assert len(listed) == 1
+    assert listed[0].startswith("- [찬성·반증]")
+
+
+def test_merging_a_shared_source_keeps_the_date_from_either_side(tmp_path: Path) -> None:
+    """
+    목적: 양쪽의 같은 주소를 합칠 때 «한쪽에만 적힌 발행일»을 버리지 않는 계약을 고정한다.
+
+    발행일은 「누가 원본인가」를 가르는 재료다(발행일이 며칠 안에 몰리면 받아쓴 것이다).
+    앞쪽 것만 남기면 반증 쪽에만 적힌 날짜가 지시문에서 사라져, 계보가 그것 없이 갈린다.
+
+    Given: 찬성은 발행일을 unknown 으로, 반증은 날짜로 적은 같은 주소
+    When: 계보를 돈다
+    Then: 지시문의 그 줄에 반증 쪽 날짜가 있다
+    """
+    run_dir = tmp_path / "run"
+    output_dir = _pin(run_dir, tmp_path / "원장.md")
+    pro = {"claim": CLAIM, "evidence": [{"url": "https://example.com/같은글", "published": "unknown"}], "unverified": []}
+    (output_dir).mkdir(parents=True, exist_ok=True)
+    (output_dir / PRO_EVIDENCE_FILENAME).write_text(json.dumps(pro, ensure_ascii=False), encoding="utf-8")
+    rebuttal = {"claim": CLAIM, "rebuttals": [{"url": "https://example.com/같은글", "published": "2019-03-02"}]}
+    (output_dir / REBUTTAL_FILENAME).write_text(json.dumps(rebuttal, ensure_ascii=False), encoding="utf-8")
+    seen: list[str] = []
+
+    def ask(prompt: str) -> AgentResult:
+        seen.append(prompt)
+        return _answer({"groups": [{"origin": {"url": "https://example.com/같은글"}, "copies": [], "why": "혼자"}]})
+
+    lineage.run(run_dir, ask)
+
+    line = next(line for line in seen[0].splitlines() if "같은글" in line and line.startswith("- ["))
+    assert "2019-03-02" in line

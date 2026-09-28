@@ -18,7 +18,12 @@ from typing import Any
 import pytest
 
 from research_lab.agent.invoke import AgentResult, new_session_id
-from research_lab.common_constants import LINEAGE_FILENAME, VERDICT_FILENAME
+from research_lab.common_constants import (
+    FEASIBILITY_FILENAME,
+    LINEAGE_FILENAME,
+    PRO_EVIDENCE_FILENAME,
+    VERDICT_FILENAME,
+)
 from research_lab.runner import decision_log, dossier, ledger, verdict
 from research_lab.runner.steps import StepQualityFailed
 
@@ -317,3 +322,203 @@ def test_a_broken_url_check_line_does_not_stop_the_step(prepared: Any) -> None:
     verdict.run(ready.run_dir, ready.ledger_path, lambda _: _answer(_payload()), dossier_dir=ready.dossier_dir)
 
     assert next(ready.dossier_dir.glob("*.md")).is_file()
+
+
+# --------------------------------------------------------------------------
+# 근거 문서 «본문» 속 주소 — 출처 칸 밖의 주소도 찔러 보고, 막지 않고 표시한다
+# --------------------------------------------------------------------------
+
+BODY_URL = "https://example.com/본문에만-나온-보고서"
+
+
+def _body_payload(url: str = BODY_URL) -> dict[str, Any]:
+    """판정 이유에 주소 하나를 든 산출물 — 출처 칸이 없는 자리의 주소다."""
+    return _payload(reason=f"표본이 20건이라 칸당 10건이다. 같은 결론의 보고서({url})도 있다")
+
+
+def test_a_dead_url_in_the_prose_is_marked_not_blocked(prepared: Any, probing: Any) -> None:
+    """
+    목적: [중요] 본문의 죽은 주소를 «막지 않고» 11번 칸에 표시하는 계약을 고정한다.
+
+    본문에서 주소를 뽑는 일은 틀릴 수 있다(한글이 붙은 꼴 · 괄호가 든 주소). 그것으로
+    막으면 **거짓 죽음이 같은 자리에서 반복되고 세 번이면 멀쩡한 후보가 걷힌다.**
+    그렇다고 안 찌르면 머리말의 「실제로 호출해 확인했다」가 본문 주소에서는 거짓이 된다.
+
+    Given: 판정 이유에 죽은 주소가 든 답
+    When: 판정 단계를 돈다
+    Then: 단계는 끝까지 돌고, 11번 칸에 그 주소가 본문 주소의 문구로 실린다
+    """
+    ready = prepared()
+    probing(dead={BODY_URL})
+
+    verdict.run(ready.run_dir, ready.ledger_path, lambda _: _answer(_body_payload()), dossier_dir=ready.dossier_dir)
+
+    written = next(ready.dossier_dir.glob("*.md")).read_text(encoding="utf-8")
+
+    assert dossier.BODY_URL_NOTE.format(url=BODY_URL) in written
+    assert ledger.status_of(ready.ledger_path, ready.candidate.claim) is ledger.Status.EXPLORED
+
+
+def test_an_unjudged_url_in_the_prose_is_listed(prepared: Any, probing: Any) -> None:
+    """
+    목적: 본문의 판정 못 한 주소가 죽은 주소와 «같은 문구»로, 한 번만 실리는 계약을 고정한다.
+
+    본문 주소는 뽑기를 거쳐 「죽었다」와 「판정 못 함」이 곧 사실을 가르지 않는다(조사가 섞여
+    뽑히면 멀쩡한 주소도 죽는다). 그래서 한 문구로 싣고, 출처 칸의 「판정 못 함」 문구로
+    한 번 더 실리지 않게 한다.
+
+    Given: 판정 이유에 봇이 막는 주소가 든 답
+    When: 판정 단계를 돈다
+    Then: 11번 칸에 본문 주소의 문구로 실리고, 출처 칸의 문구로는 안 실린다
+    """
+    ready = prepared()
+    probing(unknown={BODY_URL: "HEAD 403"})
+
+    verdict.run(ready.run_dir, ready.ledger_path, lambda _: _answer(_body_payload()), dossier_dir=ready.dossier_dir)
+
+    written = next(ready.dossier_dir.glob("*.md")).read_text(encoding="utf-8")
+
+    assert dossier.BODY_URL_NOTE.format(url=BODY_URL) in written
+    assert dossier.UNJUDGED_URL_NOTE.format(url=BODY_URL) not in written
+
+
+def test_a_living_url_in_the_prose_adds_nothing(prepared: Any, probing: Any) -> None:
+    """
+    목적: 살아 있는 본문 주소는 11번 칸에 «아무것도 더하지 않는» 계약을 고정한다.
+
+    Given: 판정 이유에 살아 있는 주소가 든 답
+    When: 판정 단계를 돈다
+    Then: 그 주소를 두고 한 표시가 없다
+    """
+    ready = prepared()
+    probing()
+
+    verdict.run(ready.run_dir, ready.ledger_path, lambda _: _answer(_body_payload()), dossier_dir=ready.dossier_dir)
+
+    written = next(ready.dossier_dir.glob("*.md")).read_text(encoding="utf-8")
+
+    assert dossier.BODY_URL_NOTE.format(url=BODY_URL) not in written
+    assert dossier.UNJUDGED_URL_NOTE.format(url=BODY_URL) not in written
+
+
+def test_only_the_urls_outside_the_source_slots_are_probed(prepared: Any, probing: Any) -> None:
+    """
+    목적: 본문 검사가 «출처 칸이 이미 찌른 주소와 11번 칸의 주소»를 다시 찌르지 않는 계약을 고정한다.
+
+    출처 칸의 주소는 그 단계의 게이트가 이미 찔렀다 — 다시 찌르면 남의 서버를 그만큼 더
+    두드린다. 11번 칸의 주소는 에이전트가 이미 「확인 못 함」으로 밝힌 자리라, 머리말의
+    「거기 없는 주소는 확인된 것」이 그대로 참이다.
+
+    Given: 찬성 근거 · 계보의 주소가 표에 실리고, 판정 이유와 미검증에 주소가 하나씩 든 답
+    When: 판정 단계를 돈다
+    Then: 판정 이유의 주소 하나만 찔렸다
+    """
+    ready = prepared()
+    probed = probing()
+    answer = _body_payload()
+    answer["unverified_extra"] = ["열어 보지 못한 자료 https://example.com/미검증에만-적은-것"]
+
+    verdict.run(ready.run_dir, ready.ledger_path, lambda _: _answer(answer), dossier_dir=ready.dossier_dir)
+
+    assert probed == [BODY_URL]
+
+
+def test_the_body_check_is_recorded(prepared: Any, probing: Any) -> None:
+    """
+    목적: 본문 검사도 «무엇을 찔렀고 무엇이 죽었나»를 결정 로그에 남기는 계약을 고정한다.
+
+    이 자리는 막지 않으므로 실패 줄이 없다. 판정 분포에 죽은 주소가 없으면
+    **무엇이 죽었는지가 어디에도 안 남는다.**
+
+    Given: 판정 이유에 죽은 주소가 든 답
+    When: 판정 단계를 돈다
+    Then: 판정 단계의 URL 판정 줄에 그 주소가 죽은 것으로 남는다
+    """
+    from research_lab.gate import urls as url_gate
+    from research_lab.runner import url_check
+
+    ready = prepared()
+    probing(dead={BODY_URL})
+
+    verdict.run(ready.run_dir, ready.ledger_path, lambda _: _answer(_body_payload()), dossier_dir=ready.dossier_dir)
+
+    checks = [
+        entry
+        for entry in decision_log.read(ready.run_dir)
+        if entry.get("step") == verdict.STEP_NAME and entry.get("gate") == url_check.GATE_NAME
+    ]
+    assert len(checks) == 1
+    assert checks[0][url_gate.KEY_DEAD_URLS] == [BODY_URL]
+
+
+def test_a_source_url_with_parentheses_is_not_probed_again(prepared: Any, probing: Any) -> None:
+    """
+    목적: [중요] 괄호가 든 «출처» 주소가 본문 주소로 다시 찔리지 않는 계약을 고정한다.
+
+    학술지 DOI 는 괄호를 품는다(`…0304-405X(93)90023-5`). 출처 표에 실린 그 주소를 뽑기가
+    잘못 끊으면 잘린 조각이 출처와 안 맞아 **이미 확인한 출처가 다시 찔리고**, 그 조각은 없는
+    문서라 근거 문서가 확인된 출처를 두고 「열리지 않는다」고 적는다.
+
+    Given: 찬성 근거의 주소가 괄호를 품은 DOI 인 회차
+    When: 판정 단계를 돈다
+    Then: 판정 이유의 주소 말고는 아무것도 안 찔렸다
+    """
+    ready = prepared()
+    path = ready.output_dir / PRO_EVIDENCE_FILENAME
+    evidence = json.loads(path.read_text(encoding="utf-8"))
+    evidence["evidence"][0]["url"] = "https://doi.org/10.1016/0304-405X(93)90023-5"
+    path.write_text(json.dumps(evidence, ensure_ascii=False), encoding="utf-8")
+    probed = probing()
+
+    verdict.run(ready.run_dir, ready.ledger_path, lambda _: _answer(_body_payload()), dossier_dir=ready.dossier_dir)
+
+    assert probed == [BODY_URL]
+
+
+def test_a_deep_link_under_a_source_domain_is_still_probed(prepared: Any, probing: Any) -> None:
+    """
+    목적: [중요] 출처로 적힌 도메인 «아래»의 본문 주소가 검사를 비켜 가지 않는 계약을 고정한다.
+
+    출처 칸에 도메인(`http://data.krx.co.kr`)이 있고 본문이 그 아래 깊은 주소를 들 때, 출처 주소를
+    글에서 지우고 뽑으면 깊은 주소가 통째로 사라진다 — **찔리지도 표시되지도 않은 채** 문서에
+    남아 머리말의 보증이 그 주소에서 거짓이 된다. 지어낸 깊은 주소가 새는 길이다.
+
+    Given: 실현가능성 출처가 도메인이고, 판정 이유가 그 아래 깊은 주소를 든 답
+    When: 판정 단계를 돈다
+    Then: 그 깊은 주소가 찔렸다
+    """
+    ready = prepared()
+    path = ready.output_dir / FEASIBILITY_FILENAME
+    feasible = json.loads(path.read_text(encoding="utf-8"))
+    feasible["sources"] = [{"title": "정보데이터시스템", "url": "http://data.krx.co.kr"}]
+    path.write_text(json.dumps(feasible, ensure_ascii=False), encoding="utf-8")
+    deep = "http://data.krx.co.kr/contents/MDC/지어낸-경로.cmd"
+    probed = probing()
+
+    verdict.run(ready.run_dir, ready.ledger_path, lambda _: _answer(_body_payload(deep)), dossier_dir=ready.dossier_dir)
+
+    assert probed == [deep]
+
+
+def test_a_source_url_the_extractor_would_cut_is_not_probed_again(prepared: Any, probing: Any) -> None:
+    """
+    목적: [중요] 뽑기가 «잘못 끊을» 글자를 품은 출처 주소도 본문 주소로 다시 찔리지 않는 계약을 고정한다.
+
+    출처 표의 주소 칸을 본문처럼 훑으면 작은따옴표 · 대괄호 · 이스케이프한 세로선에서 주소가 잘리고,
+    잘린 조각은 출처와 안 맞아 **이미 확인한 출처가 다시 찔려 「열리지 않는다」로 적힌다.**
+    출처 칸의 주소는 그 단계의 게이트가 이미 찔렀으므로 훑지 않는다.
+
+    Given: 찬성 근거의 주소가 작은따옴표를 품은 회차
+    When: 판정 단계를 돈다
+    Then: 판정 이유의 주소 말고는 아무것도 안 찔렸다
+    """
+    ready = prepared()
+    path = ready.output_dir / PRO_EVIDENCE_FILENAME
+    evidence = json.loads(path.read_text(encoding="utf-8"))
+    evidence["evidence"][0]["url"] = "https://en.wikipedia.org/wiki/William_O'Neil"
+    path.write_text(json.dumps(evidence, ensure_ascii=False), encoding="utf-8")
+    probed = probing()
+
+    verdict.run(ready.run_dir, ready.ledger_path, lambda _: _answer(_body_payload()), dossier_dir=ready.dossier_dir)
+
+    assert probed == [BODY_URL]

@@ -34,8 +34,10 @@ from research_lab.common_constants import (
     REBUTTAL_FILENAME,
     RUN_DIR_DATE_LENGTH,
 )
+from research_lab.gate import lineage as lineage_gate
 from research_lab.gate import measurement as measurement_gate
 from research_lab.gate import mechanism as mechanism_gate
+from research_lab.gate import urls as url_gate
 from research_lab.gate import verdict as verdict_gate
 from research_lab.gate.filled import is_filled
 from research_lab.runner import naming, outputs, state
@@ -73,16 +75,22 @@ HEADER: Final = """# {claim}
 > - 찬성 근거와 반증을 **서로 다른 세션**이 모았습니다. 반증을 모은 쪽은 찬성 근거가
 >   무엇인지 모르는 채 「이 주장을 깨라」만 받았습니다 — 한 자리에서 둘 다 시키면
 >   방금 지지한 것을 스스로 무너뜨리라는 요구가 되어 잘 되지 않습니다.
-> - 아래에 적힌 URL 은 **실제로 호출해** 살아 있는지 확인했습니다. 다만 자동 접근을 막는
->   사이트와 이름이 해석되지 않는 주소는 확인할 수 없으므로, **그런 주소는 맨 끝의 미검증
->   목록에 따로 적어 두었습니다** — 거기 없는 주소는 확인된 것입니다.
+> - 아래에 적힌 URL(`http://` · `https://` 로 시작하는 주소)은 출처 표와 계보의 주소는 물론
+>   **본문 서술 속 주소까지 실제로 호출해** 살아 있는지 확인했습니다. 다만 자동 접근이 막혔거나
+>   닿지 않았거나 모양이 바로 열 수 없는 꼴인 주소, 그리고 본문 속 주소 중 열리는 것을 확인하지
+>   못한 것은 **맨 끝의 미검증 목록에 따로 적어 두었습니다** — 거기 없는 주소는 확인된 것입니다.
 > - **수수료 · 세금 · 슬리피지를 일부러 담지 않았습니다.** 증권사 · 계좌 · 이벤트에 따라
 >   자릿수가 달라지고 그 폭이 기대값과 같은 크기라, 값을 하나 고르면 **그 값이 판정을
 >   대신합니다.** 재는 쪽이 자기 조건으로 넣어야 합니다.
 > - **수익률을 재지 않았습니다.** 이 문서는 「재 볼 가치가 있는가」의 근거이지 측정 결과가 아닙니다.
 """
 
-EVIDENCE_TABLE_HEAD: Final = "| 제목 | 발행일 | 1차/2차 | 무엇을 말하나 | 주소 |\n| --- | --- | --- | --- | --- |"
+# 7·8번 표의 머리. 맨 끝 「계보」 열은 그 행이 6번 칸의 어느 덩어리에서 원본인지 복제인지다.
+#
+# [중요] 그 열이 없으면 **원논문과 그 미러가 두 행으로 실려 근거가 두 곳인 것처럼 읽힌다.**
+# 1차/2차(`kind`)로는 못 가른다 — 원논문의 미러는 1차이면서 복제다(두 축이 직교한다).
+# [실측 2026-09-28] 한 문서는 7번 칸 16행이 계보로는 11덩어리였다
+EVIDENCE_TABLE_HEAD: Final = "| 제목 | 발행일 | 1차/2차 | 무엇을 말하나 | 주소 | 계보 |\n| --- | --- | --- | --- | --- | --- |"
 
 EMPTY_SLOT: Final = "(적히지 않았습니다)"
 
@@ -92,7 +100,21 @@ EMPTY_SLOT: Final = "(적히지 않았습니다)"
 # 읽히므로 「게이트에서 unknown 으로 판정됨」처럼 적으면 받는 사람에게 아무 뜻이 없다.
 # 그리고 **「내용이 틀렸다」가 아니라 「확인이 안 됐다」**임을 그 자리에서 밝힌다 —
 # 학술지·정부·언론 사이트가 자동 접근을 막는 것은 흔한 일이고, 두 표본 연속 21% 가 그랬다
-UNJUDGED_URL_NOTE: Final = "자동 접근이 막히거나 주소가 해석되지 않아, 이 주소가 실제로 열리는지 확인하지 못했습니다: {url}"
+UNJUDGED_URL_NOTE: Final = "자동 접근이 막혔거나, 닿지 않았거나, 주소의 모양이 바로 열 수 없는 꼴이라 이 주소가 실제로 열리는지 확인하지 못했습니다: {url}"
+
+# 본문 서술 속 주소 중 «열리는 것을 확인하지 못한» 것을 11번 칸에 적는 문구.
+#
+# [중요] 출처 칸의 죽은 주소는 그 단계를 막으므로 문서까지 오지 못한다. 본문 주소는 막지 않는다 —
+# 산문에서 주소를 뽑는 일이 틀릴 수 있어, 막으면 거짓 죽음이 같은 자리에서 반복되고 세 번이면
+# 멀쩡한 후보가 걷힌다. 그래서 여기 적는다.
+#
+# [중요] **「없다」고 단정하지 않는다.** 산문에 붙은 조사가 주소에 섞여 뽑히면(`…/data에서`) 멀쩡한
+# 주소도 열리지 않는다 — 그때 「그 자리에 문서가 없었다」고 적으면 근거 문서가 사실이 아닌 말을
+# 한다. 없는 문서 · 막힌 접근 · 뽑기의 섞임을 하나로 묶고, **어느 것인지 가를 수 없다는 것까지** 적는다
+BODY_URL_NOTE: Final = (
+    "본문 서술에 적힌 이 주소는 실제로 열어 보았지만 열리는 것을 확인하지 못했습니다 — 없는 문서이거나 "
+    "자동 접근이 막혔을 수 있고, 본문에서 주소를 뽑을 때 앞뒤 글자가 섞였을 수도 있습니다: {url}"
+)
 
 
 def path_for(run_dir: Path, candidate: state.Candidate, *, dossier_dir: Path = DOSSIER_DIR) -> Path:
@@ -160,6 +182,7 @@ def assemble(
     *,
     dossier_dir: Path = DOSSIER_DIR,
     unverified_urls: list[str] | None = None,
+    unconfirmed_body_urls: list[str] | None = None,
 ) -> Path:
     """단계 산출물을 읽어 11칸짜리 근거 문서를 쓴다.
 
@@ -174,6 +197,8 @@ def assemble(
             「기계가 못 판정한 것」을 가를 수 없다**.
             [주의] 목록이어야 한다 — 문자열 하나를 넘기면 파이썬에서는 순회가 «글자 단위»로
             되어 **예외 없이** 주소 한 건이 글자 수만큼의 줄로 불어난다
+        unconfirmed_body_urls: 본문 서술 속 주소 중 «열리는 것을 확인하지 못한» 것들(`body_urls` 를
+            찔러 얻는다). 출처 칸의 판정 못 한 주소와 다른 문구로 11번 칸 맨 뒤에 싣는다
 
     Returns:
         쓴 문서의 경로
@@ -182,7 +207,7 @@ def assemble(
         StepQualityFailed: 앞 단계의 산출물이 하나라도 없거나 읽히지 않을 때
     """
     output_dir = run_dir / naming.folder_name(candidate.claim, candidate.identifier)
-    document = _render(run_dir, candidate, decision, load_required(output_dir), unverified_urls)
+    document = _render(run_dir, candidate, decision, load_required(output_dir), unverified_urls, unconfirmed_body_urls)
 
     path = path_for(run_dir, candidate, dossier_dir=dossier_dir)
     # 반쯤 쓰다 끊기면 완성본 자리에 잘린 문서가 남는다
@@ -191,17 +216,99 @@ def assemble(
     return path
 
 
+def body_urls(run_dir: Path, candidate: state.Candidate, decision: dict[str, Any]) -> list[str]:
+    """근거 문서 «본문»(1~10번 칸)에 적힌 주소 중, 출처 칸이 이미 찌르지 않은 것.
+
+    [중요] **문서에 실제로 찍히는 글에서** 뽑는다. 어느 열쇠가 문서의 어느 줄이 되는지는
+    조립부만 알고, 산출물 쪽 열쇠를 따로 훑으면 그 대응이 두 벌이 되어 한쪽이 낡는다.
+
+    출처 칸(찬성 근거 · 반증 · 계보 · 실현가능성과 메커니즘의 출처)의 주소는 빼고 돌려준다 —
+    그 단계의 게이트가 이미 찔렀고, 다시 찌르면 남의 서버를 그만큼 더 두드린다. 같은 주소인지는
+    계보 게이트와 «같은 열쇠»(`normalize_url`)로 가른다 — 끝 슬래시 하나로 다시 찌르지 않게.
+    11번 칸의 주소는 뽑지 않는다 — 에이전트가 이미 「확인 못 함」으로 밝힌 자리다.
+
+    Args:
+        run_dir: 그 회차의 실행 폴더
+        candidate: 그 회차의 후보
+        decision: 판정 단계가 낸 산출물
+
+    Returns:
+        본문에 나온 순서대로, 한 번씩
+
+    Raises:
+        StepQualityFailed: 앞 단계의 산출물이 하나라도 없거나 읽히지 않을 때
+    """
+    output_dir = run_dir / naming.folder_name(candidate.claim, candidate.identifier)
+    loaded = load_required(output_dir)
+    # 머리말은 뺀다 — 러너의 고정 문구라 주소가 없다
+    body = "\n\n".join(_body_sections(run_dir, candidate, decision, loaded, hide_source_urls=True)[1:])
+    # [중요] 출처 칸의 주소를 글에서 «지우고» 뽑지 않는다 — 먼저 뽑고 열쇠로 거른다. 글자째 지우면
+    # 출처 주소로 «시작하는» 본문 주소(출처가 도메인이고 본문이 그 아래 깊은 주소)가 통째로 사라져
+    # **찔리지도 표시되지도 않은 채** 문서에 남고, 머리말의 보증이 그 주소에서 거짓이 된다
+    probed = {lineage_gate.normalize_url(url) for url in _source_urls(loaded)}
+    return [url for url in url_gate.urls_in_text(body) if lineage_gate.normalize_url(url) not in probed]
+
+
+def _source_urls(loaded: dict[str, dict[str, Any]]) -> set[str]:
+    """출처 칸에 적힌 주소 — 그 단계들의 게이트가 이미 찌른 것들이다."""
+    groups = payload_helpers.as_list(loaded[LINEAGE_FILENAME].get("groups"))
+    cited = [
+        member
+        for group in groups
+        if isinstance(group, dict)
+        for member in [group.get("origin"), *payload_helpers.as_list(group.get("copies"))]
+    ]
+    return (
+        payload_helpers.urls_in(loaded[PRO_EVIDENCE_FILENAME].get("evidence"))
+        | payload_helpers.urls_in(loaded[REBUTTAL_FILENAME].get("rebuttals"))
+        | payload_helpers.urls_in(loaded[FEASIBILITY_FILENAME].get("sources"))
+        | payload_helpers.urls_in(loaded[MECHANISM_FILENAME].get("sources"))
+        | payload_helpers.urls_in(cited)
+    )
+
+
 def _render(
     run_dir: Path,
     candidate: state.Candidate,
     decision: dict[str, Any],
     loaded: dict[str, dict[str, Any]],
     unverified_urls: list[str] | None,
+    unconfirmed_body_urls: list[str] | None,
 ) -> str:
     """11칸을 «문서 순서»로 펼친다 — 결론 먼저, 근거 뒤.
 
     나중에 읽는 사람이 위 다섯 칸만 보고 판단할 수 있어야 하고, 아래 여섯 칸은
     그 판단을 의심할 때 내려가는 자리다. **채우는 순서와 읽는 순서는 다르다.**
+    """
+    sections = [
+        *_body_sections(run_dir, candidate, decision, loaded, hide_source_urls=False),
+        _unverified_section(decision, loaded, unverified_urls, unconfirmed_body_urls),
+    ]
+
+    # [중요] 자립성은 여기서 «보지 않는다». 조립은 회차의 마지막 단계라, 여기서 막으면
+    # **이미 굳은 앞 단계 산출물**을 두고 실패한다 — 다음 회차는 마지막 단계만 다시 돌고
+    # 그 산출물은 그대로이므로 같은 자리에서 똑같이 실패하고, 세 번이면 후보가 걷힌다.
+    # 판정은 `runner/prose_check` 가 **단계마다** 한다 ([실측 2026-09-15])
+    return "\n\n".join(sections).rstrip() + "\n"
+
+
+def _body_sections(
+    run_dir: Path,
+    candidate: state.Candidate,
+    decision: dict[str, Any],
+    loaded: dict[str, dict[str, Any]],
+    *,
+    hide_source_urls: bool,
+) -> list[str]:
+    """머리말과 1~10번 칸 — 11번 칸만 뺀 문서.
+
+    11번 칸을 따로 두는 것은 **본문 주소를 찔러 본 결과가 그 칸에 실리기** 때문이다.
+    본문을 먼저 펼쳐야 무엇을 찌를지 알고, 찔러 봐야 11번 칸을 쓸 수 있다.
+
+    `hide_source_urls` 는 본문 주소를 뽑을 때 쓴다 — 출처 칸의 주소(7·8번 표의 주소 칸 · 6번 칸의
+    원본·복제 줄)를 `-` 로 가린다. 그 주소들은 그 단계의 게이트가 이미 찔렀고, 뽑기가 표 칸의
+    글자(작은따옴표 · 이스케이프한 세로선 · 대괄호)에서 잘못 끊으면 **이미 확인한 출처의 조각이
+    다시 찔려 「열리지 않는다」로 적힌다.** 가려도 제목 · 설명 같은 산문은 그대로 뽑힌다
     """
     evidence = loaded[PRO_EVIDENCE_FILENAME]
     rebuttal = loaded[REBUTTAL_FILENAME]
@@ -214,8 +321,9 @@ def _render(
     # 날을 넘겨 이어받은 회차에서 **파일명과 문서 안의 날짜가 하루 어긋나고**, 읽는 사람은
     # 어느 쪽이 그 회차의 날짜인지 알 길이 없다. 같은 회차를 다시 조립하면 본문도 달라진다
     stamped = _run_date(run_dir)
+    places = _lineage_places(lineage)
 
-    sections = [
+    return [
         HEADER.format(
             claim=candidate.claim,
             identifier=naming.folder_name(candidate.claim, candidate.identifier),
@@ -226,23 +334,24 @@ def _render(
         _named_slots("## 3. 왜 우위가 있을 수 있나", mechanism.get(mechanism_gate.KEY_EDGE), mechanism_gate.EDGE_FIELDS),
         _feasibility_section("## 4. 데이터 실현가능성", feasible.get("data"), _DATA_FIELDS, feasible),
         _feasibility_section("## 5. 집행 현실성", feasible.get("execution"), _EXECUTION_FIELDS, None),
-        _lineage_section(lineage),
-        _evidence_section("## 7. 찬성 근거", payload_helpers.as_list(evidence.get("evidence")), None),
+        _lineage_section(lineage, hide_urls=hide_source_urls),
+        _evidence_section(
+            "## 7. 찬성 근거",
+            payload_helpers.as_list(evidence.get("evidence")),
+            None,
+            places,
+            hide_urls=hide_source_urls,
+        ),
         _evidence_section(
             "## 8. 반증",
             payload_helpers.as_list(rebuttal.get("rebuttals")),
             payload_helpers.as_text(rebuttal.get("not_found_reason")),
+            places,
+            hide_urls=hide_source_urls,
         ),
         _named_slots("## 9. 왜 사라졌을 수 있나", mechanism.get(mechanism_gate.KEY_DECAY), mechanism_gate.DECAY_FIELDS),
         _measurement_section(plan),
-        _unverified_section(decision, loaded, unverified_urls),
     ]
-
-    # [중요] 자립성은 여기서 «보지 않는다». 조립은 회차의 마지막 단계라, 여기서 막으면
-    # **이미 굳은 앞 단계 산출물**을 두고 실패한다 — 다음 회차는 마지막 단계만 다시 돌고
-    # 그 산출물은 그대로이므로 같은 자리에서 똑같이 실패하고, 세 번이면 후보가 걷힌다.
-    # 판정은 `runner/prose_check` 가 **단계마다** 한다 ([실측 2026-09-15])
-    return "\n\n".join(sections).rstrip() + "\n"
 
 
 # 4번 칸에서 펼칠 자리. 게이트의 목록을 그대로 쓰지 않는 이유는 **읽는 사람이 볼 제목**과
@@ -321,7 +430,7 @@ def _named_slots(heading: str, section: Any, fields: tuple[tuple[str, str], ...]
 def _feasibility_section(heading: str, section: Any, fields: tuple[tuple[str, str], ...], extra: Any) -> str:
     """4번 칸과 5번 칸 — 물은 자리를 하나씩 펼친다."""
     lines = [heading, ""]
-    market = _flatten(extra.get("market")) if isinstance(extra, dict) else ""
+    market = payload_helpers.as_text(extra.get("market")) if isinstance(extra, dict) else ""
     if market:
         lines.extend([f"**대상 시장**: {market}", ""])
     for key, label in fields:
@@ -330,7 +439,7 @@ def _feasibility_section(heading: str, section: Any, fields: tuple[tuple[str, st
     return "\n".join(lines).rstrip()
 
 
-def _lineage_section(lineage: dict[str, Any]) -> str:
+def _lineage_section(lineage: dict[str, Any], *, hide_urls: bool) -> str:
     """6번 칸 — 「세 곳에서 확인」이 아니라 「한 원본 · 복제 두 곳」.
 
     복제를 뺀 수를 맨 앞에 둔다. 그 수가 이 칸에서 읽는 사람이 가장 먼저 찾는 값이다.
@@ -365,7 +474,8 @@ def _lineage_section(lineage: dict[str, Any]) -> str:
             [
                 f"### 덩어리 {index} — 원본: {_text(origin.get('title'))}",
                 "",
-                f"- 원본: {_text(origin.get('title'))} · {_text(origin.get('published'))} · {_text(origin.get('url'))}",
+                f"- 원본: {_text(origin.get('title'))} · {_text(origin.get('published'))} · "
+                f"{_text(_shown_url(origin, hide=hide_urls))}",
             ]
         )
         # [중요] «적힌 줄 수»로 판정한다. 「목록이 비었나」로 보면 객체가 아닌 값만 든 목록에서
@@ -374,7 +484,7 @@ def _lineage_section(lineage: dict[str, Any]) -> str:
         written = 0
         for copy in payload_helpers.as_list(group.get("copies")):
             label = _text(copy.get("title")) if isinstance(copy, dict) else _text(copy)
-            url = _text(copy.get("url")) if isinstance(copy, dict) else "-"
+            url = _text(_shown_url(copy, hide=hide_urls)) if isinstance(copy, dict) else "-"
             lines.append(f"- 복제: {label} · {url}")
             written += 1
         if not written:
@@ -384,11 +494,21 @@ def _lineage_section(lineage: dict[str, Any]) -> str:
     return "\n".join(lines).rstrip()
 
 
-def _evidence_section(heading: str, items: list[Any], not_found_reason: str | None) -> str:
+def _evidence_section(
+    heading: str,
+    items: list[Any],
+    not_found_reason: str | None,
+    places: dict[str, list[tuple[int, str]]],
+    *,
+    hide_urls: bool,
+) -> str:
     """7번 칸과 8번 칸 — 출처를 표로 편다.
 
     [중요] 0건은 **정상 결과**다. 억지로 채우게 만들면 없는 출처를 지어내게 되고,
     그것이 이 문서에서 가장 나쁜 고장이다. 그래서 0건일 때는 «왜 없었는지»를 싣는다.
+
+    표 위 한 줄이 행 수와 «서로 다른 덩어리 수»를 나란히 말한다 — 행 수만 보이면 한 원본을
+    옮긴 행들이 근거 수를 부풀린다.
     """
     lines = [heading, ""]
     if not items:
@@ -396,23 +516,85 @@ def _evidence_section(heading: str, items: list[Any], not_found_reason: str | No
         lines.append(f"**0건.** {reason}" if reason else "**0건.**")
         return "\n".join(lines)
 
-    lines.append(EVIDENCE_TABLE_HEAD)
+    lines.extend([_lineage_summary(items, places), "", EVIDENCE_TABLE_HEAD])
     for item in items:
         if not isinstance(item, dict):
             # [중요] 이 자리도 이스케이프를 탄다. 세로선이 든 문자열이 그대로 들어가면
             # **칸 수가 어긋나 그 아래 표가 통째로 깨지고, 에러는 나지 않는다**
-            lines.append(f"| {_cell(item)} | - | - | - | - |")
+            lines.append(f"| {_cell(item)} | - | - | - | - | - |")
             continue
         lines.append(
-            "| {title} | {published} | {kind} | {says} | {url} |".format(
+            "| {title} | {published} | {kind} | {says} | {url} | {place} |".format(
                 title=_cell(item.get("title")),
                 published=_cell(item.get("published")),
                 kind=_cell(item.get("kind")),
                 says=_cell(item.get("says")),
-                url=_cell(item.get("url")),
+                url=_cell(_shown_url(item, hide=hide_urls)),
+                place=_cell([f"덩어리 {index} {role}" for index, role in _places_of(item, places)]),
             )
         )
     return "\n".join(lines)
+
+
+def _shown_url(source: Any, *, hide: bool) -> Any:
+    """출처 한 건의 주소 칸에 실을 값. 가릴 때는 게이트가 찌른 주소(문자열)만 `-` 로 가린다.
+
+    [주의] 문자열이 아닌 주소 값은 가리지 않는다 — 단계의 게이트가 그것을 주소로 보지 않아
+    찌르지 않았으므로, 본문 주소를 뽑는 쪽이 대신 봐야 한다.
+    """
+    if not isinstance(source, dict):
+        return None
+    if hide and payload_helpers.url_of(source):
+        return "-"
+    return source.get("url")
+
+
+def _lineage_places(lineage: dict[str, Any]) -> dict[str, list[tuple[int, str]]]:
+    """주소마다 계보상 자리 — (덩어리 번호, 「원본」 · 「복제」).
+
+    [중요] 번호는 6번 칸과 **같은 셈**이다. 6번 칸은 객체가 아닌 덩어리에도 번호를 주므로,
+    그것을 건너뛰고 세면 뒤 번호가 하나씩 밀려 **읽는 사람이 엉뚱한 덩어리를 찾아간다.**
+
+    [중요] 주소는 계보 게이트와 **같은 열쇠**(`normalize_url`)로 맞춘다. 다른 정규화를 쓰면
+    끝 슬래시 하나로 계보에 있는 주소가 「계보에 없음」으로 찍힌다.
+
+    한 주소가 여러 자리에 있을 수 있다(두 원본을 모은 글) — 그 자리를 전부 싣는다.
+    """
+    places: dict[str, list[tuple[int, str]]] = {}
+    for index, group in enumerate(payload_helpers.as_list(lineage.get("groups")), start=1):
+        if not isinstance(group, dict):
+            continue
+        members = [
+            (group.get("origin"), "원본"),
+            *((copy, "복제") for copy in payload_helpers.as_list(group.get("copies"))),
+        ]
+        for member, role in members:
+            key = lineage_gate.normalize_url(payload_helpers.url_of(member))
+            if key and (index, role) not in places.setdefault(key, []):
+                places[key].append((index, role))
+    return places
+
+
+def _places_of(item: Any, places: dict[str, list[tuple[int, str]]]) -> list[tuple[int, str]]:
+    """표 한 행의 계보상 자리. 주소가 없거나 계보에 없으면 빈 목록."""
+    return places.get(lineage_gate.normalize_url(payload_helpers.url_of(item)), [])
+
+
+def _lineage_summary(items: list[Any], places: dict[str, list[tuple[int, str]]]) -> str:
+    """표 위 한 줄 — 행 수 · 서로 다른 덩어리 수 · 계보에 없는 행 수.
+
+    계보에 없는 행을 따로 세는 것은 **덩어리 수에 슬쩍 넣지 않기** 위해서다. 주소가 없는 출처는
+    계보 대조에서 빠지는 것이 규율이라(링크를 못 찾으면 비운다) 그 행에 덩어리를 지어 붙이면
+    표가 거짓말을 한다.
+    """
+    groups = {index for item in items for index, _ in _places_of(item, places)}
+    outside = sum(1 for item in items if not _places_of(item, places))
+    parts = [f"**{len(items)}건**"]
+    if groups:
+        parts.append(f"계보로 묶으면 서로 다른 덩어리 {len(groups)}곳")
+    if outside:
+        parts.append(f"계보에 없는 행 {outside}건")
+    return " · ".join(parts)
 
 
 def _measurement_section(plan: dict[str, Any]) -> str:
@@ -435,7 +617,10 @@ def _measurement_section(plan: dict[str, Any]) -> str:
 
 
 def _unverified_section(
-    decision: dict[str, Any], loaded: dict[str, dict[str, Any]], unverified_urls: list[str] | None
+    decision: dict[str, Any],
+    loaded: dict[str, dict[str, Any]],
+    unverified_urls: list[str] | None,
+    unconfirmed_body_urls: list[str] | None,
 ) -> str:
     """11번 칸 — 모든 단계의 미검증을 «러너가» 모은다.
 
@@ -448,17 +633,19 @@ def _unverified_section(
     [중요] 실재를 확인하지 «못한» 주소를 **맨 뒤에 붙인다.** 앞의 것들은 조사가 닿지 못한
     자리이고 이것은 검사기가 판정을 못 한 자리라 성질이 다른데, 섞어 놓으면 읽는 사람이
     그 둘을 가를 수 없다. 그리고 **덮어쓰지 않는다** — 하나가 다른 하나를 밀어내면
-    사라진 쪽은 아무 흔적도 남기지 않는다.
+    사라진 쪽은 아무 흔적도 남기지 않는다. 본문 속 주소는 그보다 뒤에, 다른 문구로 붙인다 —
+    출처 칸의 주소와 달리 «뽑기»를 거친 주소라 확인 못 한 이유가 하나 더 있다.
     """
     # [중요] `as_strings` 를 쓰지 않는다. 그것은 문자열이 아닌 항목을 «버리는데**,
     # 이 칸은 「비는 게 오히려 의심스러운」 자리라 조용히 사라지면 문서가 거짓말을 한다 —
     # 사전 모양으로 낸 미검증이 통째로 빠지면 「(비어 있습니다)」가 찍힌다.
-    # 문서에 값을 싣는 자리는 전부 `_flatten` 을 지난다
+    # 문서에 값을 싣는 자리는 전부 `payload.as_text` 를 지난다
     gathered: list[str] = []
     for found in loaded.values():
         gathered.extend(_readable(found.get("unverified")))
     gathered.extend(_readable(decision.get("unverified_extra")))
     gathered.extend(UNJUDGED_URL_NOTE.format(url=url) for url in payload_helpers.as_strings(unverified_urls))
+    gathered.extend(BODY_URL_NOTE.format(url=url) for url in payload_helpers.as_strings(unconfirmed_body_urls))
 
     lines = [
         "## 11. 미검증 목록",
@@ -488,7 +675,7 @@ def _unverified_section(
 
 def _readable(value: Any) -> list[str]:
     """미검증 목록을 «사람이 읽는 줄»들로 편다. 빈 항목은 뺀다."""
-    return [line for item in payload_helpers.as_list(value) if (line := _flatten(item))]
+    return [line for item in payload_helpers.as_list(value) if (line := payload_helpers.as_text(item))]
 
 
 def _fold_key(item: str) -> str:
@@ -508,39 +695,9 @@ def _fold_key(item: str) -> str:
     return " ".join(item.split()).rstrip(" .·。")
 
 
-def _flatten(value: Any) -> str:
-    """값을 «사람이 읽는 한 줄»로 편다. 비었으면 빈 문자열이다.
-
-    [중요] 목록을 `str()` 로 바로 찍지 않는다. 그러면 `['국내 ETF 일봉']` 처럼
-    **파이썬 표기가 그대로 문서에 실린다** — 필요한 데이터도 격자도 목록으로 오므로
-    이 문서에서 가장 자주 읽히는 자리들이 코드 조각처럼 보인다. 여기는 사람이 읽는
-    산출물이고, 그 사람은 이 저장소를 열 수 없다.
-
-    [중요] **문서에 값을 싣는 자리는 전부 이 함수를 지난다.** 한 자리만 `str()` 을 쓰면
-    그 자리에서만 같은 고장이 나고, 나머지가 멀쩡하니 **테스트도 눈도 그 한 곳을 놓친다** —
-    실제로 표를 만드는 쪽이 그렇게 빠져 있었다.
-
-    **빈 값을 여기서 표기하지 않는** 이유는 부르는 쪽마다 그 표기가 다르기 때문이다 —
-    절은 「적히지 않았습니다」, 표 한 칸은 `-`. 여기서 정하면 둘 중 하나가 틀린다.
-    """
-    # [중요] **한 겹만 펴면 안 된다.** 격자의 `items` 타입을 일부러 안 묶어 두었으므로
-    # 날짜 «구간»이 목록의 목록으로, 데이터 목록이 사전의 목록으로 오는 것이 정상이다.
-    # 한 겹만 펴면 그 안쪽이 `str()` 을 타서 **바로 이 함수가 막으려던 표기가 그대로 나온다**
-    if isinstance(value, list | tuple):
-        return " · ".join(flattened for flattened in (_flatten(item) for item in value) if flattened)
-
-    if isinstance(value, dict):
-        # [중요] 절도 «비어 있지 않은 값»이라 게이트를 통과한다. 그대로 찍으면
-        # `{'kr': '원화 기준'}` 이 되어 목록과 똑같은 고장이 난다
-        pairs = ((key, _flatten(item)) for key, item in value.items())
-        return " · ".join(f"{key}: {flattened}" for key, flattened in pairs if flattened)
-
-    return payload_helpers.as_text(value)
-
-
 def _text(value: Any) -> str:
     """절 한 자리에 실을 문장으로 만든다. 비었으면 그 사실을 «보이게» 적는다."""
-    return _flatten(value) or EMPTY_SLOT
+    return payload_helpers.as_text(value) or EMPTY_SLOT
 
 
 def _cell(value: Any) -> str:
@@ -549,11 +706,11 @@ def _cell(value: Any) -> str:
     [중요] 세로선을 이스케이프한다. 제목이나 인용문에 세로선이 섞이면 **표가 통째로
     깨지면서 에러는 나지 않는다** — 읽는 사람에게는 그냥 이상한 문서로 보인다.
 
-    [중요] 펴기는 `_flatten` 이 한다. 여기서 `str()` 을 따로 쓰면 목록이 든 칸에서만
+    [중요] 펴기는 `payload.as_text` 가 한다. 여기서 `str()` 을 따로 쓰면 목록이 든 칸에서만
     파이썬 표기가 새고, **출처 표는 이 문서에서 가장 많이 읽히는 자리다.**
 
     빈 칸이 「적히지 않았습니다」가 아니라 `-` 인 것은 **표의 폭** 때문이다 —
     한 칸에 긴 문장이 들어가면 그 줄 전체가 읽기 어려워진다.
     """
-    written = _flatten(value).replace("|", "\\|").replace("\n", " ")
+    written = payload_helpers.as_text(value).replace("|", "\\|").replace("\n", " ")
     return written or "-"

@@ -29,12 +29,18 @@ from research_lab.common_constants import (
     REBUTTAL_FILENAME,
 )
 from research_lab.gate import lineage as lineage_gate
-from research_lab.runner import decision_log, naming, prose_check, state, url_check
+from research_lab.runner import decision_log, naming, previous_failure, prose_check, state, url_check
 from research_lab.runner import payload as payload_helpers
 from research_lab.runner.atomic import atomic_write
 from research_lab.runner.steps import StepQualityFailed
 
 AgentCaller = Callable[[str], AgentResult]
+
+# 양쪽에서 온 출처의 편을 잇는 글자 — 지시문에 「[찬성·반증]」으로 실린다
+SIDE_JOINER: Final = "·"
+
+# 같은 주소의 출처를 합칠 때 앞쪽이 비었으면 뒤쪽에서 채우는 자리
+MERGED_FILL_KEYS: Final = ("title", "published")
 
 PROMPT: Final = """`.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 그 규율을 그대로 따르세요.
 
@@ -57,6 +63,9 @@ PROMPT: Final = """`.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 
 
 **[중요] 위 목록의 URL 은 하나도 빠짐없이** 어느 덩어리의 원본이나 복제 자리에 놓여야 합니다.
 빠뜨리면 **독립 소스 수가 통째로 틀리고, 그 고장은 에러를 내지 않습니다.**
+
+**[중요] 한 원본은 한 덩어리에만 둡니다.** 다른 덩어리의 원본이나 복제로 또 적으면 독립 소스 수가
+그만큼 부풉니다. 두 원본을 함께 옮긴 글은 두 덩어리의 복제로 적어도 됩니다.
 
 독립된 출처는 **자기 혼자인 덩어리**로 적으면 됩니다 (복제가 빈 목록).
 독립 소스 수는 따로 적지 않습니다 — 자기 혼자인 덩어리가 독립 1 이라,
@@ -105,7 +114,7 @@ def run(run_dir: Path, ask: AgentCaller) -> None:
     output_dir = run_dir / naming.folder_name(candidate.claim, candidate.identifier)
     sources = _collected_sources(output_dir)
 
-    result = ask(build_prompt(candidate.claim, sources))
+    result = ask(previous_failure.with_previous_failure(build_prompt(candidate.claim, sources), run_dir, "lineage"))
     payload = invoke.parse_json_answer(result, what="계보")
 
     # 무엇을 놓고 판단했고 얼마를 썼는지는 «게이트 앞»에서 남긴다.
@@ -131,12 +140,21 @@ def run(run_dir: Path, ask: AgentCaller) -> None:
     #
     # [중요] **계보는 앞 단계가 안 낸 주소를 새로 들 수 있다** — 「이건 저 글을 베낀 것」이라며
     # 복제를 하나 더 적는 자리가 그것이고, 거기가 없는 출처를 지어낼 수 있는 입구다.
-    # 앞 단계에서 이미 찔렀다는 이유로 생략하면 **새로 들어온 주소만 검사를 비켜 간다.**
+    # 그래서 **새로 든 주소는 빠짐없이** 찌른다.
+    #
+    # [중요] 반대로 **앞 단계가 모아 이미 찌른 주소는 다시 찌르지 않는다.** 그 주소는 계보 게이트가
+    # «반드시 넣으라»고 요구하는 것이라, 앞에서 판정 못 함이던 것이 여기서 죽음으로 나오면
+    # 게이트 둘이 서로 반대를 요구해 **통과할 길이 없는 단계**가 되고 세 번이면 후보가 걷힌다.
+    # 그 주소의 판정은 앞 단계의 기록에 있고, 판정 못 한 것은 거기서 근거 문서에 닿는다.
     #
     # 자리가 «게이트 뒤 · 저장 앞»인 것은 수집과 같다 — 앞에 두면 어차피 막힐 단계에서
     # 남의 서버를 두드리고, 뒤에 두면 죽은 URL 이 든 파일이 이미 쓰인 뒤다
     prose_check.assert_self_contained(run_dir, "lineage", payload, what="계보 산출물")
-    url_check.assert_sources_exist(run_dir, "lineage", _cited_sources(groups), what="계보 출처")
+    collected = {lineage_gate.normalize_url(_url_of(source)) for source in sources}
+    introduced = [
+        source for source in _cited_sources(groups) if lineage_gate.normalize_url(_url_of(source)) not in collected
+    ]
+    url_check.assert_sources_exist(run_dir, "lineage", introduced, what="계보 출처")
 
     with atomic_write(output_dir / LINEAGE_FILENAME) as file:
         json.dump(
@@ -181,15 +199,37 @@ def _collected_sources(output_dir: Path) -> list[Any]:
 
     어느 쪽에서 왔는지를 함께 담는다 — 계보를 읽는 사람이 「반증 쪽이 원본이었다」를
     바로 볼 수 있어야 하기 때문이다.
+
+    [중요] 주소가 같은 출처는 **한 줄로 합치고** 편을 `찬성·반증` 으로 적는다. 같은 주소를 두 줄로
+    받은 에이전트가 그것을 두 덩어리로 나누면 한 원본이 두 번 세어진다 — 계보 게이트가 그
+    모양을 막으므로 지시문이 먼저 그 유인을 없앤다. [실측 2026-09-28] 열 회차 중 여섯에서
+    같은 주소가 양쪽에 있었다. 같은 주소인지는 계보 게이트와 «같은 열쇠»로 가른다
     """
-    collected: list[Any] = []
+    merged: dict[str, dict[str, Any]] = {}
     for filename, side, key in (
         (PRO_EVIDENCE_FILENAME, "찬성", "evidence"),
         (REBUTTAL_FILENAME, "반증", "rebuttals"),
     ):
         for source in _read_sources(output_dir / filename, key):
-            collected.append({**source, "side": side})
-    return collected
+            normalized = lineage_gate.normalize_url(_url_of(source))
+            found = merged.get(normalized)
+            if found is None:
+                merged[normalized] = {**source, "side": side}
+                continue
+            if side not in found["side"].split(SIDE_JOINER):
+                found["side"] = f"{found['side']}{SIDE_JOINER}{side}"
+            # [중요] 합칠 때 앞쪽에 «빈» 제목 · 발행일은 뒤쪽 것으로 채운다. 발행일은 「누가 원본인가」를
+            # 가르는 재료라(발행일이 몰리면 받아쓴 것이다), 한쪽에만 적혔는데 버리면 계보가 그것 없이 갈린다
+            for key in MERGED_FILL_KEYS:
+                if _blank(found.get(key)):
+                    found[key] = source.get(key)
+    return list(merged.values())
+
+
+def _blank(value: Any) -> bool:
+    """제목 · 발행일 자리가 비었나 — 「unknown」도 빈 것이다(지시문이 모르면 그렇게 적으라 한다)."""
+    written = payload_helpers.as_text(value)
+    return not written or written.casefold() == "unknown"
 
 
 def _read_sources(path: Path, key: str) -> list[dict[str, Any]]:
@@ -215,13 +255,13 @@ def _read_sources(path: Path, key: str) -> list[dict[str, Any]]:
     return [
         item
         for item in payload_helpers.as_list(loaded.get(key))
-        if isinstance(item, dict) and payload_helpers.as_text(item.get("url"))
+        if isinstance(item, dict) and payload_helpers.url_of(item)
     ]
 
 
 def _url_of(source: Any) -> str:
-    """출처에서 URL 을 꺼낸다."""
-    return payload_helpers.as_text(source.get("url")) if isinstance(source, dict) else ""
+    """출처에서 URL 을 꺼낸다 — 계보 게이트와 같게 «문자열»만 주소로 본다."""
+    return payload_helpers.url_of(source)
 
 
 def _describe(source: Any) -> str:

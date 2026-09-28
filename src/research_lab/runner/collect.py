@@ -91,10 +91,10 @@ PROMPT: Final = """`.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 
 {axis_demand}
 
 값이 비어 있는 말마다 **무엇을 얼마로 바꿀 수 있는지**를 `params` 에 적습니다 —
-축 이름과 단위, 그리고 **서로 다른 숫자 후보값 2개 이상**입니다.
+축 이름과 단위, **그 축이 푸는 표현(`term`)**, 그리고 **서로 다른 숫자 후보값 2개 이상**입니다.
 
-- 「짧은 기간 내 동시 매수」 → `{{"name": "동시 매수 판정 창", "unit": "거래일", "candidates": [5, 10, 20]}}`
-- 「전저점 대비」 → `{{"name": "전저점 산정 일수", "unit": "거래일", "candidates": [20, 60]}}`
+- 「짧은 기간 내 동시 매수」 → `{{"name": "동시 매수 판정 창", "term": "짧은 기간", "unit": "거래일", "candidates": [5, 10, 20]}}`
+- 「전저점 대비」 → `{{"name": "전저점 산정 일수", "term": "전저점 대비", "unit": "거래일", "candidates": [20, 60]}}`
 
 **축을 못 정하겠으면 빈 목록으로 두세요.** 「옥석을 가려」처럼 무엇을 채울지조차 없는 말과,
 「(미래) 저점에서 산다」처럼 판정 시점에 알 수 없는 값이 여기 걸립니다.
@@ -105,7 +105,7 @@ PROMPT: Final = """`.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 
 
 다른 말 없이 **JSON 하나만** 출력하세요.
 
-{{"claim": "받은 한 줄 주장 그대로", "identifier": "짧은-영문-이름", "queries": ["던진 검색어 전부"], "params": [{{"name": "축 이름", "unit": "단위", "candidates": [숫자, 숫자]}}], "evidence": [{{"title": "", "url": "", "published": "YYYY-MM-DD 또는 unknown", "kind": "primary|secondary", "says": "이 출처가 주장을 어떻게 뒷받침하나"}}], "unverified": ["확인하지 못한 것"]}}
+{{"claim": "받은 한 줄 주장 그대로", "identifier": "짧은-영문-이름", "queries": ["던진 검색어 전부"], "params": [{{"name": "축 이름", "term": "이 축이 푸는 표현", "unit": "단위", "candidates": [숫자, 숫자]}}], "evidence": [{{"title": "", "url": "", "published": "YYYY-MM-DD 또는 unknown", "kind": "primary|secondary", "says": "이 출처가 주장을 어떻게 뒷받침하나"}}], "unverified": ["확인하지 못한 것"]}}
 """
 
 # 출처가 실재하지 않아 «다시» 물을 때 지시문 뒤에 붙이는 말.
@@ -138,6 +138,10 @@ def build_prompt(claim: str, *, source_problem: str | None = None) -> str:
     「이 주장은 값이 다 정해졌다」고 넘어가는 모양이 나왔다. 그러면 그 후보는 기각되는데,
     **탐색에서 한 번 통과했던 후보가 수집에서 죽는** 일이 된다.
 
+    [중요] 이 단계는 **표현마다** 축을 요구하고(탐색은 축 하나 이상), 축이 표현을 푸는지는
+    축의 `term` 으로 가른다. 그래서 짚어 준 글자를 `term` 에 «그대로» 적으라고 한다 —
+    옮겨 적다 말을 바꾸면 멀쩡한 후보가 영구 기각된다.
+
     Args:
         claim: 팔 후보의 한 줄 주장
         source_problem: 앞선 시도에서 출처가 막힌 사유. 주면 그것을 짚어 다시 내라는
@@ -150,8 +154,9 @@ def build_prompt(claim: str, *, source_problem: str | None = None) -> str:
     if terms:
         demand = (
             f"이 주장에는 값이 비어 있는 표현이 있습니다 — **{' · '.join(terms)}**.\n"
-            f"**이 표현들은 반드시 축으로 풀어야 합니다.** 하나도 풀지 못하면 그 후보는 "
-            f"잴 수 없는 것으로 판정되어 사유와 함께 기록됩니다."
+            f"**표현마다** 그것을 푸는 축을 내고, 그 축의 `term` 에 그 표현을 위 글자 그대로 적습니다 "
+            f"(한 축이 여러 표현을 함께 풀면 `term` 에 모두 적습니다). "
+            f"**한 표현이라도** 풀지 못하면 그 후보는 잴 수 없는 것으로 판정되어 사유와 함께 기록됩니다."
         )
     else:
         demand = "이 주장은 값이 다 정해져 있습니다. 그래도 잴 때 갈릴 축이 있으면 적고, 없으면 `params` 는 빈 목록입니다."
@@ -224,7 +229,7 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
 
         payload = _ask_about(run_dir, candidate.claim, ask)
 
-        shortfall = quantified.shortfall_reason(candidate.claim, payload.get("params"))
+        shortfall = quantified.shortfall_reason(candidate.claim, payload.get("params"), each_term=True)
         if shortfall is not None:
             _reject(run_dir, ledger_path, candidate.claim, shortfall)
             rejections += 1
@@ -334,7 +339,7 @@ def _carry_forward(payload: dict[str, Any], previous: dict[str, Any], *, claim: 
 
     # 빈 목록도 반쯤 적은 축도 여기서 같게 다뤄진다 — 가르는 것은 «모양»이 아니라
     # 「이 답만으로 격자를 짤 수 있나」이고, 그 판정은 게이트가 이미 안다
-    if quantified.shortfall_reason(claim, payload.get("params")) is not None:
+    if quantified.shortfall_reason(claim, payload.get("params"), each_term=True) is not None:
         payload["params"] = payload_helpers.as_list(previous.get("params"))
 
 

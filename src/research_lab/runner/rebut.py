@@ -26,7 +26,7 @@ from research_lab.common_constants import (
 )
 from research_lab.gate import queries as query_gate
 from research_lab.gate import rebuttal as rebuttal_gate
-from research_lab.runner import decision_log, naming, prose_check, state, url_check
+from research_lab.runner import decision_log, naming, previous_failure, prose_check, state, url_check
 from research_lab.runner import payload as payload_helpers
 from research_lab.runner.atomic import atomic_write
 from research_lab.runner.steps import StepQualityFailed
@@ -101,7 +101,8 @@ def run(run_dir: Path, ask: AgentCaller) -> None:
     if candidate is None:
         raise RuntimeError(f"내부 불변조건 위반: 그 회차의 후보가 상태에 없습니다 — {run_dir}")
 
-    result = ask(build_prompt(candidate.claim))
+    # [주의] 「한 줄 주장만 싣는다」와 어긋나지 않는다 — 붙는 것은 반증 «자신의» 앞선 사유뿐이다
+    result = ask(previous_failure.with_previous_failure(build_prompt(candidate.claim), run_dir, "rebut"))
     payload = invoke.parse_json_answer(result, what="반증")
 
     queries = payload_helpers.as_strings(payload.get("queries"))

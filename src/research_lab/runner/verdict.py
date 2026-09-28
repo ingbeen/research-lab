@@ -27,7 +27,16 @@ from research_lab.agent.invoke import AgentResult
 from research_lab.common_constants import DOSSIER_DIR, VERDICT_FILENAME
 from research_lab.gate import urls as url_gate
 from research_lab.gate import verdict as verdict_gate
-from research_lab.runner import decision_log, dossier, ledger, naming, prose_check, state, url_check
+from research_lab.runner import (
+    decision_log,
+    dossier,
+    ledger,
+    naming,
+    previous_failure,
+    prose_check,
+    state,
+    url_check,
+)
 from research_lab.runner import payload as payload_helpers
 from research_lab.runner.atomic import atomic_write
 from research_lab.runner.steps import StepQualityFailed
@@ -162,7 +171,7 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller, *, dossier_dir: Path
     # 판정 호출을 사는 것이 순 낭비다 — 값싼 게이트를 먼저 돌리는 것과 같은 이유다
     loaded = dossier.load_required(output_dir)
 
-    result = ask(build_prompt(candidate.claim, loaded))
+    result = ask(previous_failure.with_previous_failure(build_prompt(candidate.claim, loaded), run_dir, STEP_NAME))
     payload = invoke.parse_json_answer(result, what="판정")
 
     # 무엇을 놓고 판단했고 얼마를 썼는지는 «게이트 앞»에서 남긴다
@@ -194,9 +203,9 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller, *, dossier_dir: Path
 def _unverified_urls(run_dir: Path) -> list[str]:
     """그 회차에서 실재를 «확인하지 못한» 주소를 결정 로그에서 모은다.
 
-    [중요] **회차 전체를 본다.** 수집과 반증이 각자 자기 출처를 찌르므로 기록이 단계별로
-    흩어져 있는데, 한 단계만 보면 나머지가 조용히 빠지고 **빠졌다는 사실은 아무 에러도
-    내지 않는다** — 문서를 받는 쪽은 그 주소가 확인된 것이라고 읽게 된다.
+    [중요] **회차 전체를 본다.** 출처를 내는 단계마다 자기 출처를 찌르므로 기록이 단계별로
+    흩어져 있는데, 한 단계만 보면 나머지가 조용히 빠지고 **빠졌다는 사실은 아무 에러도 내지
+    않는다** — 문서를 받는 쪽은 그 주소가 확인된 것이라고 읽게 된다.
 
     [중요] 다만 한 단계 안에서는 **마지막 판정만** 본다. 수집은 출처가 죽으면 다시 묻고
     후보까지 바꾸므로, 한 단계가 판정을 여러 번 남긴다 — 앞의 것들은 **버린 답**이다.
@@ -222,6 +231,10 @@ def _unverified_urls(run_dir: Path) -> list[str]:
     latest: dict[str, list[str]] = {}
     for entry in decision_log.read(run_dir):
         if entry.get("gate") != url_check.GATE_NAME or entry.get("event") != decision_log.EVENT_READ:
+            continue
+        if entry.get("scope") == url_check.SCOPE_BODY:
+            # 본문 주소는 여기서 모으지 않는다 — 조립부가 «다른 문구»로 따로 싣는다.
+            # 여기서도 모으면 같은 주소가 두 문구로 두 번 실린다
             continue
         latest[payload_helpers.as_text(entry.get("step"))] = payload_helpers.as_strings(
             entry.get(url_gate.KEY_UNKNOWN_URLS)
@@ -252,8 +265,17 @@ def _store(
     with atomic_write(output_dir / VERDICT_FILENAME) as file:
         json.dump(decision, file, ensure_ascii=False, indent=2)
 
+    # [중요] 본문 주소를 조립 «전»에 찌른다 — 그 결과가 11번 칸에 실린다. **막지 않는다**:
+    # 산문에서 주소를 뽑는 일은 틀릴 수 있고, 조립은 회차의 마지막 단계라 여기서 막으면
+    # 이미 굳은 앞 단계 산출물을 두고 매 회차 같은 자리에서 실패한다
+    unconfirmed = url_check.check_body_urls(run_dir, STEP_NAME, dossier.body_urls(run_dir, candidate, decision))
     written = dossier.assemble(
-        run_dir, candidate, decision, dossier_dir=dossier_dir, unverified_urls=_unverified_urls(run_dir)
+        run_dir,
+        candidate,
+        decision,
+        dossier_dir=dossier_dir,
+        unverified_urls=_unverified_urls(run_dir),
+        unconfirmed_body_urls=unconfirmed,
     )
 
     decision_log.record(

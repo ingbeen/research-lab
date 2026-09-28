@@ -16,6 +16,7 @@ from typing import Any, Final
 from research_lab.agent.invoke import AgentResult
 from research_lab.common_constants import DECISION_LOG_FILENAME
 from research_lab.runner import jsonl, payload
+from research_lab.runner.failures import FailureKind
 
 # 이벤트 종류. 「무엇을 읽었나 · 무엇을 기준으로 판단했나 · 무엇을 버렸고 왜」를
 # 나중에 기계가 골라낼 수 있도록 이름을 고정한다 — 자유 문자열이면 훑을 때 매번 추측해야 한다
@@ -203,6 +204,50 @@ def deferred_claims(run_dir: Path, step: str) -> list[str]:
     """
     claims, _ = deferral_state(run_dir, step)
     return claims
+
+
+def last_quality_failure(run_dir: Path, step: str) -> str | None:
+    """그 단계가 그 실행 폴더에서 «마지막으로» 품질 게이트에 막힌 사유.
+
+    [중요] 품질 실패는 회차 안에서 재시도되지 않는다. 그 사유를 다음 시도의 지시문에 싣지
+    않으면 에이전트는 무엇이 막혔는지 모른 채 **같은 표현 · 같은 주소를 다시 내고**, 같은
+    자리에서 세 번이면 멀쩡한 후보가 원장에서 걷힌다. 그 재료가 이 로그에 이미 있으므로
+    새 상태를 만들지 않는다 — 미룬 후보 · 기각 수를 여기서 세는 것과 같은 방식이다.
+
+    [중요] 러너가 시도마다 남기는 실패 줄(`kind`)만 본다. 그 원문이 단계가 올린 사유 전부다.
+    한도 · 인증 · 예산 · 그 외 실패는 에이전트가 고칠 사유가 아니라 보지 않는다 — 그리고 그런
+    실패가 품질 실패 «뒤»에 와도 그 사유를 덮지 않는다. 한도로 끊긴 시도는 고친 것이 아니라
+    말할 기회를 못 얻은 것이다.
+
+    [중요] **그 시도에서 에이전트가 «답을 냈을» 때의 품질 실패만** 돌려준다(그 시도에 비용 줄이 있다).
+    답을 부르기 «전»에 막힌 실패(판정 단계의 「앞 단계 산출물이 없다」)는 에이전트가 답으로 고칠
+    사유가 아니다 — 그것을 「사유대로 고치라」와 함께 실으면 파일을 쓸 수 있는 에이전트가 **그
+    산출물을 직접 써 넣어** 앞 단계의 게이트를 통째로 비켜 갈 수 있다.
+
+    Args:
+        run_dir: 그 실행 폴더
+        step: 그 단계의 이름
+
+    Returns:
+        마지막 품질 실패의 원문. 없으면 None
+    """
+    reason: str | None = None
+    answered = False
+    for entry in read(run_dir):
+        if entry.get("step") != step:
+            continue
+        if entry.get("event") == EVENT_COST:
+            answered = True
+            continue
+        # 러너가 한 시도를 끝내며 적는 줄만 시도의 경계로 본다 — 단계가 게이트마다 적는 줄(`gate=`)은
+        # 그 시도 «안»의 줄이다
+        if entry.get("event") != EVENT_FAILED or not isinstance(entry.get("attempt"), int):
+            continue
+        raw = payload.as_text(entry.get("raw"))
+        if entry.get("kind") == FailureKind.QUALITY.value and answered and raw:
+            reason = raw
+        answered = False
+    return reason
 
 
 def read(run_dir: Path) -> list[dict[str, Any]]:

@@ -149,6 +149,10 @@ class CycleOutcome:
     produced: int
     spent_usd: float
     tokens: usage.Tokens
+    # 근거 문서를 «낸» 실행 폴더들의 전체 토큰 — 이어받기 전 회차가 쓴 몫까지 든다.
+    # 「한 장이 창의 몇 %인가」의 분자다. `tokens` 는 이번 회차가 더한 만큼(차분)이라
+    # 이어받은 회차에서 그것을 장수로 나누면 그 장을 만든 앞 단계들이 통째로 빠진다
+    dossier_tokens: usage.Tokens
     stop_reason: str
     last_run_dir: Path
 
@@ -197,6 +201,7 @@ def main(argv: list[str] | None = None) -> int:
         stop_reason=outcome.stop_reason,
         last_run_dir_name=outcome.last_run_dir.name,
         tokens=outcome.tokens,
+        dossier_tokens=outcome.dossier_tokens,
     )
     return outcome.exit_code
 
@@ -233,17 +238,18 @@ def _run_cycles(args: argparse.Namespace) -> CycleOutcome:
 
     # 「한 장 만들고 끝」이 아니라 요청한 장수만큼 «돈다». 남는 구독 토큰을 쓰는 것이
     # 이 프로젝트의 목적이라, 일찍 끝났다고 멈추면 목적과 어긋난다
-    run_dir = _resolve_run_dir(args.run_dir)
+    run_dir = _resolve_run_dir(args.run_dir, ledger_path=args.ledger)
     result: cycle.CycleResult | None = None
     spent_usd = 0.0
     spent_tokens = usage.Tokens()
+    dossier_tokens = usage.Tokens()
     produced = 0
     stop_reason = CONTINUE_REASON
 
     for iteration in range(1, args.cycle_dossiers + 1):
         if iteration > 1:
             # 지정된 폴더는 «첫» 반복의 것이다. 계속 쓰면 두 번째 장이 첫 장 위에 덮인다
-            run_dir = _resolve_run_dir(None)
+            run_dir = _resolve_run_dir(None, ledger_path=args.ledger)
 
         # [중요] 이 회차가 쓴 비용은 «차분»으로 센다. 폴더의 합을 그대로 더하면
         # 이어받은 폴더에 남아 있던 **지난 회차의 비용까지 이번 것으로 세어** 예산이
@@ -268,6 +274,7 @@ def _run_cycles(args: argparse.Namespace) -> CycleOutcome:
                 produced=produced,
                 spent_usd=spent_usd,
                 tokens=spent_tokens,
+                dossier_tokens=dossier_tokens,
                 stop_reason=f"이미 도는 회차가 원장이나 실행 폴더를 잡고 있어 시작하지 못했습니다 — {run_dir.name}",
                 last_run_dir=run_dir,
             )
@@ -283,12 +290,18 @@ def _run_cycles(args: argparse.Namespace) -> CycleOutcome:
                 produced=produced,
                 spent_usd=spent_usd,
                 tokens=spent_tokens,
+                dossier_tokens=dossier_tokens,
                 stop_reason="자격증명이 발견돼 그 자리에서 멈췄습니다",
                 last_run_dir=run_dir,
             )
 
         if result.produced:
             produced += 1
+            # [중요] 이 폴더의 «전체»를 더한다(차분이 아니다). 한 장은 그 폴더가 처음부터 끝까지
+            # 쓴 것으로 만들어졌다 — [실측 2026-09-28] 이어받기 회차가 차분으로 4.1% 를 적었는데
+            # 그 폴더 전체는 약 29.3% 였다. 문서를 못 낸 폴더는 더하지 않는다 — 그 소비는 아직
+            # 어느 장의 것도 아니고, 다음 회차가 이어받아 그때의 한 장에 들어간다
+            dossier_tokens = dossier_tokens + usage.tokens_of(run_dir)
 
         halt = _loop_stop_reason(result, produced=produced, requested=args.cycle_dossiers)
         decision_log.record(
@@ -317,6 +330,7 @@ def _run_cycles(args: argparse.Namespace) -> CycleOutcome:
         produced=produced,
         spent_usd=spent_usd,
         tokens=spent_tokens,
+        dossier_tokens=dossier_tokens,
         stop_reason=stop_reason,
         last_run_dir=run_dir,
     )
@@ -533,18 +547,21 @@ def _print_cycle_summary(outcome: CycleOutcome) -> None:
     # [주의] 「한도 기준」이 붙는 쪽은 **새 토큰**이다. 캐시 읽기는 한도를 먹지 않는다
     # (`usage` 모듈 머리의 실측). 둘을 나란히 두되 어느 쪽이 비율의 분자인지를 label 로 가른다
     print(f"토큰: 한도 기준 {tokens.new_total:,} · 캐시 읽기 {tokens.cache_read:,} (한도에 안 셈)")
-    print(f"5시간 한도 대비: {_share_text(tokens, produced=outcome.produced)}")
+    print(f"5시간 한도 대비: {_share_text(outcome)}")
     print(f"멈춘 이유: {outcome.stop_reason}")
 
 
-def _share_text(tokens: usage.Tokens, *, produced: int) -> str:
+def _share_text(outcome: CycleOutcome) -> str:
     """한도 비율을 사람이 읽는 한 줄로.
 
     [중요] 보정값이 없을 때 **「0%」라고 적지 않는다.** 0 은 「한도를 안 썼다」로 읽히고,
     실제로는 「분모를 모른다」다. 분모는 프로그램으로 읽을 수 없어 사람이 한 번 재서 넣는다.
+
+    [중요] 회차 비율과 한 장당 비율은 **분자가 다르다** — 앞의 것은 이번 회차가 더한 만큼,
+    뒤의 것은 문서를 낸 폴더의 전체다. 회차 로그에 적히는 값과 같은 셈이어야 한다.
     """
     calibration = usage.calibrated()
-    share = usage.window_share_percent(tokens, calibration=calibration)
+    share = usage.window_share_percent(outcome.tokens, calibration=calibration)
     if calibration is None:
         return "잴 수 없음 — 한 창의 한도를 아직 보정하지 않았습니다 (회차 전후의 사용량을 비교해 넣습니다)"
     if share is None:
@@ -553,12 +570,14 @@ def _share_text(tokens: usage.Tokens, *, produced: int) -> str:
         # 하나는 고장이라(응답에 `usage` 가 안 실림) 여기서 0% 라고 말하지 않는다
         return "잴 수 없음 — 이 회차의 토큰이 0 입니다 (전부 건너뛴 회차이거나, 계측이 빠졌습니다)"
 
-    per_dossier = usage.per_dossier_percent(share, produced=produced)
+    per_dossier = usage.per_dossier_percent(
+        usage.window_share_percent(outcome.dossier_tokens, calibration=calibration), produced=outcome.produced
+    )
     tail = f" · 근거 문서 한 장당 약 {per_dossier:.1f}%" if per_dossier is not None else ""
     return f"이 회차가 한 창의 약 {share:.1f}%{tail} (보정 기준일 {calibration.measured_on})"
 
 
-def _resolve_run_dir(explicit: Path | None) -> Path:
+def _resolve_run_dir(explicit: Path | None, *, ledger_path: Path) -> Path:
     """이번에 쓸 실행 폴더를 고른다 — **회차의 첫 단계인 「① 미완성」이 여기다.**
 
     [중요] 미완성을 찾지 않고 언제나 새 폴더를 만들면 **이어받기가 영영 동작하지 않는다.**
@@ -568,6 +587,7 @@ def _resolve_run_dir(explicit: Path | None) -> Path:
 
     Args:
         explicit: 사람이 지정한 실행 폴더. 있으면 그대로 쓴다
+        ledger_path: 그 회차가 쓰는 원장. 박힌 후보가 이미 닫힌 폴더를 거르는 데 쓴다
 
     Returns:
         이어받을 폴더, 없으면 새 폴더
@@ -575,7 +595,7 @@ def _resolve_run_dir(explicit: Path | None) -> Path:
     if explicit is not None:
         return explicit
 
-    unfinished = _latest_unfinished_run_dir()
+    unfinished = _latest_unfinished_run_dir(ledger_path)
     if unfinished is not None:
         print(f"[이어받기] 미완성을 찾았습니다: {unfinished}")
         return unfinished
@@ -604,7 +624,7 @@ def _new_run_dir() -> Path:
     return run_dir
 
 
-def _latest_unfinished_run_dir() -> Path | None:
+def _latest_unfinished_run_dir(ledger_path: Path) -> Path | None:
     """아직 안 끝난 실행 폴더 중 가장 최근 것을 찾는다.
 
     폴더 이름이 `YYYYMMDD_HHMM` 이라 문자열 정렬이 곧 시간 정렬이다.
@@ -659,15 +679,37 @@ def _latest_unfinished_run_dir() -> Path | None:
         if remaining is None:
             continue
 
-        if remaining in steps.CANDIDATE_STEPS and state.pinned_candidate(run_dir) is None:
-            # [중요] 단계를 늘리기 «전»에 끝난 회차가 여기 걸린다. 수집까지 끝냈지만
-            # 그 회차가 어느 후보를 팠는지 상태에 없어, 이어받으면 후보 없이 반증이 돌고
-            # 상한까지 헛돈다. 위 갈래와 같은 이유로 건너뛰고 새 회차를 시작한다
-            continue
+        if remaining in steps.CANDIDATE_STEPS:
+            candidate = state.pinned_candidate(run_dir)
+            if candidate is None:
+                # [중요] 단계를 늘리기 «전»에 끝난 회차가 여기 걸린다. 수집까지 끝냈지만
+                # 그 회차가 어느 후보를 팠는지 상태에 없어, 이어받으면 후보 없이 반증이 돌고
+                # 상한까지 헛돈다. 위 갈래와 같은 이유로 건너뛰고 새 회차를 시작한다
+                continue
+            if _candidate_closed(candidate, ledger_path):
+                # [중요] 박힌 후보가 원장에서 이미 닫혔다 — 단계를 더한 날 그 전에 끝난 폴더가
+                # 전부 여기 걸린다. 이어받으면 모든 단계가 건너뛰어져 **한 장도 못 낸 반복**이
+                # 되고 회차 루프가 거기서 멈춘다(원장에 안 판 후보가 남아 있는데도). 예약 회차는
+                # 한 장을 요청하므로 그 회차가 통째로 버려진다 — 루프 쪽에서 막으면 그 한 번을
+                # 이미 쓴 뒤라, 고르는 이 자리에서 막는다
+                continue
 
         return run_dir
 
     return None
+
+
+def _candidate_closed(candidate: state.Candidate, ledger_path: Path) -> bool:
+    """박힌 후보가 원장에서 이미 닫혔나 — 판정은 러너의 단계 건너뛰기와 «같은 함수»가 한다.
+
+    [중요] 원장을 못 읽으면 **닫히지 않은 것으로** 본다(지금처럼 이어받는다). 판정을 못 한 것이지
+    닫혔다고 판정한 것이 아니다 — 여기서 건너뛰면 멀쩡한 미완성이 버려지고 그 후보의 수집을
+    다시 산다. 원장이 정말 망가졌다면 이어받은 회차가 그 자리에서 드러낸다.
+    """
+    try:
+        return cycle.closed_candidate_reason(candidate, ledger_path) is not None
+    except (OSError, UnicodeDecodeError):
+        return False
 
 
 def _agent_env(source: Mapping[str, str]) -> dict[str, str]:

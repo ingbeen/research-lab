@@ -90,6 +90,7 @@ def finished(
     stop_reason: str,
     last_run_dir_name: str,
     tokens: usage.Tokens | None,
+    dossier_tokens: usage.Tokens | None,
 ) -> None:
     """회차가 끝났다고 적는다 — **어느 경로로 끝나든.**
 
@@ -102,7 +103,9 @@ def finished(
         spent_usd: 그 회차가 쓴 돈
         stop_reason: 루프가 멈춘 이유
         last_run_dir_name: 마지막 실행 폴더의 **이름**
-        tokens: 그 회차가 쓴 토큰 성분. 모르면 None
+        tokens: 그 회차가 쓴 토큰 성분(이번 회차가 더한 만큼). 모르면 None
+        dossier_tokens: 근거 문서를 낸 실행 폴더들의 «전체» 토큰. 한 장당 비율의 분자다.
+            모르면 None
 
     [주의] 예외가 빠져나가 프로세스가 죽으면 이 줄이 안 적힌다. 그것이 «맞다» —
     그 상태는 실제로 중단이고, 그렇게 읽히는 것이 이 모듈의 목적이다.
@@ -131,7 +134,21 @@ def finished(
         # 담지 않기** 위해서다. 덧붙이기 전용 파일이라 과거 줄은 고치지 않는다
         entry["tokens_new_total"] = tokens.new_total
         entry["window_share_percent"] = share
-        entry["window_share_per_dossier_percent"] = usage.per_dossier_percent(share, produced=produced)
+        # [중요] 한 장당 비율의 분자는 이번 회차의 차분이 아니라 **문서를 낸 폴더의 전체**다.
+        # 차분을 장수로 나누면 이어받은 회차에서 그 장을 만든 앞 단계들이 통째로 빠진다 —
+        # [실측 2026-09-28] 이어받기 회차가 4.1% 로 적었는데 그 폴더 전체는 약 29.3% 였다.
+        #
+        # [주의] 2026-09-28 이전의 줄에는 이 자리에 `window_share_per_dossier_percent`(회차
+        # 차분 ÷ 장수)가 들어 있다. 뜻이 다르므로 열쇠 이름을 바꿨다 — 같은 이름에 다른 뜻을
+        # 담으면 과거 줄과 새 줄이 한 열로 섞여 비교가 조용히 틀린다. 과거 줄은 고치지 않는다
+        entry["dossier_tokens_new_total"] = dossier_tokens.new_total if dossier_tokens is not None else None
+        entry["per_dossier_window_share_percent"] = (
+            usage.per_dossier_percent(
+                usage.window_share_percent(dossier_tokens, calibration=calibration), produced=produced
+            )
+            if dossier_tokens is not None
+            else None
+        )
         entry["limit_calibrated_on"] = calibration.measured_on if calibration is not None else None
 
     _append(runs_dir, entry)

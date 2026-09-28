@@ -276,6 +276,9 @@ def test_the_header_says_how_the_document_was_made(prepared: Any) -> None:
 
     assert "서로 다른 세션" in written
     assert "실제로 호출" in written
+    header = written.split("## 1.")[0]
+    assert "본문" in header, "본문 서술 속 주소도 확인한다는 것이 머리말에 있어야 한다"
+    assert "https://" in header, "확인한 주소가 어떤 꼴인지(스킴이 붙은 것) 머리말이 밝혀야 한다"
     assert "슬리피지" in written
 
 
@@ -408,7 +411,7 @@ def test_a_market_list_is_written_as_prose(prepared: Any) -> None:
     """
     목적: 「대상 시장」 자리도 «파이썬 표기»로 새지 않는 계약을 고정한다.
 
-    이 자리만 `_flatten` 을 안 지나면 시장이 목록으로 올 때 `['국내', '미국']` 이
+    이 자리만 펴는 함수를 안 지나면 시장이 목록으로 올 때 `['국내', '미국']` 이
     문서에 실린다 — 문서에 값을 싣는 자리는 전부 같은 펴기를 지나야 한 곳만 새지 않는다.
 
     Given: 대상 시장이 목록인 실현가능성 산출물
@@ -758,3 +761,122 @@ def test_an_object_shaped_unverified_entry_is_rendered_not_dropped(prepared: Any
     assert "원논문 수치" in written
     assert "PDF 추출 실패" in written
     assert "{" not in written.split("## 11.")[1], "파이썬·JSON 표기가 그대로 실리면 안 된다"
+
+
+# --------------------------------------------------------------------------
+# 7·8번 칸의 «계보상 자리» — 한 원본을 옮긴 행이 근거 수를 부풀려 보이지 않게
+# --------------------------------------------------------------------------
+
+COPY_URL = "https://example.com/blog"
+
+
+def _section(written: str, heading: str) -> str:
+    """조립한 문서에서 한 칸의 본문만 잘라낸다."""
+    return written.split(heading, 1)[1].split("\n## ", 1)[0]
+
+
+def test_each_evidence_row_shows_its_place_in_the_lineage(prepared: Any) -> None:
+    """
+    목적: [중요] 7번 표의 행마다 «계보상 자리»가 보이는 계약을 고정한다.
+
+    원논문과 그 미러는 둘 다 1차 출처일 수 있어(`kind` 와 원본/복제는 직교한다) 표만
+    보면 **근거가 두 곳인 것처럼 읽힌다.** [실측 2026-09-28] 한 문서는 7번 칸 16행이
+    계보로는 11덩어리였다. 행마다 같은 덩어리 번호가 보이면 그 부풀림이 표 안에서 드러난다.
+
+    Given: 원논문과 그것을 받아쓴 글이 7번 칸에 두 행으로 있고, 계보는 둘을 한 덩어리로 본다
+    When: 조립한다
+    Then: 두 행이 같은 덩어리 번호의 원본 · 복제로 찍히고, 표 위에 「서로 다른 덩어리 1곳」이 있다
+    """
+    ready = prepared()
+    path = ready.output_dir / PRO_EVIDENCE_FILENAME
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["evidence"].append(
+        {"title": "받아쓴 블로그", "url": COPY_URL, "published": "1990-01-01", "kind": "secondary", "says": "같은 숫자"}
+    )
+    path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+    section = _section(_assembled(ready), "## 7. 찬성 근거")
+
+    assert "계보" in section.split("| --- ")[0], "표 머리에 계보 열이 있어야 한다"
+    rows = [line for line in section.splitlines() if line.startswith("| ") and "---" not in line][1:]
+    assert "덩어리 1 원본" in rows[0]
+    assert "덩어리 1 복제" in rows[1]
+    assert "**2건**" in section
+    assert "서로 다른 덩어리 1곳" in section
+
+
+def test_a_row_outside_the_lineage_is_marked_as_such(prepared: Any) -> None:
+    """
+    목적: 계보표에 없는 행을 «없다고» 표시하는 계약을 고정한다.
+
+    주소가 없는 출처는 계보 대조에서 빠진다(링크를 못 찾으면 비우는 것이 규율이다).
+    그 행에 덩어리 번호를 지어 붙이면 표가 거짓말을 한다.
+
+    Given: 계보표에 없는 주소의 반증 한 행
+    When: 조립한다
+    Then: 그 행의 계보 칸이 `-` 이고, 표 위 줄이 계보에 없는 행의 수를 말한다
+    """
+    written = _assembled(prepared())
+
+    section = _section(written, "## 8. 반증")
+    row = next(line for line in section.splitlines() if "https://example.com/decay" in line)
+
+    assert row.rstrip(" |").endswith("-")
+    assert "계보에 없는 행 1건" in section
+
+
+def test_the_lineage_numbers_match_the_lineage_slot(prepared: Any) -> None:
+    """
+    목적: 7번 표의 덩어리 번호가 «6번 칸의 덩어리 번호와 같은» 계약을 고정한다.
+
+    번호가 갈리면 읽는 사람이 6번 칸에서 엉뚱한 덩어리를 찾아간다. 6번 칸은 객체가 아닌
+    덩어리에도 번호를 주므로, 그것을 건너뛰고 세면 뒤 번호가 하나씩 밀린다.
+
+    Given: 계보표 맨 앞에 객체가 아닌 덩어리가 끼어 있다
+    When: 조립한다
+    Then: 원논문의 행이 6번 칸과 같은 「덩어리 2」로 찍힌다
+    """
+    ready = prepared()
+    path = ready.output_dir / LINEAGE_FILENAME
+    lineage = json.loads(path.read_text(encoding="utf-8"))
+    lineage["groups"].insert(0, ["모양이 어긋난 덩어리"])
+    path.write_text(json.dumps(lineage, ensure_ascii=False), encoding="utf-8")
+
+    written = _assembled(ready)
+
+    assert "### 덩어리 2 — 원본: 1월 효과 원논문" in written
+    assert "덩어리 2 원본" in _section(written, "## 7. 찬성 근거")
+
+
+# --------------------------------------------------------------------------
+# 목록 · 사전 값을 «한 함수»가 편다 — 어느 자리에서도 파이썬 표기가 새지 않게
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (None, ""),
+        ("  문장  ", "문장"),
+        (["첫째", "둘째"], "첫째 · 둘째"),
+        ([["12월 20일", "12월 24일"], ["12월 26일"]], "12월 20일 · 12월 24일 · 12월 26일"),
+        ({"kr": "원화 기준", "us": ["달러", "러셀3000"]}, "kr: 원화 기준 · us: 달러 · 러셀3000"),
+        ([None, "", "남는 것"], "남는 것"),
+        (20, "20"),
+    ],
+)
+def test_as_text_writes_lists_and_dicts_as_prose(value: Any, expected: str) -> None:
+    """
+    목적: [중요] 문자열이어야 하는 값을 꺼내는 곳이 «목록 · 사전도 문장으로» 펴는 계약을 고정한다.
+
+    예전에는 조립부만 폈고 꺼내는 곳(`as_text`)은 `str()` 이었다. 그래서 조립부를 안 지나는
+    자리 — 반증 러너가 「못 찾은 이유」를 저장하는 자리 — 에서 `['…']` 가 파일에 박혀
+    그대로 문서에 실렸다. **펴는 곳이 하나면 한 자리만 새는 일이 구조적으로 없다.**
+
+    Given: 빈 값 · 문자열 · 목록 · 중첩 목록 · 사전 · 빈 항목이 섞인 목록 · 숫자
+    When: 꺼낸다
+    Then: 파이썬 표기 없이 사람이 읽는 한 줄이다
+    """
+    from research_lab.runner import payload as payload_helpers
+
+    assert payload_helpers.as_text(value) == expected
