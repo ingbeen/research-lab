@@ -400,15 +400,24 @@ def test_start_of_call_rejection_carries_a_measured_zero() -> None:
     assert spent.cost_usd == 0
 
 
-@pytest.mark.parametrize("answer", ["JSON 이 아닌 산문", '["목록", "이지", "객체가", "아니다"]'])
+# 파이썬의 정수 문자열 변환 한도(4300자리)를 넘는 정수가 든 답
+_OVERSIZED_INTEGER_ANSWER = '{"n": ' + "1" * 5000 + "}"
+
+
+@pytest.mark.parametrize(
+    "answer",
+    ["JSON 이 아닌 산문", '["목록", "이지", "객체가", "아니다"]', _OVERSIZED_INTEGER_ANSWER],
+    ids=["산문", "배열", "한도를 넘는 정수"],
+)
 def test_unparsable_answer_carries_the_result(answer: str) -> None:
     """
     목적: 답에서 JSON 객체를 못 꺼낸 실패가 «받은 결과»를 그대로 나르는 계약을 고정한다.
 
     [실측] 과거 회차에서 이 경로로 세 번 샜다 — 에이전트는 끝까지 돌아 돈을 썼는데
     단계가 비용을 적기 «전»에 파싱이 실패해 그 비용이 어디에도 남지 않았다.
+    4300자리가 넘는 정수는 `JSONDecodeError` 가 아닌 `ValueError` 로 거부된다 — 그것만 잡으면 이 길로 샌다.
 
-    Given: 객체로 읽히지 않는 답 (산문 · 배열)
+    Given: 객체로 읽히지 않는 답 (산문 · 배열 · 한도를 넘는 정수)
     When: 단계가 JSON 을 꺼낸다
     Then: 실패가 오르고, 실어 보낸 것이 넘겨받은 결과 자신이다
     """
@@ -420,6 +429,24 @@ def test_unparsable_answer_carries_the_result(answer: str) -> None:
         invoke.parse_json_answer(result, what="탐색")
 
     assert raised.value.spent is result
+
+
+def test_a_response_with_an_oversized_integer_is_read_without_raising() -> None:
+    """
+    목적: 응답 원문에 한도를 넘는 정수가 있어도 호출 계층이 «멈추지 않는» 계약을 고정한다.
+
+    응답 모양을 강제하면 답의 객체가 원문 JSON 에 그대로 실린다. 원문을 못 읽으면 「그 값을 모른다」로
+    남고, 실패 판정은 단계가 답을 꺼낼 때 원문과 함께 올린다.
+
+    Given: 파싱된 답에 5000자리 정수가 든 응답 원문
+    When: 호출 계층이 읽는다
+    Then: 예외 없이 결과가 돌아오고 비용은 모른다
+    """
+    raw = '{"structured_output": ' + _OVERSIZED_INTEGER_ANSWER + ', "total_cost_usd": 0.5}'
+
+    result = invoke._parse(raw=raw, elapsed=1.0, session_id="세션")
+
+    assert result.cost_usd is None
 
 
 def test_null_session_id_falls_back_to_the_given_one() -> None:

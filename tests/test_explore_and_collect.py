@@ -305,6 +305,12 @@ _ENOUGH = {
 }
 
 
+def _rejection_lines(ledger_path: Path) -> list[str]:
+    """원장에서 프로그램이 적은 기각 사유 줄만 고른다."""
+    marker = f"{ledger.REASON_INDENT}{ledger.REJECTION_PREFIX}"
+    return [line for line in ledger_path.read_text(encoding="utf-8").splitlines() if line.startswith(marker)]
+
+
 def test_explore_rejects_a_candidate_whose_active_days_fall_short(tmp_path: Path) -> None:
     """
     목적: [중요] 연간 가동일이 문턱에 못 미치는 후보를 «기각으로» 담는 계약을 고정한다.
@@ -322,9 +328,9 @@ def test_explore_rejects_a_candidate_whose_active_days_fall_short(tmp_path: Path
     explore.run(tmp_path / "run", ledger_path, lambda _: answer)
 
     assert ledger.status_of(ledger_path, _SHORT_AND_RARE["claim"]) is ledger.Status.REJECTED
-    reason_lines = [line for line in ledger_path.read_text(encoding="utf-8").splitlines() if "기각:" in line]
+    reason_lines = _rejection_lines(ledger_path)
     assert len(reason_lines) == 1
-    assert all(fragment in reason_lines[0] for fragment in ("12", "4", "48", "매월 한 번 · 나흘 보유"))
+    assert all(fragment in reason_lines[0] for fragment in ("12회", "보유 4거래일", "= 48거래일", "매월 한 번 · 나흘 보유"))
 
 
 def test_explore_judges_estimates_written_in_quotes(tmp_path: Path) -> None:
@@ -470,6 +476,56 @@ def test_a_multiline_basis_cannot_plant_a_candidate(tmp_path: Path) -> None:
     assert [entry.claim for entry in entries] == [planted["claim"]]
     assert entries[0].status is ledger.Status.REJECTED
     assert ledger.next_unexplored(ledger_path) is None
+
+
+@pytest.mark.parametrize(
+    ("basis", "written"),
+    [
+        (["매월 한 번", "나흘 보유"], "매월 한 번 · 나흘 보유"),
+        ({"빈도": "매월 한 번", "보유": "나흘"}, "빈도: 매월 한 번 · 보유: 나흘"),
+    ],
+)
+def test_a_basis_written_as_a_list_reaches_the_ledger(tmp_path: Path, basis: object, written: str) -> None:
+    """
+    목적: 어림 근거를 목록 · 사전으로 내도 원장 기각 사유에 «펴서» 싣는 계약을 고정한다.
+
+    사람이 기각을 되돌릴 근거가 이 사유뿐이다. 문자열만 받으면 목록 근거가 「적지 않았습니다」로 찍힌다.
+
+    Given: 근거를 목록 · 사전으로 낸 미달 후보
+    When: 탐색을 돈다
+    Then: 사유 줄에 근거가 ` · ` 로 이어져 들어 있다
+    """
+    ledger_path = tmp_path / "원장.md"
+    shaped = {**_SHORT_AND_RARE, "activity_basis": basis}
+    answer = _answer({"queries": ["ㄱ", "ㄴ", "ㄷ"], "candidates": [shaped]})
+
+    explore.run(tmp_path / "run", ledger_path, lambda _: answer)
+
+    reason_lines = _rejection_lines(ledger_path)
+    assert len(reason_lines) == 1
+    assert f"어림 근거: {written}" in reason_lines[0]
+
+
+def test_a_basis_nested_past_the_recursion_limit_still_gets_judged(tmp_path: Path) -> None:
+    """
+    목적: [중요] 근거를 펴다 재귀 한도에 닿아도 탐색이 죽지 않고 «판정은 하는» 계약을 고정한다.
+
+    근거는 원장에 담은 «뒤»에 편다. 여기서 죽으면 그 후보가 가동일 판정 없이 「안 판」으로 남고,
+    다시 돌아도 이미 있는 후보라 중복으로 걸러져 영영 판정되지 않는다.
+    [실측 2026-09-29] 근거를 펴는 공용 `as_text` 는 재귀라 약 333겹에서 한도에 닿는다.
+
+    Given: 근거가 500겹 목록인 미달 후보
+    When: 탐색을 돈다
+    Then: 기각으로 담기고, 사유에 근거가 없었다고 적힌다
+    """
+    ledger_path = tmp_path / "원장.md"
+    deep = json.loads("[" * 500 + '"매월 한 번"' + "]" * 500)
+    answer = _answer({"queries": ["ㄱ", "ㄴ", "ㄷ"], "candidates": [{**_SHORT_AND_RARE, "activity_basis": deep}]})
+
+    explore.run(tmp_path / "run", ledger_path, lambda _: answer)
+
+    assert ledger.status_of(ledger_path, _SHORT_AND_RARE["claim"]) is ledger.Status.REJECTED
+    assert "어림 근거: 적지 않았습니다" in _rejection_lines(ledger_path)[0]
 
 
 def test_explore_prompt_asks_for_the_activity_estimates() -> None:
@@ -1267,8 +1323,8 @@ def test_collect_leaves_the_ledger_alone_when_sources_stay_dead(tmp_path: Path, 
     """
     목적: [중요] 출처를 못 갖춘 후보를 원장에 «기각·막힘으로 적지 않는» 계약을 고정한다.
 
-    기각(`- [-]`)은 「잴 수 없다」는 판정이고 막힘(`- [!]`)은 「회차마다 같은 자리에서
-    실패해 접었다」는 뜻이다. **URL 을 잘못 적은 것은 둘 중 어느 것도 아니다.**
+    기각(`- [-]`)은 「잴 수 없다」 · 「돈이 일하는 기간이 너무 짧다」는 판정이고
+    막힘(`- [!]`)은 「회차마다 같은 자리에서 실패해 접었다」는 뜻이다. **URL 을 잘못 적은 것은 둘 중 어느 것도 아니다.**
     적어 버리면 멀쩡한 후보가 사람이 손대기 전까지 영영 다시 안 파진다.
 
     Given: 출처가 계속 죽는 후보

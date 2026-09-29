@@ -257,9 +257,9 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
             _store(run_dir, ledger_path, candidate, settled)
             return
 
-        # 출처를 끝내 못 갖췄다. **원장은 건드리지 않는다** — 기각은 「잴 수 없다」는
-        # 판정이고 막힘은 「회차마다 같은 자리에서 실패해 접었다」는 뜻이라, 둘 중 어느 것도
-        # 이 사정이 아니다. 적어 버리면 멀쩡한 후보가 사람이 손대기 전까지 영영 다시 안 파진다
+        # 출처를 끝내 못 갖췄다. **원장은 건드리지 않는다** — 기각은 「잴 수 없다」 · 「돈이 일하는
+        # 기간이 너무 짧다」는 판정이고 막힘은 「회차마다 같은 자리에서 실패해 접었다」는 뜻이라,
+        # 둘 중 어느 것도 이 사정이 아니다. 적어 버리면 멀쩡한 후보가 사람이 손대기 전까지 영영 다시 안 파진다
         decision_log.record(
             run_dir,
             steps.COLLECT,

@@ -196,8 +196,8 @@ def _skip_reason(step: str, ledger_path: Path, run_dir: Path) -> str | None:
 
     if step == COLLECT and ledger.next_unexplored(ledger_path) is None:
         # [중요] 이 갈래가 없으면 «끝나지 않는 실패»가 된다.
-        # 탐색이 새 후보를 하나도 못 찾는 것은 정상 결과인데(원장이 포화됐거나 그 회차의 검색이
-        # 허탕이거나), 그 상태로 수집에 들어가면 후보가 없어 예외가 나고 상한까지 재시도한 뒤
+        # 탐색이 팔 후보를 하나도 못 남기는 것은 정상 결과인데(원장이 포화됐거나 그 회차의 검색이
+        # 허탕이거나 찾은 후보가 모두 가동일로 기각됐거나), 그 상태로 수집에 들어가면 후보가 없어 예외가 나고 상한까지 재시도한 뒤
         # 「다음 회차가 이어받습니다」로 보고된다. 다음 회차도 같은 자리에서 같은 일을 반복하고,
         # 나중에는 아무 일도 없었던 것처럼 보인다.
         #
@@ -206,7 +206,7 @@ def _skip_reason(step: str, ledger_path: Path, run_dir: Path) -> str | None:
         # 후보를 걷어내는 장치가 영영 안 불린다 — 다음 회차는 새 폴더에서 미룬 사실을 모른 채
         # 같은 후보를 다시 집어 **회차마다 호출만 태운다.** 수집이 «돌아서 실패해야»
         # 3회차에 접힌다. 탐색과 판정이 갈리는 이유가 이것이다
-        return "원장에 팔 후보가 없다 — 탐색이 새 후보를 찾지 못했다"
+        return "원장에 팔 후보가 없다 — 탐색이 새 후보를 찾지 못했거나, 찾은 후보가 모두 기각됐다"
 
     if step in steps.CANDIDATE_STEPS:
         candidate = state.pinned_candidate(run_dir)

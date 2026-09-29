@@ -264,7 +264,14 @@ def _judge_activity(ledger_path: Path, claim: str, candidate: Any, stored: _Stor
         stored.activity_undecided.append(claim)
         return
 
-    reason = activity_gate.shortfall_reason(entries, holding, fields.get("activity_basis"))
+    try:
+        basis = payload_helpers.as_text(fields.get("activity_basis"))
+    except RecursionError:
+        # 근거를 펴는 `as_text` 는 재귀라 아주 깊게 중첩된 근거에서 한도에 닿는다. 여기는 원장에 담은
+        # «뒤»라 죽으면 그 후보가 판정 없이 「안 판」으로 남는다. 근거는 사유 글자에만 쓰이고 판정은
+        # 두 숫자로 하므로, 근거를 모르는 것으로 두고 판정은 한다
+        basis = ""
+    reason = activity_gate.shortfall_reason(entries, holding, basis)
     if reason is None:
         return
 

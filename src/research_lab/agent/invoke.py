@@ -198,7 +198,9 @@ def parse_json_answer(result: AgentResult, *, what: str) -> dict[str, Any]:
 
     try:
         loaded: Any = json.loads(text)
-    except json.JSONDecodeError as broken:
+    except ValueError as broken:
+        # `JSONDecodeError` 만 잡지 않는다 — 4300자리가 넘는 정수는 그 상위형인 `ValueError` 로 거부되고
+        # (파이썬의 정수 문자열 변환 한도), 여기서 새면 쓴 비용과 원문이 실패에 실리지 않는다
         raise StepFailed(f"{what} 응답에서 JSON 을 못 꺼냈습니다: {broken}\n--- 원문 ---\n{result.raw}", spent=result) from broken
 
     if not isinstance(loaded, dict):
@@ -329,7 +331,8 @@ def _payload_of(raw: str) -> dict[str, Any] | None:
     """응답 원문이 JSON 객체면 그것을, 아니면 None 을 돌려준다."""
     try:
         loaded: Any = json.loads(raw)
-    except json.JSONDecodeError:
+    except ValueError:
+        # 4300자리가 넘는 정수도 여기서 «모른다»로 떨어진다 — `parse_json_answer` 의 같은 자리를 본다
         return None
     return loaded if isinstance(loaded, dict) else None
 

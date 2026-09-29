@@ -131,6 +131,24 @@ def test_repeated_values_do_not_count_as_a_grid() -> None:
     assert "holding_grid" in reason
 
 
+def test_the_same_number_written_differently_is_one_value() -> None:
+    """
+    목적: [중요] 같은 수를 표기만 바꿔 적은 것(`5` · `5.0` · `"5"` · `"20.0"`)을 «한 값»으로 세는 계약을 고정한다.
+
+    글자로 비교하면 `5` 와 `5.0` 이 두 값이 되어 값 하나를 복붙한 격자가 통과한다. 정성 표현 게이트는
+    같은 격자를 한 값으로 세므로 두 게이트의 판정도 갈린다.
+
+    Given: 같은 수를 표기만 바꿔 적은 보유 격자들
+    When: 검사한다
+    Then: 모두 한 값짜리와 같게 사유를 요구한다
+    """
+    for grid in ([5, 5.0], ["20", 20], [20, "20.0"], [" 5 ", 5.0]):
+        reason = measurement.shortfall_reason(_filled(holding_grid=grid))
+
+        assert reason is not None, grid
+        assert "holding_grid" in reason
+
+
 def test_a_grid_that_is_not_a_list_is_a_shortfall() -> None:
     """
     목적: 격자 자리에 목록이 아닌 값이 오면 막는 계약을 고정한다.

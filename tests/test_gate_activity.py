@@ -85,40 +85,47 @@ def test_reason_carries_the_estimates_and_the_threshold() -> None:
     reason = activity.shortfall_reason(12, 4, "매월 옵션 만기주 · 나흘 보유")
 
     assert reason is not None
-    for fragment in ("12", "4", "48", str(activity.MIN_ACTIVE_DAYS_PER_YEAR), "매월 옵션 만기주 · 나흘 보유"):
+    for fragment in (
+        "12회",
+        "보유 4거래일",
+        "= 48거래일",
+        f"{activity.MIN_ACTIVE_DAYS_PER_YEAR}거래일에 못 미칩니다",
+        "매월 옵션 만기주 · 나흘 보유",
+    ):
         assert fragment in reason
-
-
-def test_reason_is_one_line() -> None:
-    """
-    목적: [중요] 사유가 «한 줄»인 계약을 고정한다.
-
-    원장은 한 줄에 한 후보이고 사유도 한 줄이다. 근거의 줄바꿈이 그대로 실리면 그다음 줄이
-    원장에서 새 줄로 읽히고, 그 줄이 `- [ ] …` 모양이면 **가짜 후보가 담긴다.**
-
-    Given: 줄바꿈과 탭이 든 근거
-    When: 검사한다
-    Then: 사유에 줄바꿈·탭이 없고, 근거가 공백 하나로 접혀 들어 있다
-    """
-    reason = activity.shortfall_reason(12, 4, "첫 줄\n- [ ] 가짜 후보\t끝")
-
-    assert reason is not None
-    assert "\n" not in reason and "\r" not in reason and "\t" not in reason
-    assert "첫 줄 - [ ] 가짜 후보 끝" in reason
 
 
 def test_missing_basis_is_said_out_loud() -> None:
     """
     목적: 근거가 없어도 막되, 근거가 없었다는 사실을 사유에 남기는 계약을 고정한다.
 
-    Given: 근거 없이 낸 미달 어림
+    Given: 근거 없이 낸 미달 어림 — 러너가 꺼낸 근거가 빈 글자다
     When: 검사한다
     Then: 사유가 나오고, 근거가 없었다고 적혀 있다
     """
-    reason = activity.shortfall_reason(12, 4, None)
+    reason = activity.shortfall_reason(12, 4, "")
 
     assert reason is not None
-    assert "근거" in reason
+    assert "적지 않았습니다" in reason
+
+
+def test_a_basis_that_is_not_text_is_not_written_out() -> None:
+    """
+    목적: 글자가 아닌 근거를 받으면 «적지 않음»으로 보고 파이썬 표기를 사유에 싣지 않는 계약을 고정한다.
+
+    근거를 펴는 것은 러너의 일이다(`payload.as_text`). 날것 값을 넘기는 호출자가 생겨도
+    `['매월 한 번']` 같은 표기가 공개 원장에 실리면 안 된다.
+
+    Given: 목록 · null 근거
+    When: 검사한다
+    Then: 사유에 근거가 없었다고 적히고 목록 표기가 없다
+    """
+    for basis in (["매월 한 번"], None):
+        reason = activity.shortfall_reason(12, 4, basis)
+
+        assert reason is not None, basis
+        assert "적지 않았습니다" in reason
+        assert "['" not in reason
 
 
 @pytest.mark.parametrize(
@@ -165,10 +172,10 @@ def test_quoted_numbers_are_read() -> None:
 
     Given: 따옴표로 감싼 12 와 앞뒤에 공백이 붙은 5
     When: 가동일을 구하고 검사한다
-    Then: 60 으로 읽히고 미달 사유가 나온다
+    Then: 60 으로 읽히고, 따옴표 없는 같은 숫자와 판정 · 사유가 같다 — 문턱 값에 기대지 않는다
     """
     assert activity.active_days("12", " 5 ") == 60
-    assert activity.shortfall_reason("12", " 5 ", "근거") is not None
+    assert activity.shortfall_reason("12", " 5 ", "근거") == activity.shortfall_reason(12, 5, "근거")
 
 
 @pytest.mark.parametrize(
@@ -178,16 +185,18 @@ def test_quoted_numbers_are_read() -> None:
         ("12", "0", 12, True),
         (4, -0.0, 4, True),
         (252, 0, 252, False),  # 매일 당일 청산 — 짧아도 매일 돈이 돈다
+        (100, 0.5, 100, False),  # 반나절 보유도 그날 하루는 돈이 묶인다
+        (50, 0.5, 50, True),
     ],
 )
 def test_same_day_holding_counts_as_one_day(entries: object, holding: object, days: float, rejected: bool) -> None:
     """
-    목적: [중요] 보유 0(당일 청산)을 «하루»로 세는 계약을 고정한다.
+    목적: [중요] 보유 1 미만(당일 청산)을 «하루»로 세는 계약을 고정한다.
 
     0 을 그대로 곱하면 매일 도는 당일 청산까지 가동일 0 으로 영구 기각된다. 판정 못 함으로 흘리면
-    드문 당일 청산이 게이트를 비켜 간다. 같은 날 사고 팔아도 그날 하루는 돈이 묶인다.
+    드문 당일 청산이 게이트를 비켜 간다. 같은 날 사고 팔아도 그날 하루는 돈이 묶인다 — 0 과 1 사이도 같다.
 
-    Given: 보유를 0 으로 어림한 후보
+    Given: 보유를 0 또는 1 미만으로 어림한 후보
     When: 가동일을 구하고 검사한다
     Then: 보유를 하루로 센 곱이 나오고, 드문 것만 걸린다
     """
@@ -197,21 +206,26 @@ def test_same_day_holding_counts_as_one_day(entries: object, holding: object, da
 
 def test_the_reason_shows_the_holding_it_counted() -> None:
     """
-    목적: 사유가 «곱한 값»을 보여 주는 계약을 고정한다.
+    목적: 사유가 에이전트가 쓴 보유와 «곱한 값»을 함께 보여 주는 계약을 고정한다.
 
-    보유 0 을 하루로 곱해 놓고 사유에 0 을 찍으면 「0 × 4 = 4」처럼 스스로 모순인 줄이 원장에 남아,
-    사람이 판정을 뒤집을 근거를 읽지 못한다.
+    보유를 하루로 올려 곱해 놓고 쓴 값만 찍으면 「0 × 4 = 4」처럼 스스로 모순인 줄이 되고, 곱한 값만
+    찍으면 에이전트가 0.5 를 썼는지 사유만 보고는 알 수 없다. 사람이 판정을 뒤집을 근거가 이 사유뿐이다.
 
-    Given: 연 4회 · 보유 0 (부호가 음인 0 포함)
+    Given: 연 4회 · 보유 0 (부호가 음인 0 포함), 연 50회 · 보유 0.5
     When: 검사한다
-    Then: 사유에 보유 1거래일과 곱 4 가 찍히고 「-0」이 없다
+    Then: 쓴 보유 · 올려 센 보유 · 곱이 함께 찍히고 「-0」이 없다
     """
     for holding in (0, -0.0):
         reason = activity.shortfall_reason(4, holding, "근거")
 
         assert reason is not None
-        assert "보유 1거래일 = 4거래일" in reason
+        assert "보유 0거래일(1거래일로 올려 셈) = 4거래일" in reason
         assert "-0" not in reason
+
+    reason = activity.shortfall_reason(50, 0.5, "근거")
+
+    assert reason is not None
+    assert "보유 0.5거래일(1거래일로 올려 셈) = 50거래일" in reason
 
 
 @pytest.mark.parametrize(("entries", "holding"), [(0, 60), (0, 2520), ("0", 60), (-0.0, 60)])

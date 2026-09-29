@@ -23,6 +23,7 @@ from collections.abc import Mapping
 from typing import Any, Final
 
 from research_lab.gate.filled import is_filled
+from research_lab.gate.numbers import as_number
 
 KEY_SINGLE_VALUE_REASON: Final = "single_value_reason"
 
@@ -111,8 +112,10 @@ def _distinct(grid: list[Any]) -> int:
     [중요] 안 그러면 값 하나를 복붙해 게이트를 통과한다. 검색어 게이트가
     「같은 말을 표기만 바꿔 여러 번 적은 것은 갈아 끼운 것이 아니다」로 세는 것과 같은 축이다.
 
-    비교는 **문자열로** 한다 — 에이전트가 `20` 과 `"20"` 을 섞어 내는 일이 흔한데,
-    그 둘은 같은 값이고 타입으로 가르면 복붙이 통과한다.
+    수로 읽히는 값은 **수로** 비교한다(`as_number`) — 에이전트가 `20` 과 `"20"` 을 섞어 내는 일이 흔한데,
+    그 둘은 같은 값이고 타입으로 가르면 복붙이 통과한다. 글자로 비교하면 `5` 와 `5.0` 이 두 값이 되고,
+    같은 격자를 정성 표현 게이트는 한 값으로 세어 두 게이트의 판정이 갈린다.
+    수가 아닌 값(「12월 20일」)은 앞뒤 공백을 뗀 글자로 비교한다.
 
     [중요] 그래도 `None` 은 «문자열로 만들기 전에» 뺀다. `str(None)` 은 `"None"` 이라는
     내용 있는 문자열이라, 안 빼면 **`null` 을 채워 격자 수를 부풀릴 수 있다** — 이 함수가
@@ -122,4 +125,10 @@ def _distinct(grid: list[Any]) -> int:
     ( `str([])` 는 `"[]"` 라 비어 있지 않다), 판정이 두 벌이면 **게이트가 「값이 있다」로 읽은
     것을 조립부는 「적히지 않았습니다」로 렌더한다.**
     """
-    return len({str(item).strip() for item in grid if is_filled(item)})
+    return len({_comparable(item) for item in grid if is_filled(item)})
+
+
+def _comparable(item: Any) -> int | float | str:
+    """격자 값 하나를 «같은 값인가»를 비교할 모양으로 — 수는 수로, 나머지는 글자로."""
+    number = as_number(item)
+    return str(item).strip() if number is None else number

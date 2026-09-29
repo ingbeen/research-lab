@@ -97,6 +97,60 @@ def test_repeated_candidate_values_do_not_count_as_a_grid() -> None:
     assert quantified.shortfall_reason(claim, parameters) is not None
 
 
+def test_an_integer_and_the_same_float_are_one_candidate() -> None:
+    """
+    목적: 값이 같은 정수와 실수(`5` · `5.0`)를 후보 «하나»로 세는 계약을 고정한다.
+
+    따로 세면 같은 값을 두 번 적은 축이 격자로 통과한다 — 같은 값 반복을 막는 계약과 같은 자리다.
+
+    Given: 5 와 5.0 만 든 후보값
+    When: 검사한다
+    Then: 막힌다
+    """
+    parameters = [{"name": "보유 기간", "term": "단기", "unit": "거래일", "candidates": [5, 5.0]}]
+
+    assert quantified.shortfall_reason("단기 보유한다", parameters) is not None
+
+
+def test_an_integer_beyond_the_float_range_counts_as_a_candidate() -> None:
+    """
+    목적: [중요] 실수로 못 옮기는 큰 정수 후보값에도 게이트가 «죽지 않고» 숫자 후보로 세는 계약을 고정한다.
+
+    JSON 은 자릿수 제한 없는 정수를 그대로 넘긴다. 게이트가 죽으면 그 단계가 「그 외」 실패로 재시도되고,
+    못 읽은 것으로 치면 숫자 후보가 모자라 **첫 답에서 영구 기각**된다. 숫자는 숫자로 센다 —
+    값이 말이 되는지는 게이트가 보지 않는다.
+
+    Given: 후보값에 실수 범위를 넘는 정수가 든 축 · 실수로 바꾸면 같아지는 서로 다른 큰 정수 둘
+    When: 검사한다
+    Then: 예외 없이 격자로 세어져 통과한다 — 서로 다른 수는 서로 다른 후보다
+    """
+    for candidates in ([10**400, 5], [10**20, 10**20 + 1]):
+        parameters = [{"name": "보유 기간", "term": "단기", "unit": "거래일", "candidates": candidates}]
+
+        assert quantified.shortfall_reason("단기 보유한다", parameters) is None, candidates
+
+
+def test_a_quoted_number_counts_as_a_candidate() -> None:
+    """
+    목적: [중요] 숫자 하나로 읽히는 글자를 숫자 후보로 세는 계약을 고정한다.
+
+    에이전트는 `5` 와 `"5"` 를 섞어 낸다. 못 세면 잴 수 있는 후보가 첫 답에서 **영구 기각**된다.
+    같은 수를 표기만 바꿔 적은 것은 한 후보이고, 단위가 붙은 글자는 숫자 후보가 아니다.
+
+    Given: 따옴표 숫자 둘 · 같은 수를 글자와 숫자로 적은 것 · 단위가 붙은 글자 둘
+    When: 검사한다
+    Then: 첫째만 통과한다
+    """
+    claim = "단기 보유한다"
+
+    def axis(candidates: list[object]) -> list[dict[str, object]]:
+        return [{"name": "보유 기간", "term": "단기", "unit": "거래일", "candidates": candidates}]
+
+    assert quantified.shortfall_reason(claim, axis(["5", "20"])) is None
+    assert quantified.shortfall_reason(claim, axis(["5", 5])) is not None
+    assert quantified.shortfall_reason(claim, axis(["5%", "20%"])) is not None
+
+
 def test_axis_that_cannot_be_numbered_is_blocked() -> None:
     """
     목적: **축 자체가 없는** 표현이 격자를 흉내 내도 막히는 계약을 고정한다.

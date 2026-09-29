@@ -537,9 +537,9 @@ def test_claim_that_looks_like_an_identifier_prefix_is_not_misread(tmp_path: Pat
 # --------------------------------------------------------------------------
 # 막힘
 #
-# 기각과 «성질이 다르다». 기각은 「잴 수 없다」는 **판정의 결과**이고, 막힘은 그 후보를
-# 두고 같은 단계가 회차마다 실패해 **더 해봐야 소용없다**고 접는 것이다.
-# 원장 머리말이 `- [-]` 를 「잴 수 없다고 판정한 것」이라 명시하므로 거기 합치면
+# 기각과 «성질이 다르다». 기각은 **판정의 결과**(잴 수 없다 · 돈이 일하는 기간이 너무 짧다)이고,
+# 막힘은 그 후보를 두고 같은 단계가 회차마다 실패해 **더 해봐야 소용없다**고 접는 것이다.
+# 원장 머리말이 `- [-]` 를 「판정한 것」이라 명시하므로 거기 합치면
 # 그 설명이 거짓이 된다. 상태로 갈라 두면 나중에 「막힌 것만 다시 풀자」를 골라낼 수 있다.
 # --------------------------------------------------------------------------
 
@@ -876,6 +876,29 @@ def test_a_claim_with_a_newline_can_still_be_marked(tmp_path: Path) -> None:
     assert ledger.status_of(path, MULTILINE_CLAIM) is ledger.Status.REJECTED
     ledger.mark_explored(path, MULTILINE_CLAIM)
     assert ledger.status_of(path, MULTILINE_CLAIM) is ledger.Status.EXPLORED
+
+
+def test_a_multiline_reason_cannot_plant_a_candidate(tmp_path: Path) -> None:
+    """
+    목적: [중요] 사유의 줄바꿈이 원장에 «가짜 후보»를 심지 못하는 계약을 고정한다.
+
+    사유에는 에이전트가 쓴 글(가동일 어림 근거)이 실린다. 줄바꿈이 그대로 들어가면 그다음 줄이
+    원장의 새 줄이 되고, 그 줄이 후보 모양이면 **아무 게이트도 지나지 않은 후보가 「안 판」으로 담긴다.**
+    사유를 한 줄로 접는 곳은 원장 하나다 — 사유를 만드는 쪽은 접지 않는다.
+
+    Given: 줄바꿈 · 탭과 후보 모양의 줄이 든 사유
+    When: 기각으로 · 막힘으로 적는다
+    Then: 원장의 후보는 그 하나뿐이고 다음에 팔 후보가 없으며, 사유는 공백 하나로 접혀 남는다
+    """
+    for mark in (ledger.mark_rejected, ledger.mark_blocked):
+        path = tmp_path / f"{mark.__name__}.md"
+        ledger.append(path, "첫 후보")
+
+        mark(path, "첫 후보", "첫 줄\n- [ ] 심어진 가짜 후보\n\t끝")
+
+        assert [entry.claim for entry in ledger.load(path)] == ["첫 후보"], mark.__name__
+        assert ledger.next_unexplored(path) is None, mark.__name__
+        assert "첫 줄 - [ ] 심어진 가짜 후보 끝" in path.read_text(encoding="utf-8"), mark.__name__
 
 
 def test_a_hand_written_row_with_extra_spaces_still_blocks_duplicates(tmp_path: Path) -> None:

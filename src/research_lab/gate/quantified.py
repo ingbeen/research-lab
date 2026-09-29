@@ -51,6 +51,7 @@ from collections.abc import Sequence
 from typing import Any, Final
 
 from research_lab.gate.filled import is_filled
+from research_lab.gate.numbers import as_number
 
 # 값이 비어 있다는 «표시»가 되는 말.
 #
@@ -250,8 +251,11 @@ def _is_usable_axis(item: Any) -> bool:
     if not isinstance(candidates, list):
         return False
 
-    # [중요] `bool` 은 `int` 의 하위형이라 그냥 세면 `True`/`False` 가 숫자로 통과한다.
-    # 그리고 같은 값을 여러 번 적은 것은 격자가 «아니다» — 숫자만 채우면 통과하는
-    # 게이트는 게이트가 아니라는 점에서 검색어 게이트와 같은 자리다
-    numbers = {float(value) for value in candidates if isinstance(value, int | float) and not isinstance(value, bool)}
+    # [중요] 같은 값을 여러 번 적은 것은 격자가 «아니다» — 숫자만 채우면 통과하는
+    # 게이트는 게이트가 아니라는 점에서 검색어 게이트와 같은 자리다. 무엇이 수이고 무엇이
+    # 같은 값인지는 측정 설계 게이트와 같은 판정(`as_number`)이 정한다.
+    #
+    # [중요] 여기서 숫자 후보가 모자라면 수집이 **영구 기각**한다. 그래서 실수로 못 옮기는 큰 정수와
+    # 따옴표 숫자(「5」)도 수로 센다 — 못 읽은 값으로 빼면 잴 수 있는 후보가 첫 답에서 닫힌다
+    numbers = {number for number in map(as_number, candidates) if number is not None}
     return len(numbers) >= MIN_DISTINCT_CANDIDATES
