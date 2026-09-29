@@ -1,0 +1,136 @@
+{
+  "claim": "분기 실적이 시장 예상을 크게 상회(어닝서프라이즈)한 미국 상장사를 실적 발표 직후 매수해 60~90일 보유하고, 하회한 종목은 공매도한다",
+  "rebuttals": [
+    {
+      "title": "Rest in Peace Post-Earnings Announcement Drift (Charles Martineau, Critical Finance Review 11권 3-4호, 613-646쪽)",
+      "url": "https://econpapers.repec.org/article/nowjnlcfr/104.00000122.htm",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "2022년 게재 논문의 초록이다(정확한 게재일은 확인하지 못함). 지금 시장에서는 주가가 실적 서프라이즈를 «발표일에» 전부 반영해 발표 후 표류(PEAD)가 사라졌다고 한다. 대형주에서는 2006년 이후 표류가 없었고, 마이크로캡에서도 최근 사라졌다고 한다. 발표 «직후» 사서 60~90일 들고 가는 전략이 기대는 수익원 자체가 없어졌다는 정면 반박이다."
+    },
+    {
+      "title": "Keeping It Simple: How Post-earnings Return Drift Can Exist and Not Exist Simultaneously (Avanidhar Subrahmanyam, Journal of Investment and Management)",
+      "url": "https://www.sciencepublishinggroup.com/article/10.11648/j.jim.20261501.11",
+      "published": "2026-03-14",
+      "kind": "primary",
+      "says": "2001년 2월 ~ 2024년 12월 미국 주식으로 이익 표류 팩터를 다시 만들었다. 마이크로캡을 넣으면 t 통계량이 2.18 이지만 빼면 1.43 으로, 통상의 유의 기준(약 1.96)에 못 미친다. 마이크로캡을 뺀 표본은 시가총액 상위 약 97% 다. 2025년에 PEAD 가 살아 있다고 한 두 연구는 마이크로캡에 기댔거나 비표준적 방법·해석에서 나온 결과라고 반박한다. 시가총액 대부분에서는 표류가 없다는 뜻이다."
+    },
+    {
+      "title": "Post-Earnings Announcement Drift: Dead or Alive? (UCLA Anderson Review, Monika Brown)",
+      "url": "https://anderson-review.ucla.edu/is-post-earnings-announcement-drift-a-thing-again/",
+      "published": "2026-01-21",
+      "kind": "secondary",
+      "says": "Subrahmanyam 의 표류 재현 연구를 소개하는 대학 연구 요약 기사다. 시가총액의 약 3% 인 마이크로캡이 PEAD 결과를 부풀리고, 마이크로캡을 빼면 t 통계량이 2.18 에서 1.43 으로 떨어져 실용적으로는 죽은 현상이라고 정리한다. Martineau(2022)의 「2006년까지 소멸」 결론과, PEAD 가 살아 있다는 2025년 두 논문(Dickerson·Julliard·Mueller, Hirshleifer·Peng·Wang)이 갈린 이유를 측정 방식과 마이크로캡 포함 여부라는 연구 설계 선택으로 본다."
+    },
+    {
+      "title": "Liquidity and the Post-Earnings-Announcement Drift (Chordia · Goyal · G. Sadka · R. Sadka · Shivakumar, Financial Analysts Journal 65권 4호)",
+      "url": "https://rpc.cfainstitute.org/research/financial-analysts-journal/2009/liquidity-and-the-post-earnings-announcement-drift",
+      "published": "2018-02-27",
+      "kind": "primary",
+      "says": "원 논문은 2009년 게재이고, 날짜는 이 페이지의 게시일이다. 표류가 주로 유동성이 매우 낮은 종목에서 일어난다고 한다. 서프라이즈 상위를 사고 하위를 파는 전략의 시가총액 가중 월수익이 유동성 최상위 종목에서는 0.04%, 최하위 종목에서는 2.43% 다. 실제로 쉽게 사고팔 수 있는 유동성 높은 미국 종목에서는 표류가 사실상 없다는 반박이다."
+    },
+    {
+      "title": "Unsophisticated Arbitrageurs and Market Efficiency: Overreacting to a History of Underreaction? (Jonathan A. Milian, Journal of Accounting Research 53권 1호, 175-220쪽)",
+      "url": "https://ideas.repec.org/a/bla/joares/v53y2015i1p175-220.html",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "2015년 3월호 게재 논문의 초록이다. 상장 옵션이 활발히 거래되는(차익거래가 쉬운) 종목에서는 실적 발표 뉴스의 자기상관이 예전의 양(+)에서 유의한 음(−)으로 바뀌었다. 직전 발표의 초과수익 최상위 10분위가 최하위 10분위보다 «다음 실적 발표 때» 평균 약 1.59% 낮았다. 투자자가 PEAD 를 배운 뒤 과잉 대응해 패턴이 뒤집혔다는 해석이다. 분기 발표 간격이 약 3개월이라 60~90일 보유는 다음 발표에 걸치거나 닿으므로, 이 반전이 보유 기간 안으로 들어온다."
+    },
+    {
+      "title": "Quantopian & Quantpedia Trading Strategy Series: Reversals in the PEAD (Matthew Lee)",
+      "url": "https://quantpedia.com/quantopian-quantpedia-trading-strategy-series-reversals-in-the-pead/",
+      "published": "2016-10-28",
+      "kind": "secondary",
+      "says": "Milian 의 반전 결과를 재현한 백테스트 소개글이다. 2011 ~ 2016년 S&P 500 종목에서 직전 실적 서프라이즈 최상위 10분위가 최하위 10분위보다, 다음 발표 뒤 10일 보유에서 −1.78% 뒤졌다(원 논문은 3일 기준 −1.59%). 대형주에서는 양(+)의 서프라이즈 종목을 산 쪽이 오히려 진다는 재현이다."
+    },
+    {
+      "title": "Evidence that Capital Markets Learn from Academic Research: Earnings Surprises and the Persistence of Post-Announcement Drift (W. Bruce Johnson · William C. Schwartz Jr.) 요약 페이지",
+      "url": "https://paperswithbacktest.com/strategies/evidence-that-capital-markets-learn-from-academic-research-earnings-surprises-and-the-persistence-of-post-announcement-drift",
+      "published": "unknown",
+      "kind": "secondary",
+      "says": "2000년 12월 작업논문을 요약한 페이지다(페이지 자체의 게시일은 확인하지 못함). 1991 ~ 1997년에 표류를 노린 단순 전략의 수익 기회가 «상당 부분 사라졌다»고 한다. 표류는 차익거래가 어려운 곳 — 작은 NYSE/AMEX 종목, 애널리스트가 거의 없는 종목, 주가가 낮은 종목 — 에만 남았다. 학계 발표 뒤 시장이 배워 차익거래로 없앴다는 해석이다."
+    },
+    {
+      "title": "Does Academic Research Destroy Stock Return Predictability? (R. David McLean · Jeffrey Pontiff) 학회 발표본",
+      "url": "https://www.abfer.org/component/edocman/main-annual-conference/does-academic-research-destroy-stock-return-predictability",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "2013년 5월 판의 초록이다. 학술지에 보고된 수익 예측 변수 97개의 포트폴리오 수익이 표본 밖에서는 26%, 논문 발표 뒤에는 58% 낮아졌다. 그 차이인 32% 를 논문을 보고 거래한 결과로 추정한다. 수십 년 동안 널리 알려진 PEAD 에도 같은 쇠퇴가 일어났을 가능성을 받치는 일반 근거다. 다만 PEAD 가 97개에 들었는지는 이 페이지에서 확인하지 못했다."
+    },
+    {
+      "title": "Have capital market anomalies attenuated in the recent era of high liquidity and trading activity? (Chordia · Subrahmanyam · Tong, Journal of Accounting and Economics 58권 1호, 41-58쪽)",
+      "url": "https://ideas.repec.org/a/eee/jaecon/v58y2014i1p41-58.html",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "2014년 게재 논문의 초록이다. 호가 단위가 소수점으로 바뀐 2001년 이후 이상현상 대부분이 약해졌고, 대표적 이상현상 포트폴리오의 평균 수익이 대략 절반이 됐다고 한다. 원인으로 헤지펀드 운용자산, 공매도 잔고, 주식 회전율의 증가를 든다. 실적 서프라이즈 이상현상만 떼어 낸 수치는 이 페이지에서 확인하지 못했다."
+    },
+    {
+      "title": "Warp speed price moves: Jumps after earnings announcements (Kim Christensen · Allan Timmermann · Bezirgen Veliyev, arXiv 2601.08962)",
+      "url": "https://arxiv.org/abs/2601.08962",
+      "published": "2026-01-13",
+      "kind": "primary",
+      "says": "실적 발표는 대부분 장 마감 뒤 시간외 시장에서 나오고, 거의 언제나 발표 기업 주가에 «점프»를 일으킨다고 한다. 2016년 이후에는 발표 뒤 거래 전략의 수익이 효율적 가격 형성과 부합한다. 「발표 직후」 매수는 점프가 이미 끝난 가격에서 들어가게 되고, 그 뒤에는 남은 수익이 없다는 반박이다."
+    },
+    {
+      "title": "Why Do Analysts Low-Ball Earnings Forecasts? (Chicago Booth Review, Martin Daks)",
+      "url": "https://www.chicagobooth.edu/review/why-do-analysts-low-ball-earnings-forecasts",
+      "published": "2019-07-08",
+      "kind": "secondary",
+      "says": "Berger · Ham · Kaplan 의 연구를 소개하는 기사다. FactSet 집계로는 최근 5년 동안 분기마다 S&P 500 기업의 평균 72% 가 이익 예상치를 넘었다. 연구는 애널리스트가 좋은 정보를 분기 이익 예상치에는 넣지 않고 목표주가 같은 다른 경로로만 알려, 기업이 예상치를 넘기 쉽게 만든다고 본다. 「시장 예상 상회」가 상당 부분 만들어진 사건이라면, 상회 자체를 드문 호재로 보는 주장의 전제가 약해진다."
+    },
+    {
+      "title": "Post–earnings-announcement drift (위키백과 영문 항목)",
+      "url": "https://en.wikipedia.org/wiki/Post%E2%80%93earnings-announcement_drift",
+      "published": "unknown",
+      "kind": "secondary",
+      "says": "2026-09-04 편집본이다. PEAD 의 크기가 시간이 지나며 크게 줄었고 최근에는 사라졌을 수도 있다고 적는다. SUE 상위·하위 포트폴리오의 평균 수익 차이가 1980 ~ 90년대 약 5% 에서 2010년대 후반 3% 이하로 줄었다고 한다. 원인으로는 유동성 증가에 따른 차익거래와 Kettell · McInnis · Zhao(2022)가 보인 이익 지속성 하락을 든다."
+    },
+    {
+      "title": "Post-Earnings-Announcement Drift: Review of PEAD and the Broader Logic of Trading Headlines (The Logbook, Lihong)",
+      "url": "https://freeportlogbook.substack.com/p/post-earnings-announcement-drift",
+      "published": "2026-05-06",
+      "kind": "secondary",
+      "says": "개인 뉴스레터의 리뷰 글이다. Martineau(2022)를 인용해, 표류가 마이크로캡이 아닌 종목에서 2001년 무렵 사라지기 시작했고 2006년에는 대형주에서 사실상 0 이 됐다고 적는다. 원인으로는 소수점 호가, 2005년 Reg NMS 이후의 고빈도 거래, 발표 당일의 완전 반영을 든다. 사베인스-옥슬리법 이후 발표 뒤 +2 ~ +60일 초과수익이 낮아졌다고도 하는데, 이 주장의 1차 출처는 확인하지 못했다."
+    },
+    {
+      "title": "「소문에 사고 뉴스에 팔았다」…삼성전자, 어닝 서프라이즈 16번 중 10번은 하락 (서울경제, 김도연)",
+      "url": "https://www.sedaily.com/article/20064963",
+      "published": "2026-07-07",
+      "kind": "secondary",
+      "says": "블룸버그 집계를 옮긴 기사다. 삼성전자는 2019년 이후 컨센서스를 넘은 16번 중 10번은 발표 당일 주가가 내렸고, 컨센서스에 못 미친 12번 중 7번은 올랐다. 이번 분기에도 발표 전 이틀 동안 10% 넘게 오른 뒤, 컨센서스를 넘은 발표 당일 장중 최대 9.7% 떨어졌다. 한국 종목 하나의 발표 당일 반응이라 미국 주식의 60~90일 표류를 직접 반박하지는 않는다. 다만 「예상 상회 = 매수 신호」가 발표 전 선반영으로 뒤집힐 수 있다는 사례다."
+    },
+    {
+      "title": "어닝서프라이즈, 어닝쇼크란? 실적 발표 후 주가는 어떻게 움직일까? (KB Think)",
+      "url": "https://kbthink.com/stock/earning-surprise.html",
+      "published": "2026-08-14",
+      "kind": "secondary",
+      "says": "증권사의 투자 안내 글이다. 좋은 실적이 이미 주가에 반영돼 있으면 어닝서프라이즈에도 주가가 내린다고 하며, 2026년 7월 애플이 예상을 넘는 분기 실적을 내고도 다음 날 주가가 내린 사례를 든다. 단일 사례의 다음 날 반응이라 표류 자체에 대한 반박으로는 약하다."
+    },
+    {
+      "title": "이익 공시에 대한 주가 지연 반응(PEAD)의 확률할인요소 위험조정을 이용한 실증 검증 (정찬식 · 김순호, 보험금융연구 26권 2호, 59-84쪽)",
+      "url": "https://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART001995137",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "2015년 게재 논문이다. SUE 헤지 포트폴리오의 월수익 0.85% 가, 특정 모형에 기대지 않는 확률할인요소 방식으로 위험을 조정하면 0.36% 로 줄어든다. 이를 근거로 PEAD 의 57.6% 를 위험 프리미엄으로 볼 수 있다고 한다(CAPM 조정은 0.86%, 파마-프렌치 3요인 조정은 0.82% 로 거의 줄지 않는다). 표류 수익의 절반 이상이 공짜가 아니라 위험을 진 대가일 수 있다는 반박이다. 표본이 한국 시장인지 미국 시장인지는 이 페이지에서 확인하지 못했다."
+    }
+  ],
+  "not_found_reason": "",
+  "unverified": [
+    "Hou · Xue · Zhang 「Replicating Anomalies」(Review of Financial Studies 2020): 검색 요약에는 SUE 상위-하위 10분위의 월수익이 6개월 보유 0.19%(t=1.65), 12개월 보유 0.11%(t=1.00)로 유의하지 않다고 나왔다. 여러 PDF 판을 열었지만 본문 글자를 뽑지 못해 수치를 확인하지 못했다",
+    "Kettell · McInnis · Zhao 「Why Has PEAD Declined Over Time? The Role of Earnings News Persistence」와 Griffin · McInnis · Zhao 「Explaining the Decline of PEAD: More Arbitrage or Less News?」(2026): 「이익 신호의 정보력 하락을 통제하면 PEAD 의 하락 추세가 더는 유의하지 않다」는 주장은 검색 요약으로만 봤다. Columbia PDF 는 본문을 뽑지 못했고 Sage 페이지는 403 이었다",
+    "Sadka(2006, Journal of Financial Economics) 「PEAD 수익의 상당 부분이 시장 전체 유동성 위험에 대한 보상」이라는 주장: EconBiz · CORE · ScienceDirect 페이지가 모두 접근 거부여서 원문을 확인하지 못했다",
+    "「Trading frictions and the Post-earnings-announcement drift」(ScienceDirect S0148619524000584): 검색 요약에는 공매도가 제약될수록 부정적 서프라이즈 뒤 표류가 크다고 나왔다. 사실이라면 공매도 쪽 수익이 정작 공매도하기 어려운 종목에 몰린다는 반박이 되지만, 페이지가 403 이라 확인하지 못했다",
+    "Richardson · Teoh · Wysocki(2004, Contemporary Accounting Research) 「예상치 하향 유도(walk-down)」: PDF 는 열렸지만 추출된 내용이 믿을 수 없어(저자명부터 틀리게 나옴) 반증으로 쓰지 않았다",
+    "Narayanamoorthy(NYU) 「Capital Market Consequences of Decimalization and Overlapping Regulations」와 「사베인스-옥슬리법 이후 +2 ~ +60일 초과수익 감소」 주장: PDF 본문을 뽑지 못했고, 이 주장은 2차 서술(The Logbook)로만 봤다",
+    "Martineau(2022)의 본문 수치(기간별 표류 크기 등): SSRN 과 nowpublishers 는 403 이었다. 논문 PDF 를 가리키던 cfr.pub 주소는 지금 무관한 배관업체 사이트로 넘어간다. 초록은 EconPapers 로만 확인했다",
+    "McLean · Pontiff 의 예측 변수 97개에 실적 서프라이즈(SUE)나 PEAD 가 들었는지 확인하지 못했다(HEC PDF 는 본문을 뽑지 못함)",
+    "Chordia · Subrahmanyam · Tong(2014)에서 실적 서프라이즈 이상현상만 따로 약해졌는지는 초록만으로 확인하지 못했다",
+    "Chicago Booth Review 기사가 소개한 Berger · Ham · Kaplan 원 논문은 열지 않았고, 「S&P 500 기업의 평균 72% 가 예상치를 넘는다」는 FactSet 수치도 기사를 거쳐서만 봤다",
+    "Dickerson · Julliard · Mueller(2025)와 Hirshleifer · Peng · Wang(2025)의 원문은 열지 않았다. 이 둘에 대한 Subrahmanyam 의 비판이 공정한지는 확인하지 못했다",
+    "Chordia 등(2009 FAJ)의 표본 기간을 이 페이지에서 확인하지 못했다",
+    "Milian(2015)의 반전 결과가 2016년 이후에도 이어지는지 확인하지 못했다(Quantopian 재현은 2011 ~ 2016년까지다)",
+    "Caltech 의 「The Post-Earnings Announcement Drift: An Anomalous Anomaly」 PDF 는 열렸지만 요약 내용을 믿을 수 없어 쓰지 않았다",
+    "2026-02-01 네이트 뉴스 「호실적 발표에도…잇달아 급락한 美대형주」는 가져온 내용이 깨져 있어 반증으로 쓰지 않았다",
+    "FactSet Earnings Insight 의 「2026년 1분기 예상치 상회 기업의 발표 전후 평균 주가 변화 +0.9%(5년 평균 +1.0%)」는 검색 요약으로만 봤고, 발표 전후 이틀 창이라 표류와 직접 관련이 없어 반증으로 쓰지 않았다"
+  ]
+}

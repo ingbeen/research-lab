@@ -1,0 +1,119 @@
+{
+  "claim": "분기 실적이 시장 예상을 크게 상회(어닝서프라이즈)한 미국 상장사를 실적 발표 직후 매수해 60~90일 보유하고, 하회한 종목은 공매도한다",
+  "params": [
+    {
+      "name": "서프라이즈 하한 (실제 분기 EPS 가 컨센서스 예상치를 넘어선 비율)",
+      "term": "크게",
+      "unit": "%",
+      "candidates": [
+        5,
+        10,
+        20
+      ]
+    },
+    {
+      "name": "실적 발표 후 진입까지의 지연 (발표 뒤 첫 거래일 = 1)",
+      "term": "직후",
+      "unit": "거래일",
+      "candidates": [
+        1,
+        2,
+        5
+      ]
+    }
+  ],
+  "fixed_terms": [],
+  "evidence": [
+    {
+      "title": "Foster, Olsen, Shevlin (1984) Earnings Releases, Anomalies and the Behavior of Security Returns — Stanford GSB Working Paper No. 735",
+      "url": "https://www.gsb.stanford.edu/faculty-research/working-papers/earnings-releases-anomolies-behavior-security-returns",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "1984년 연구. 초록에 따르면 1974~1981년 동안 관측치 5만 6천여 건에서, 과거 분기 이익의 시계열로 만든 예상치 기준 서프라이즈의 부호·크기를 따라 발표 뒤 주가가 계속 한 방향으로 움직이는 표류가 꾸준히 나타났다. 서프라이즈의 부호·크기가 표류 차이의 81% 를, 기업 규모가 61% 를 따로따로 설명했다. 서프라이즈 방향을 따라 사고 파는 주장의 바탕 현상을 뒷받침한다. 페이지에 1984년이라고만 적혀 있어 날짜는 모름"
+    },
+    {
+      "title": "Bernard & Thomas (1989) Post-Earnings-Announcement Drift: Delayed Price Response or Risk Premium? — Journal of Accounting Research 27, 1-36 (IDEAS/RePEc 서지 페이지)",
+      "url": "https://ideas.repec.org/a/bla/joares/v27y1989ip1-36.html",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "1989년 논문의 서지(학술지 권호·쪽·DOI 10.2307/2491062)만 확인했다. 이 페이지에는 초록이 없다. 검색 요약과 2차 서술에 따르면, 이 논문은 서프라이즈 상위 분위를 사고 하위 분위를 공매도하는 무투자 포트폴리오로 연 약 18% 초과수익을 보고했고, 1974~1985년 48분기 중 41분기에서 양의 값을 냈다. 매수·공매도를 함께 하는 주장의 구조와 같다. 수치는 원문 본문으로 확인하지 못했다"
+    },
+    {
+      "title": "Bernard & Thomas (1990) Evidence that stock prices do not fully reflect the implications of current earnings for future earnings — Journal of Accounting and Economics 13(4), 305-340 (IDEAS/RePEc 서지 페이지)",
+      "url": "https://ideas.repec.org/a/eee/jaecon/v13y1990i4p305-340.html",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "1990년 12월호 논문의 서지를 확인했다. 이 페이지에는 초록이 없다. 검색 요약에 따르면 t 분기 이익으로 t+1~t+4 분기 발표 전후 3일 주가 반응을 예측할 수 있었고, 투자자가 현재 이익이 미래 이익에 주는 함의를 다 반영하지 못한다는 설명과 맞았다. 표류가 발표 뒤 한 분기(약 60거래일)를 넘어 이어질 수 있다는 근거다"
+    },
+    {
+      "title": "Livnat & Mendenhall (2006) Comparing the Post-Earnings Announcement Drift for Surprises Calculated from Analyst and Time Series Forecasts — Journal of Accounting Research 44(1), 177-205",
+      "url": "https://ideas.repec.org/a/bla/joares/v44y2006i1p177-205.html",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "2006년 3월호 논문. 초록에 따르면 발표 뒤 몇 주 동안 누적 초과수익이 서프라이즈 방향으로 표류한다. 서프라이즈를 애널리스트 예상치(I/B/E/S) 대비로 정의하면 이익 시계열 모형 대비로 정의할 때보다 표류가 뚜렷하게 크다. 주장의 「시장 예상 대비」 정의가 문헌에서 더 큰 표류와 이어진다는 근거다"
+    },
+    {
+      "title": "Novy-Marx (2015) Fundamentally, Momentum is Fundamental Momentum — NBER Working Paper 20984",
+      "url": "https://www.nber.org/papers/w20984",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "2015년 2월 NBER 워킹페이퍼. 초록에 따르면 이익 모멘텀(표준화 기대외이익 SUE 와 발표 전후 3일 초과수익으로 잰 서프라이즈)이 횡단면 수익률 예측에서 과거 주가 성과를 흡수한다. 가격 모멘텀 전략의 시계열 성과도 이익 모멘텀 전략과의 공분산으로 설명된다. 과거 성과를 통제하면 이익 모멘텀 전략의 변동성이 줄고 급락이 사라지지만 높은 평균 수익은 유지된다. 서프라이즈를 따라 사고 파는 전략의 수익이 따로 있다는 근거다"
+    },
+    {
+      "title": "Empirical Research in Accounting: Tools and Methods — Chapter 14 Post-earnings announcement drift (Ian Gow 외)",
+      "url": "https://iangow.github.io/far_book/pead.html",
+      "published": "unknown",
+      "kind": "secondary",
+      "says": "회계 실증연구 교재의 한 장. Ball & Brown(1968)이 좋은 소식·나쁜 소식 기업의 누적수익이 발표 뒤에도 계속 벌어진다고 보였다고 서술한다. Bernard & Thomas(1989)의 서프라이즈 정의(예측오차를 예상치 절댓값으로 나눈 것 · 예측오차 표준편차로 나눈 것)를 따라 분석을 다시 돌린다. 그 결과 발표 뒤 60일 동안 서프라이즈 상위 분위는 양의 누적 초과수익, 하위 분위는 음의 누적 초과수익을 보인다"
+    },
+    {
+      "title": "Post-Earnings Announcement Effect — Quantpedia 전략 페이지",
+      "url": "https://quantpedia.com/strategies/post-earnings-announcement-effect",
+      "published": "unknown",
+      "kind": "secondary",
+      "says": "NYSE·AMEX·NASDAQ 종목(금융·유틸리티와 주가 5달러 미만 제외)을 쓴다. SUE 와 발표 전후 3일 수익률(EAR)이 모두 상위 5분위인 종목을 발표 이틀째 날에 사고, 둘 다 하위 5분위인 종목을 공매도한다. 한 분기(60거래일) 보유 뒤 분기마다 재조정한다. 출처 논문 Brandt·Kishore·Santa-Clara·Venkatachalam(1987~2004년 표본)을 인용해 연 약 15%, 최대 낙폭 -11.2% 로 적는다. 주장의 진입 시점·보유기간·매수·공매도 구조와 거의 같다"
+    },
+    {
+      "title": "50 Years in PEAD (Post Earnings Announcement Drift) Research — QuantPedia 블로그",
+      "url": "https://quantpedia.com/50-years-in-pead-research/",
+      "published": "2019-07-05",
+      "kind": "secondary",
+      "says": "PEAD 연구 50년을 정리한 글. Ball & Brown(1968)을 최초 기록으로 들고, 연구마다 초과수익이 1개월 0.9%(Chordia·Shivakumar 2005)부터 120일 14.03%(Balakrishnan 외 2009)까지 걸쳐 있다고 적는다. 60일 평균 약 6%(Dechow 외 2013)와, 1971~2011년 40년 백테스트 누적 초과수익 350% 도 인용한다. 같은 글이 1990년대 중반 이후에는 수익이 낮아지고 위험해졌다고도 적는다"
+    },
+    {
+      "title": "Momentum Strategies (Digest Summary) — CFA Institute Research & Policy Center, CFA Digest 1997년 8월",
+      "url": "https://rpc.cfainstitute.org/research/cfa-digest/1997/08/momentum-strategies-digest-summary",
+      "published": "1997-08-01",
+      "kind": "secondary",
+      "says": "모멘텀 전략 논문 요약. 표준화 기대외이익(SUE)으로 투자하는 전략이 적어도 단기에는 우수했다며 이익 모멘텀이 있다고 확인한다. 실적 발표에서 좋은 소식을 낸 종목이 나쁜 소식을 낸 종목보다 이후 수익이 높다고도 적는다. 다만 효과가 과거 수익률 모멘텀보다 오래가지 않는다고 적는다. 6개월 보유 정도의 짧은 기간에 효과가 있다는 근거다"
+    },
+    {
+      "title": "Post-earnings-announcement drift — Wikipedia (영문)",
+      "url": "https://en.wikipedia.org/wiki/Post%E2%80%93earnings-announcement_drift",
+      "published": "unknown",
+      "kind": "secondary",
+      "says": "백과사전 항목. 확인 시점의 최종 수정일은 2026-09-04 이다. PEAD 를 서프라이즈 방향으로 주가가 몇 주에서 몇 달 동안 계속 움직이는 현상으로 정의한다. Ball & Brown(1968)을 최초 기록으로 들고, Bernard & Thomas 의 결과(1974~1985년 48분기 중 41분기에서 상하위 서프라이즈 포트폴리오 차이가 양수 · 드리프트의 25~30% 가 다음 세 번의 실적 발표 전후 3일에 몰림)를 소개한다. 분기 8~9%(연 약 35%) 초과수익 사례도 적는다"
+    },
+    {
+      "title": "Ball & Brown (1968) An Empirical Evaluation of Accounting Income Numbers — Journal of Accounting Research 6(2), 159-178 (IDEAS/RePEc 서지 페이지)",
+      "url": "https://ideas.repec.org/a/bla/joares/v6y1968i2p159-178.html",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "1968년 논문의 서지(권호·쪽·DOI 10.2307/2490232)만 확인했다. 이 페이지에는 초록이 없다. 이 논문이 발표 뒤 좋은 소식·나쁜 소식 기업의 누적수익이 계속 벌어지는 현상을 처음 보였다는 서술은 교재와 백과사전의 2차 서술에서 확인했다"
+    }
+  ],
+  "unverified": [
+    "Ball & Brown(1968) 본문 — 발표 뒤 표류를 처음 기록했다는 서술은 2차 서술(교재·백과사전)에서만 확인했고 원문 본문은 열지 못했다",
+    "Bernard & Thomas(1989)의 「연 약 18% 초과수익」과 「48분기 중 41분기 양」 수치 — 검색 요약과 백과사전에서만 봤고 원논문 본문은 확인하지 못했다",
+    "Bernard & Thomas(1990)의 초록 내용(t+1~t+4 분기 발표 3일 반응을 예측할 수 있다) — 검색 요약에서만 확인했다. 서지 페이지에는 초록이 없고, 미시간대 저장소 사본은 403 으로 열리지 않았다",
+    "Brandt·Kishore·Santa-Clara·Venkatachalam 「Earnings Announcements are Full of Surprises」 원문 — SSRN 페이지와 초록 미러는 403 이고, Quantpedia 가 올린 PDF 는 텍스트를 뽑지 못했다. 검색 요약(EAR 전략 연 6.3%)과 Quantpedia 서술(연 7.55%, 결합 12.5%, 약 15%)의 수치가 서로 달라 판(version)이 다른지 확인하지 못했다",
+    "Chordia & Shivakumar(2006) 「Earnings and price momentum」(Journal of Financial Economics 80) — PDF 를 열었으나 텍스트를 뽑지 못했다. 표본(NYSE·AMEX, 1972~1999)과 결론은 검색 요약에서만 봤다",
+    "CFA Digest 1997년 8월 요약이 다룬 원논문이 Chan·Jegadeesh·Lakonishok(1996, Journal of Finance)인지 — 페이지에 원논문 저자명이 없다",
+    "Quantpedia 전략 페이지의 검색 요약에 나온 매수·공매도 쪽 60일 수익 수치(매수 2.97%, 공매도 -0.58%, 하위 SUE 공매도 60거래일 3.23%)가 서로 맞지 않는다. 매수 쪽과 공매도 쪽의 기여가 대칭인지 원문으로 확인하지 못했다",
+    "주장의 「60~90일」이 달력일인지 거래일인지 주장에 적혀 있지 않다 — 문헌의 60일은 대개 거래일(약 한 분기)이다",
+    "「크게 상회」를 컨센서스 대비 초과율(%)로 잴지, 문헌처럼 SUE 나 발표 전후 3일 수익률의 분위(상위 10%·20%)로 잴지 정하지 못했다. 문헌 대부분은 분위 정렬을 쓴다",
+    "모은 찬성 근거의 표본이 주로 1970~2000년대다. 2010년 이후 미국 대형주 표본에서 드리프트를 보인 1차 근거는 이번 수집에서 찾지 못했다",
+    "백과사전의 「분기 8~9%(연 약 35%)」와 「연 67%」 초과수익 수치의 1차 출처를 확인하지 못했다",
+    "한국어 검색은 대부분 한국 시장 대상 연구와 일반 설명 글로 이어졌다. 미국 상장사를 다룬 한국어 1차 근거는 찾지 못했다"
+  ]
+}
