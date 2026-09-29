@@ -1,0 +1,29 @@
+{
+  "claim": "미국 상장 리츠(REIT) 및 배당주를 매 분기 배당락일 며칠 전 매수해 배당락 후 단기 반등 시 매도한다(배당 포착, dividend capture)",
+  "queries": [
+    "dividend capture strategy doesn't work",
+    "dividend capture debunked ex-dividend price drop",
+    "REIT ex-dividend day price behavior study",
+    "Hardin Liano Huang Nagel \"REITs, Decimalization, and Ex-dividend Stock Prices\" abstract",
+    "배당락 매수 전략 실패 주가 하락 배당금만큼",
+    "Whitworth Rao \"Ex-Day Price Behavior of REITs\" taxes or ticks abstract",
+    "abnormal returns after ex-dividend day negative reversal Lakonishok Vermaelen",
+    "dividend capture backtest no edge after ex-date price recovery",
+    "Henry Koski \"Ex-Dividend Profitability and Institutional Trading Skill\" Journal of Finance",
+    "Eades Hess Kim 1984 \"On interpreting security returns during the ex-dividend period\"",
+    "Alpine Dynamic Dividend Fund dividend capture strategy losses criticism",
+    "Hartzmark Solomon dividend month premium reversal after dividend month price pressure",
+    "배당 캡처 전략 한계 배당락 후 회복 안 됨",
+    "리츠 배당락 주가 회복 실패 비판",
+    "\"dividend month premium\" \"larger reversals afterwards\" abstract Hartzmark Solomon 2013 Journal of Financial Economics",
+    "ex-dividend day anomaly disappeared decimalization price drop ratio close to one US stocks",
+    "dividend capture fund underperformed closed liquidated",
+    "\"dividend capture\" high-yield REIT ex-dividend price falls more than dividend volatility risk",
+    "post ex-dividend day returns negative abnormal returns days after ex-date study US stocks",
+    "미국 배당주 배당락 단타 배당 캡처 손실 경험",
+    "Lakonishok Vermaelen 1986 \"Tax-induced trading around ex-dividend days\" Journal of Financial Economics",
+    "배당 따먹기 전략 실패 이유 배당락 주가",
+    "bogleheads dividend capture myth ex-dividend free money",
+    "REIT dividend capture strategy criticism ex-dividend"
+  ]
+}

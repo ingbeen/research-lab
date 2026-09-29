@@ -61,7 +61,7 @@ docker info >/dev/null 2>&1 && echo "도커 정상" || echo "도커가 안 떠 �
 
 ## 3. 트리거 등록 — `sudo` 한 줄만 사용자입니다
 
-예약 시각은 **매일 01:00 (KST)** 입니다. 사용 한도가 「첫 프롬프트부터」 5시간 창으로 돌기
+예약 시각은 **매일 00:30 (KST)** 입니다. 사용 한도가 「첫 프롬프트부터」 5시간 창으로 돌기
 때문에, 낮에 직접 쓰는 시간대와 겹치지 않는 쪽이 유리합니다.
 
 ### 3.0 컨테이너 엔진을 «로그인과 같이» 띄운다
@@ -75,7 +75,7 @@ brew services list          # 등록 확인
 
 **예약 작업과 «같은 수명»을 갖는 것이 이 선택의 이유입니다.** 예약 작업도 사용자 로그인 세션에
 등록되므로 엔진을 같은 자리에 두면 **둘이 함께 뜨고 함께 내려갑니다.**
-회차를 띄울 때 엔진을 함께 시작하는 안은 버렸습니다 — 01:00 에 **VM 부팅이 실패하는 모드가
+회차를 띄울 때 엔진을 함께 시작하는 안은 버렸습니다 — 00:30 에 **VM 부팅이 실패하는 모드가
 하나 늘고**, 실행 스크립트가 이 기계·이 엔진 전용이 되어 **7절의 「저장소는 그대로이고
 기계 쪽 설정만 다시 한다」가 깨집니다.** 재부팅한 날 손으로 띄우는 안도 버렸습니다 — 무인 운용에는 그것을
 기억할 사람이 없고, 실패가 「엔진이 없다」로 안 보입니다(2절 ③).
@@ -120,8 +120,8 @@ docker info                 # 조금 기다린 뒤 정상이어야 한다
 
   <key>StartCalendarInterval</key>
   <dict>
-    <key>Hour</key><integer>1</integer>
-    <key>Minute</key><integer>0</integer>
+    <key>Hour</key><integer>0</integer>
+    <key>Minute</key><integer>30</integer>
   </dict>
 
   <key>EnvironmentVariables</key>
@@ -174,7 +174,7 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/local.research-lab.cycle
 **이 한 줄만 `sudo` 가 필요합니다.**
 
 ```bash
-sudo pmset repeat wakeorpoweron MTWRFSU 00:55:00
+sudo pmset repeat wakeorpoweron MTWRFSU 00:25:00
 ```
 
 잠든 동안 시각이 지나가면 회차는 **그 시각에** 못 돌고 **깨어난 뒤에 늦게** 돕니다

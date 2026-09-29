@@ -1,0 +1,116 @@
+{
+  "claim": "실적 발표 후 예상치를 크게 상회한 국내 코스피·코스닥 종목을 매수해 1~3개월 보유한다",
+  "params": [
+    {
+      "name": "컨센서스 대비 서프라이즈 하한 ((발표 실적 − 발표 직전 컨센서스) ÷ |컨센서스|)",
+      "term": "크게",
+      "unit": "%",
+      "candidates": [
+        5,
+        10,
+        20
+      ]
+    },
+    {
+      "name": "보유 기간",
+      "term": "1~3개월",
+      "unit": "거래일",
+      "candidates": [
+        20,
+        40,
+        60
+      ]
+    },
+    {
+      "name": "발표 후 진입 지연",
+      "term": "실적 발표 후",
+      "unit": "거래일",
+      "candidates": [
+        1,
+        2,
+        5
+      ]
+    }
+  ],
+  "fixed_terms": [],
+  "evidence": [
+    {
+      "title": "Individual investors and post-earnings-announcement drift: Evidence from Korea (Eom, Hahn, Sohn, Pacific-Basin Finance Journal 53, pp. 379-398)",
+      "url": "https://yonsei.elsevierpure.com/en/publications/individual-investors-and-post-earnings-announcement-drift-evidenc/",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "2019년 2월호에 실린 한국 시장 실증 논문이다(일자는 확인하지 못했다). 초록에 따르면 이익 발표 뒤 개인투자자가 서프라이즈와 반대 방향으로 매매해(좋은 소식에 팔고 나쁜 소식에 삼) 가격이 뉴스를 한 번에 다 반영하지 못하고, 그래서 과소반응과 발표 후 주가 표류(PEAD)가 생긴다. 표류는 개인이 뉴스와 반대로 매매한 종목에서만 나타나고, 그 매매가 강할수록 크다. 한국에 발표 후 양(+)의 표류가 있다는 것과 그 원인을 뒷받침한다"
+    },
+    {
+      "title": "Post-earnings-announcement-drift and 52-week high: Evidence from Korea (Goh, Jeon, Pacific-Basin Finance Journal 44, pp. 150-159)",
+      "url": "https://ideas.repec.org/a/eee/pacfin/v44y2017icp150-159.html",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "2017년 한국 시장 논문이다. 이익이 좋게 나온 종목 가운데 52주 고점 근처에 있는 종목에서 PEAD가 두드러진다고 보고한다. 투자자가 52주 고점을 기준점으로 삼아 좋은 소식에 과소반응한다는 설명이다. 한국에 양의 서프라이즈 뒤 표류가 있다는 것을 조건부로 뒷받침한다"
+    },
+    {
+      "title": "주가표류현상에 영향을 미치는 요인에 관한 연구 (이경태, 이연진, 회계학연구 33권 3호)",
+      "url": "https://kiss.kstudy.com/Detail/Ar?key=2963061",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "2008년 논문이다. 2003~2005년 12월 결산 비금융 상장 제조업체 1,095개를 표본으로 쓴다. 분기 이익 발표 뒤 60거래일 누적 초과수익률이 서프라이즈 크기에 따라 유의하게 커졌다. 60거래일은 약 3개월로 주장의 보유 기간 상단과 맞는다. 다만 서프라이즈를 애널리스트 컨센서스가 아니라 표준화 비기대이익(SUE, 과거 이익 흐름으로 만든 예상치)으로 쟀다"
+    },
+    {
+      "title": "기업의 비정상투자활동과 이익발표 후 주가잔류현상 (신희정, 최수영, 유라시아연구 15권 2호, pp. 43-65)",
+      "url": "https://www.kci.go.kr/kciportal/landing/article.kci?arti_id=ART002358090",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "2018년 논문이다. 2003~2015년 유가증권시장 12월 결산 기업을 대상으로 이익 발표 후 주가 잔류(표류)가 존재한다는 것을 전제로 분석한다. 표류의 크기는 비정상투자, 특히 과소투자와 양(+)의 관계가 있다고 보고한다. 2015년까지 유가증권시장에 표류가 남아 있었다는 간접 근거다"
+    },
+    {
+      "title": "The effect of Industry Homogeneity on the Magnitude of Post-earnings Announcement Drift: Evidence from Korea (Shin, Kim, Park, Shin, AAMJAF 15(1), pp. 107-127)",
+      "url": "https://ideas.repec.org/a/usm/journl/aamjaf01501_107-127.html",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "2019년 논문이다. 한국거래소 자료로 PEAD의 크기를 측정했다. 산업 동질성이 높을수록(같은 업종 기업들의 정보가 서로 참조될수록) 표류가 작다고 보고한다. 한국에 PEAD가 있고 그 크기가 종목마다 다르다는 것을 뒷받침한다"
+    },
+    {
+      "title": "Comparing the Post-Earnings Announcement Drift for Surprises Calculated from Analyst and Time Series Forecasts (Livnat, Mendenhall, Journal of Accounting Research 44(1), pp. 177-205)",
+      "url": "https://ideas.repec.org/a/bla/joares/v44y2006i1p177-205.html",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "2006년 미국 시장 논문이다. 서프라이즈를 애널리스트 예측치(I/B/E/S)로 정의하면 과거 이익 흐름으로 만든 예상치로 정의할 때보다 표류가 유의하게 크다. 주장이 쓰는 「예상치(컨센서스) 대비 상회」라는 정의가 표류를 가장 강하게 잡는 쪽이라는 근거다. 다만 한국이 아니라 미국 자료다"
+    },
+    {
+      "title": "급락 때 같이 빠졌지만 결국엔 '실적'…'어닝서프라이즈株' 23% 뛰었다 (파이낸셜뉴스·뉴스1)",
+      "url": "https://www.fnnews.com/news/202608120600428564",
+      "published": "2026-08-12",
+      "kind": "secondary",
+      "says": "에프앤가이드 자료를 인용한 기사다. 2026년 2분기 영업이익이 컨센서스를 5% 이상 웃돈 85개사는 7월 29일부터 8월 11일까지 평균 22.96% 올랐다. 컨센서스 상회율 5% 미만 기업은 15.94% 올라 격차가 7.03%포인트였다. 국내에서 컨센서스 상회 종목이 더 올랐다는 최근 사례다. 다만 기간이 약 2주이고 발표 당일 반응이 포함돼 있어, 발표 후 1~3개월 표류를 직접 보여 주지는 않는다"
+    },
+    {
+      "title": "'그래도 믿을건 실적'…어닝서프라이즈 기업 주가 '好好' (이데일리)",
+      "url": "https://edaily.co.kr/News/Read?mediaCodeNo=257&newsId=01190646632524080",
+      "published": "2022-11-09",
+      "kind": "secondary",
+      "says": "2022년 3분기 실적 시즌에 컨센서스가 있는 131개사 가운데 영업이익이 컨센서스를 10% 이상 웃돈 28개사를 다룬 기사다. 그중 20개사의 주가가 올랐다. 사례 나열이라 체계적 측정은 아니다. 국내 언론이 「어닝서프라이즈」를 컨센서스 대비 10% 이상 상회로 정의하는 관행도 보여 준다"
+    },
+    {
+      "title": "A review of the Post-Earnings-Announcement Drift (Fink, Journal of Behavioral and Experimental Finance 29)",
+      "url": "https://ideas.repec.org/a/eee/beexfi/v29y2021ics2214635020303750.html",
+      "published": "unknown",
+      "kind": "secondary",
+      "says": "2021년 PEAD 문헌 리뷰다. 주가가 이익 서프라이즈 방향으로 즉시가 아니라 서서히 표류한다는 현상을 정리한다. 위험 보정, 거래 마찰, 행동 편향 등의 설명을 검토하지만 하나의 포괄적 설명에는 이르지 못했다고 쓴다. 이 현상이 국제적으로 연구돼 온 오래된 이상 현상이라는 배경 근거다"
+    }
+  ],
+  "unverified": [
+    "Eom·Hahn·Sohn(2019)의 표본(2000~2012년, 이익 발표 3,230건)과 표류 지속 기간(좋은 소식 60거래일, 나쁜 소식 20거래일)은 검색 엔진 요약에만 나왔다. 논문 본문 PDF(apjfs.org)는 받았지만 이 환경에서 읽지 못해 확인하지 못했다. 서프라이즈를 컨센서스로 쟀는지 SUE로 쟀는지도 확인하지 못했다",
+    "Ha(2021) 「Momentum and Earnings Information in the Korean Stock Market」(Asia-Pacific Journal of Financial Studies)는 서프라이즈가 한국의 가격 모멘텀을 일부 설명한다는 내용이 검색 요약에 나왔다. 그러나 출판사 페이지가 403으로 막혀 열지 못했다",
+    "「한국에서 좋은 소식 뒤 주가가 최대 12개월까지 오르고, 좋은 소식 종목이 나쁜 소식 종목보다 월 1% 넘게 앞선다」는 문장이 검색 요약에 나왔다. 출처 논문을 특정하지 못했다",
+    "「영업이익 기준 어닝서프라이즈 전략을 40분기 백테스트했더니 순이익 기준보다 성과가 좋았고, 발표 직후뿐 아니라 일정 기간 추가 반응이 있었다」는 내용이 검색 요약에 나왔다. 출처를 특정하지 못했다. 후보로 본 이베스트투자증권 리서치 PDF(ssl.pstatic.net)는 이미지로 된 PDF라 읽지 못했다",
+    "이병주·김동철 「차익거래 제한요인이 이익공시후 주가지연현상에 미치는 영향」(korfin.org 발표 원고)은 SSL 오류로 열지 못했다",
+    "Bernard·Thomas(1989, Journal of Accounting Research 27)는 서지 정보만 확인했다. 표류 기간과 크기 수치는 열어 보지 못했다",
+    "Goh·Jeon(2017), Wiley·MDPI의 한국 PEAD 논문 원문은 403으로 막혀 표본 기간, 서프라이즈 측정 방식, 표류 크기를 확인하지 못했다. MDPI 논문은 「시장 심리 추세와 투자자 관성」(Sustainability 11권 18호)과 「CSR과 PEAD」(Sustainability 13권 11호)다",
+    "확인한 한국 학술 근거는 서프라이즈를 SUE로 재거나 측정 방식을 확인하지 못한 것뿐이다. 주장이 쓰는 「애널리스트 컨센서스 대비 상회」로 잰 한국 1차 연구에서 발표 후 1~3개월 표류를 확인한 것은 없다",
+    "열어 본 한국 연구에서 코스닥 종목만 따로 본 결과를 확인하지 못했다. 이경태·이연진(2008)의 「상장 기업」 표본에 코스닥이 들어 있는지도 확인하지 못했다",
+    "학술 근거의 표본은 2015년까지다. 그 뒤, 특히 2020년 이후에도 표류가 남아 있는지는 언론 기사의 단기 사례로만 보았고 1차 연구로 확인하지 못했다",
+    "주장은 어떤 실적(영업이익, 순이익, 매출)을 예상치와 비교하는지 정하지 않았다. 국내 언론은 주로 영업이익 컨센서스를 쓴다(파이낸셜뉴스·이데일리 기사). 어느 기준이 표류를 더 잘 잡는지는 확인하지 못했다",
+    "파이낸셜뉴스 기사의 수치(85개사, 22.96%, 15.94%)는 에프앤가이드 원자료를 직접 보지 못했고 기사 서술만 옮겼다",
+    "검색 요약에 「개인투자자 거래 비중이 코스피 55%, 코스닥 91%」라는 수치가 나왔다. 출처와 기준 연도를 확인하지 못했다"
+  ]
+}

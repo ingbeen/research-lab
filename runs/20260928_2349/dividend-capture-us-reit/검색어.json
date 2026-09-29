@@ -1,0 +1,21 @@
+{
+  "claim": "미국 상장 리츠(REIT) 및 배당주를 매 분기 배당락일 며칠 전 매수해 배당락 후 단기 반등 시 매도한다(배당 포착, dividend capture)",
+  "queries": [
+    "dividend capture strategy ex-dividend day price drop less than dividend academic study",
+    "배당락 전 매수 배당락 후 반등 매도 전략 미국 리츠",
+    "REIT ex-dividend day stock price behavior study",
+    "Hartzmark Solomon \"dividend month premium\" Journal of Financial Economics",
+    "abnormal returns before ex-dividend day run-up and price recovery after ex-dividend date",
+    "배당 포착 전략 dividend capture 배당락일 주가 회복 논문",
+    "Henry Koski \"Ex-dividend profitability and institutional trading skill\" Journal of Finance",
+    "Eades Hess Kim 1984 \"On interpreting security returns during the ex-dividend period\" Journal of Financial Economics",
+    "미국 배당주 배당락 단타 수익 리츠 배당락 후 주가 회복 기간",
+    "Whitworth \"Ex-Day Price Behavior of REITs: Taxes or Ticks\" abstract",
+    "high dividend yield stocks positive ex-dividend day returns Kalay Michaely \"Dividends and taxes: a re-examination\"",
+    "dividend capture strategy backtest quarterly dividend stocks buy before ex-date sell after results",
+    "Karpoff Walkling \"Short-term trading around ex-dividend days\" Journal of Financial Economics",
+    "\"ex-dividend\" price recovery days after ex-date US stocks study \"days to recover\" dividend",
+    "\"Dividend Size, Yield, Clienteles and REITs\" abstract",
+    "리츠 배당락 매매 미국 월배당 리얼티인컴 배당락 후 주가 회복 배당캡처"
+  ]
+}

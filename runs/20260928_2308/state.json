@@ -1,0 +1,19 @@
+{
+  "settled": [
+    "explore",
+    "collect",
+    "rebut",
+    "lineage",
+    "feasibility",
+    "mechanism",
+    "measurement",
+    "verdict"
+  ],
+  "skipped": [
+    "explore"
+  ],
+  "candidate": {
+    "claim": "코스피200 정기 변경으로 신규 편입이 예상되는 종목을 예상 발표 시점에 매수해 실제 편입일까지 보유한다",
+    "identifier": "kospi200-add-anticipation"
+  }
+}

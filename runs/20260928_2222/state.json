@@ -1,0 +1,19 @@
+{
+  "settled": [
+    "explore",
+    "collect",
+    "rebut",
+    "lineage",
+    "feasibility",
+    "mechanism",
+    "measurement",
+    "verdict"
+  ],
+  "skipped": [
+    "explore"
+  ],
+  "candidate": {
+    "claim": "실적 발표 후 예상치를 크게 상회한 국내 코스피·코스닥 종목을 매수해 1~3개월 보유한다",
+    "identifier": "pead-kr-surprise"
+  }
+}

@@ -1,0 +1,195 @@
+{
+  "claim": "실적 발표 후 예상치를 크게 상회한 국내 코스피·코스닥 종목을 매수해 1~3개월 보유한다",
+  "groups": [
+    {
+      "origin": {
+        "title": "Individual investors and post-earnings-announcement drift: Evidence from Korea (Eom, Hahn, Sohn, Pacific-Basin Finance Journal 53권, 2019, pp. 379-398)",
+        "url": "https://ideas.repec.org/a/eee/pacfin/v53y2019icp379-398.html",
+        "published": "unknown"
+      },
+      "copies": [
+        {
+          "title": "Individual investors and post-earnings-announcement drift: Evidence from Korea (Eom, Hahn, Sohn, Pacific-Basin Finance Journal 53, pp. 379-398) — 연세대 연구성과 목록",
+          "url": "https://yonsei.elsevierpure.com/en/publications/individual-investors-and-post-earnings-announcement-drift-evidenc/"
+        }
+      ],
+      "why": "두 주소는 같은 논문의 서지 목록 페이지입니다. 저자 셋, 학술지·권·쪽(53권 379-398), DOI(10.1016/j.pacfin.2018.12.002), 초록이 모두 같습니다. 어느 쪽도 출판사 원문 페이지가 아니라서 서지 정보가 더 온전한 IDEAS 쪽을 원본 자리에 놓았습니다. 찬성 목록과 반증 목록에 각각 따로 들어 있었지만 소스 수는 1입니다. 참고문헌에 Livnat·Mendenhall(2006)이 들어 있기는 합니다. 그래도 그 숫자를 옮겨 온 것이 아니라, 한국 시장 표본으로 「개인투자자가 서프라이즈와 반대 방향으로 매매해 드리프트를 만든다」를 직접 검정한 연구라서 그 논문과는 따로 셉니다."
+    },
+    {
+      "origin": {
+        "title": "Post-earnings-announcement-drift and 52-week high: Evidence from Korea (Goh, Jeon, Pacific-Basin Finance Journal 44, 2017, pp. 150-159)",
+        "url": "https://ideas.repec.org/a/eee/pacfin/v44y2017icp150-159.html",
+        "published": "unknown"
+      },
+      "copies": [
+        {
+          "title": "A review of the Post-Earnings-Announcement Drift (Fink, Journal of Behavioral and Experimental Finance 29)",
+          "url": "https://ideas.repec.org/a/eee/beexfi/v29y2021ics2214635020303750.html"
+        }
+      ],
+      "why": "Goh·Jeon 은 한국 시장에서 52주 신고가 근접도에 따라 긍정적 서프라이즈 뒤의 드프트 크기가 달라진다는 것을 자체 표본으로 검정했습니다. Fink(2021)는 자체 자료나 새 검정이 없는 문헌 리뷰이고 참고문헌에 이 논문이 들어 있습니다. 그래서 한국 시장 드리프트에 관한 Fink 의 서술은 이 논문을 옮긴 것으로 보고 복제 자리에 놓았습니다. Fink 는 Livnat·Mendenhall(2006)과 Milian(2015)도 함께 인용하므로 그 두 덩어리에도 복제로 적었습니다. 여러 원본을 함께 옮긴 글이라 어느 덩어리의 독립 소스도 늘리지 않습니다."
+    },
+    {
+      "origin": {
+        "title": "주가표류현상에 영향을 미치는 요인에 관한 연구 (이경태, 이연진, 회계학연구 33권 3호, 2008년 9월, pp. 61-101)",
+        "url": "https://kiss.kstudy.com/Detail/Ar?key=2963061",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "2003~2005년 상장사 1,095곳의 분기 실적 발표 뒤 누적 초과수익을 자체 표본으로 잰 연구입니다. 목록의 다른 어느 출처와도 같은 숫자나 같은 예시가 겹치지 않고, 이 논문을 옮긴 글도 목록에 없어서 혼자인 덩어리입니다. 다만 표본 기간 2003~2005년은 신희정·최수영(2003~2015년)의 표본 기간 안에 들어갑니다. 따라서 같은 시장 역사를 다시 잰 것이지 서로 다른 시장에서 확인한 것은 아닙니다."
+    },
+    {
+      "origin": {
+        "title": "기업의 비정상투자활동과 이익발표 후 주가잔류현상 (신희정, 최수영, 유라시아연구 15권 2호, 2018, pp. 43-65)",
+        "url": "https://www.kci.go.kr/kciportal/landing/article.kci?arti_id=ART002358090",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "2003~2015년 국내 시장 자료로 비정상투자(특히 과소투자)와 드리프트 크기의 관계를 자체 검정한 연구입니다. 볼 수 있었던 참고문헌에는 목록의 다른 국내 드리프트 연구가 없었고, 같은 숫자를 쓰는 출처도 목록에 없어서 혼자인 덩어리로 적었습니다. 산업 동질성을 다룬 AAMJAF 논문(Shin, Kim, Park, Shin)의 제1저자와 이름이 같습니다. 같은 사람이면 두 연구가 같은 표본 구성을 썼을 수 있으나 확인하지 못했습니다."
+    },
+    {
+      "origin": {
+        "title": "The effect of Industry Homogeneity on the Magnitude of Post-earnings Announcement Drift: Evidence from Korea (Shin, Kim, Park, Shin, AAMJAF 15(1), 2019, pp. 107-127)",
+        "url": "https://ideas.repec.org/a/usm/journl/aamjaf01501_107-127.html",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "국내 상장사 자료로 산업 동질성이 높을수록 드리프트가 작다는 것을 자체 검정한 연구입니다. 참고문헌에 Goh·Jeon, Eom 외, Livnat·Mendenhall 이 없고, 이 논문을 옮긴 글도 목록에 없어서 혼자인 덩어리입니다. 찬성 목록과 반증 목록에 한 번씩 들어 있었지만 주소가 하나라 덩어리도 하나입니다."
+    },
+    {
+      "origin": {
+        "title": "Comparing the Post-Earnings Announcement Drift for Surprises Calculated from Analyst and Time Series Forecasts (Livnat, Mendenhall, Journal of Accounting Research 44(1), 2006, pp. 177-205)",
+        "url": "https://ideas.repec.org/a/bla/joares/v44y2006i1p177-205.html",
+        "published": "unknown"
+      },
+      "copies": [
+        {
+          "title": "A review of the Post-Earnings-Announcement Drift (Fink, Journal of Behavioral and Experimental Finance 29)",
+          "url": "https://ideas.repec.org/a/eee/beexfi/v29y2021ics2214635020303750.html"
+        }
+      ],
+      "why": "미국 자료(I/B/E/S 애널리스트 예측, Compustat 실적)로 애널리스트 예측 기준 서프라이즈의 드리프트가 시계열 예측 기준보다 크다는 것을 보인 1차 연구입니다. Fink 는 자체 자료가 없는 리뷰이고 참고문헌에 이 논문이 있어 복제 자리에 놓았습니다. Eom 외(2019), Milian(2015), Martineau 도 이 논문을 인용합니다. 그러나 셋 다 자기 표본으로 따로 검정했고 이 논문의 숫자를 옮겨 쓰지 않았으므로 이 덩어리에 넣지 않았습니다. 이 논문을 인용하는 것은 논의의 틀을 잡거나 반박하려는 것이지 근거를 빌려 오는 것이 아닙니다. 또 이 연구는 미국 시장 연구라서 국내 코스피·코스닥 주장을 직접 확인하지는 않습니다."
+    },
+    {
+      "origin": {
+        "title": "Unsophisticated Arbitrageurs and Market Efficiency: Overreacting to a History of Underreaction? (Jonathan A. Milian, Journal of Accounting Research 53권 1호, 2015년 3월, pp. 175-220)",
+        "url": "https://ideas.repec.org/a/bla/joares/v53y2015i1p175-220.html",
+        "published": "unknown"
+      },
+      "copies": [
+        {
+          "title": "Reversal in Post-Earnings Announcement Drift (Quantpedia 전략 소개 페이지 — Milian 연구 요약)",
+          "url": "https://quantpedia.com/strategies/reversal-in-post-earnings-announcement-drift"
+        },
+        {
+          "title": "A review of the Post-Earnings-Announcement Drift (Fink, Journal of Behavioral and Experimental Finance 29)",
+          "url": "https://ideas.repec.org/a/eee/beexfi/v29y2021ics2214635020303750.html"
+        }
+      ],
+      "why": "Quantpedia 페이지는 Milian 의 연구를 요약한 것이라고 스스로 밝히며, 같은 연구의 2014년 워킹페이퍼판(AEA 발표, SSRN 2229479)을 원천으로 듭니다. 새 자료가 없으므로 복제입니다. 다만 숫자가 다릅니다. Quantpedia 는 직전 서프라이즈 상위 분위가 하위 분위보다 1.29% 못하다고 적었고(1996~2010년), 학술지판 초록은 약 1.59% 로 적었습니다. 워킹페이퍼판과 게재판의 차이로 보이나 본문으로 맞춰 보지는 못했습니다. Fink 리뷰도 이 논문을 참고문헌에 들어 복제로 함께 적었습니다. Martineau 가 이 논문을 인용하지만 자기 표본으로 따로 검정했으므로 이 덩어리에 넣지 않았습니다. 이 연구는 미국의 옵션 상장 기업을 대상으로 합니다."
+    },
+    {
+      "origin": {
+        "title": "Rest in Peace Post-Earnings Announcement Drift (Charles Martineau, 2021년 SocArXiv 원고 — 2022년 Critical Finance Review 11권 3-4호에 실림)",
+        "url": "https://ideas.repec.org/p/osf/socarx/z7k3p.html",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "미국 주식에서 대형주는 2006년 이후, 초소형주는 최근 들어 발표일에 서프라이즈가 주가에 다 반영돼 드리프트가 사라졌다는 자체 검정입니다. 참고문헌에 Milian(2015), Livnat·Mendenhall(2006), Fink(2021)가 있지만 그 숫자를 옮긴 것이 아니라 자기 자료로 잰 결론이라 혼자인 덩어리로 적었습니다. 이 원고를 옮긴 글은 목록에 없습니다."
+    },
+    {
+      "origin": {
+        "title": "급락 때 같이 빠졌지만 결국엔 '실적'…'어닝서프라이즈株' 23% 뛰었다 (파이낸셜뉴스·뉴스1)",
+        "url": "https://www.fnnews.com/news/202608120600428564",
+        "published": "2026-08-12"
+      },
+      "copies": [],
+      "why": "뉴스1 서한샘 기자의 기사를 파이낸셜뉴스가 실은 것입니다. 에프앤가이드와 iM증권 자료를 인용합니다. 2분기 실적이 예상을 5% 이상 넘은 85곳의 평균 상승률 22.96%, 5% 미만 초과 기업의 15.94%, 예시 종목 심텍·한화솔루션·한화비전·디아이·풍산이 목록의 다른 출처에는 나오지 않습니다. 9일 앞선 KED Global 기사도 2분기 실적 시즌을 다루지만 제목의 숫자(과반이 예상치 상회)는 이 기사의 숫자와 다릅니다. 이 기사는 서프라이즈 뒤의 주가 반응을 다루고 KED Global 은 상회 기업 비율을 다루므로 다른 분석으로 보았습니다."
+    },
+    {
+      "origin": {
+        "title": "'그래도 믿을건 실적'…어닝서프라이즈 기업 주가 '好好' (이데일리)",
+        "url": "https://edaily.co.kr/News/Read?mediaCodeNo=257&newsId=01190646632524080",
+        "published": "2022-11-09"
+      },
+      "copies": [],
+      "why": "에프앤가이드 자료로 2022년 3분기 실적을 낸 131곳 중 어닝 서프라이즈 28곳, 그중 20곳이 발표 뒤 올랐다고 적은 기사입니다. 예시 종목은 LG에너지솔루션 +21.9%, 삼성SDI +7.8% 등입니다. 같은 이데일리 안혜신 기자의 2022-08-29 기사와 포스코케미칼·한화솔루션이 함께 나오지만 분기가 다르고 숫자도 다릅니다(포스코케미칼 +38% 대 +13.01%, 한화솔루션 +20.4% 대 -8.8%). 그래서 복제가 아니라 따로 셉니다."
+    },
+    {
+      "origin": {
+        "title": "어닝 서프라이즈는 같은데…엇갈리는 주가 이유는 (이데일리)",
+        "url": "https://edaily.co.kr/News/Read?mediaCodeNo=257&newsId=01102086632432240",
+        "published": "2022-08-29"
+      },
+      "copies": [],
+      "why": "2022년 2분기 어닝 서프라이즈 종목의 주가가 엇갈린 사례를 모은 기사입니다. 현대차는 전망치 대비 148.1% 에도 1.3% 상승에 그쳤고, 한세실업은 공시 뒤 6.8% 하락했습니다. 출처는 마켓포인트, 유안타증권, DB금융투자, KB증권입니다. 같은 기자의 2022-11-09 기사와 분기·숫자·자료 출처가 달라서 따로 셉니다."
+    },
+    {
+      "origin": {
+        "title": "코스닥 10곳 중 6곳은 증권사 리포트 '0건' (헤럴드경제, 에프앤가이드 집계 인용)",
+        "url": "https://biz.heraldcorp.com/article/10770445",
+        "published": "2026-06-12"
+      },
+      "copies": [],
+      "why": "코스닥 1,819곳 중 최근 1년 리포트가 1건 이상인 곳은 730곳(40.1%)이고, 애널리스트는 2015년 약 600명에서 2024년 약 400명으로 줄었다는 에프앤가이드·자본시장연구원 자료 기사입니다. 다른 매체 기사를 인용하지 않고, 이 숫자는 목록의 다른 출처에 나오지 않아 혼자인 덩어리입니다."
+    },
+    {
+      "origin": {
+        "title": "1분기 실적 발표 코스피 상장사 3곳 중 1곳 '어닝 서프라이즈' (아시아경제, 다음 뉴스 게재)",
+        "url": "https://v.daum.net/v/zv4wZivmcf",
+        "published": "2026-05-03"
+      },
+      "copies": [],
+      "why": "아시아경제 염다연 기자의 기사를 다음이 게재한 것입니다. 실적을 낸 90곳 중 전망치 상회 49곳(55.5%), 어닝 서프라이즈 29곳, 삼성전자 영업이익 57조 2,328억 원(전망치 대비 35% 상회)을 적었습니다. 1분기 기사라서 2분기를 다룬 KED Global, 파이낸셜뉴스 기사와 분기와 숫자가 다릅니다. 이 숫자를 되풀이하는 출처는 목록에 없습니다."
+    },
+    {
+      "origin": {
+        "title": "More than half of Korean firms beat earnings forecasts, bolstering market fundamentals despite Kospi volatility (KED Global)",
+        "url": "https://www.kedglobal.com/earnings/newsView/ked202608020003",
+        "published": "2026-08-03"
+      },
+      "copies": [],
+      "why": "2026년 2분기 실적을 낸 국내 상장사의 과반이 예상치를 넘었다는 기사입니다. 태그로 보아 에프앤가이드 자료를 쓴 것 같습니다. 볼 수 있었던 것은 제목과 첫 문단뿐이라 세부 숫자를 다른 기사와 맞춰 보지 못했습니다. 드러난 숫자와 주제가 같은 2분기를 다룬 파이낸셜뉴스·뉴스1 기사(서프라이즈 뒤 주가 반응)와 달라서 혼자인 덩어리로 두었습니다."
+    },
+    {
+      "origin": {
+        "title": "KOSPI earnings are better. So why are stocks falling harder? (Investing.com, KB증권 리서치 인용)",
+        "url": "https://au.investing.com/news/stock-market-news/kospi-earnings-are-better-so-why-are-stocks-falling-harder-4539994",
+        "published": "2026-07-19"
+      },
+      "copies": [],
+      "why": "KB증권 보고서를 인용해, 실적이 좋은데도 코스피가 2.70%, 삼성전자가 5.43%, SK하이닉스가 5.05% 내렸고 원인은 이익이 아니라 금리 같은 금융 여건이라고 적은 기사입니다. 12일 앞선 경향신문 기사도 실적 호조 속의 급락을 다루지만 날짜와 하락률(코스피 -4.91%, 삼성전자 -6.92%)과 인용한 증권사(미래에셋·키움)가 달라서 다른 사건을 따로 보도한 것으로 보았습니다."
+    },
+    {
+      "origin": {
+        "title": "삼성전자 '어닝 서프라이즈'에도 주가 6% 급락한 이유는 (경향신문)",
+        "url": "https://www.khan.co.kr/article/202607071719021",
+        "published": "2026-07-07"
+      },
+      "copies": [],
+      "why": "2분기 영업이익 89조원 발표 날 삼성전자가 6.92%, 코스피가 4.91% 내린 것을 다룬 이보라 기자의 기사입니다. 미래에셋증권·키움증권 연구원의 말과, 블룸버그가 전한 모건스탠리 보고서를 인용합니다. 「어닝 서프라이즈 뒤 주가 하락이 16차례 중 10차례」라는 숫자는 목록의 다른 출처에 없습니다. Investing.com 기사와의 관계는 그 덩어리에 적은 대로 날짜와 숫자가 달라 따로 셉니다."
+    },
+    {
+      "origin": {
+        "title": "Companies Beat Earnings 75.9% of the Time. Analysts Predicted 43.9%. Betting Against Them Would Have Won (24/7 Wall St, AOL 게재)",
+        "url": "https://www.aol.com/articles/companies-beat-earnings-75-9-221857000.html",
+        "published": "2026-09-23"
+      },
+      "copies": [],
+      "why": "24/7 Wall St 의 Jake FitzGerald 기사를 AOL 이 실은 것입니다. Rabetti·Shao·Zhang 의 연구를 인용해 미국 기업이 예상치를 넘는 비율이 75.9% 로 애널리스트가 스스로 예상한 43.9% 보다 크게 높다고 적었습니다. 회사가 안내치를 낮춰 기준을 끌어내리는 것(walk-down)을 원인으로 들고, Larry Swedroe 의 글도 인용합니다. 목록의 다른 출처와 겹치는 숫자나 인용이 없어 혼자인 덩어리입니다. 미국 시장 기사이고 발표 뒤 드리프트는 다루지 않습니다."
+    }
+  ],
+  "independent_source_count": 17,
+  "unverified": [
+    "KED Global 기사는 제목과 첫 문단만 읽혔습니다. 몇 곳이 실적을 냈고 몇 곳이 상회했는지, 기자 이름, 에프앤가이드가 출처인지 확인하지 못했습니다. 그래서 9일 뒤 같은 2분기를 다룬 파이낸셜뉴스·뉴스1 기사와 숫자가 겹치는지 본문으로 맞춰 보지 못했습니다.",
+    "파이낸셜뉴스 기사는 뉴스1 서한샘 기자의 기사를 옮겨 실은 것입니다. 뉴스1 원문 주소는 열지 않았습니다.",
+    "아시아경제 기사는 다음 게재본만 열었고, 아시아경제 자체 페이지는 열지 않았습니다.",
+    "AOL 기사는 24/7 Wall St 기사를 옮겨 실은 것입니다. 24/7 Wall St 원문과, 그 기사가 인용한 Rabetti·Shao·Zhang 연구 원문은 열지 않았습니다.",
+    "국내 드리프트 연구 다섯 편은 모두 초록이나 서지 페이지만 보았고 본문은 열지 않았습니다. 따라서 같은 숫자나 같은 표를 공유하는지 맞춰 보지 못했습니다. 표본 기간이 확인된 것은 이경태·이연진(2003~2005)과 신희정·최수영(2003~2015)뿐이고 둘은 겹칩니다. Goh·Jeon, Eom 외, Shin 외의 표본 기간은 확인하지 못했습니다. 다섯 편은 가설이 서로 달라 따로 셌지만, 모두 같은 국내 시장 역사를 잰 것이라 서로 독립된 표본은 아닙니다.",
+    "신희정·최수영(2018)의 신희정(이화여대)과 AAMJAF(2019)의 Heejeong Shin 이 같은 사람인지 확인하지 못했습니다. 같은 사람이면 두 논문이 같은 표본 구성을 썼을 수 있습니다.",
+    "Martineau 원고가 2022년 Critical Finance Review 11권 3-4호에 실렸다는 것은 받은 목록에 적힌 설명이고, 연 IDEAS 페이지에는 게재판 연결이 없었습니다.",
+    "Quantpedia 가 적은 Milian 연구의 숫자(상하위 분위 차이 1.29%, 1996~2010년)와 학술지판 초록의 숫자(약 1.59%)가 다릅니다. 워킹페이퍼판과 게재판의 차이로 보이나 본문으로 맞춰 보지 못했습니다.",
+    "Fink 리뷰가 Livnat·Mendenhall, Milian, Goh·Jeon 을 인용한다는 것은 IDEAS 의 참고문헌 목록으로만 확인했습니다. 본문에서 각 논문을 어떤 결론의 근거로 썼는지는 확인하지 못했습니다.",
+    "논문들의 정확한 발행일(일 단위)은 확인하지 못해 unknown 으로 적었습니다. 확인된 것은 연도나 월까지입니다(Eom 외 2019년 2월, 이경태·이연진 2008년 9월, 신희정·최수영 2018년, Shin 외 2019년, Goh·Jeon 2017년, Livnat·Mendenhall 2006년, Milian 2015년, Fink 2021년, Martineau 원고 2021년)."
+  ]
+}

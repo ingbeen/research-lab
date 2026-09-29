@@ -1,0 +1,111 @@
+{
+  "claim": "실적 발표 후 예상치를 크게 상회한 국내 코스피·코스닥 종목을 매수해 1~3개월 보유한다",
+  "rebuttals": [
+    {
+      "title": "Rest in Peace Post-Earnings Announcement Drift (Charles Martineau, 2021년 SocArXiv 원고 — 2022년 Critical Finance Review 11권 3-4호에 실림)",
+      "url": "https://ideas.repec.org/p/osf/socarx/z7k3p.html",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "미국 시장에서는 이제 실적 발표일 하루에 서프라이즈가 주가에 전부 반영되고, 그래서 발표 뒤에 이어지는 주가 표류(PEAD)가 사라졌다고 결론낸다. 대형주는 2006년 이후 표류가 없었고, 초소형주에서도 최근 사라졌다고 한다. 이 주장은 발표 «뒤»에 사서 1~3개월 동안 표류를 먹는 구조라서, 정보 환경이 좋아진 시장에서는 그 전제가 무너진다는 반례가 된다. 다만 국내 시장을 직접 잰 연구는 아니다."
+    },
+    {
+      "title": "Unsophisticated Arbitrageurs and Market Efficiency: Overreacting to a History of Underreaction? (Jonathan A. Milian, Journal of Accounting Research 53권 1호, 2015년 3월)",
+      "url": "https://ideas.repec.org/a/bla/joares/v53y2015i1p175-220.html",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "미국에서 거래소 상장 옵션이 있어 차익거래가 쉬운 종목은 원래 양(+)이던 이익발표 뉴스의 자기상관이 유의한 음(-)으로 뒤집혔다고 보고한다. 직전 이익발표 반응이 가장 컸던 10분위가 다음 발표 때 가장 약했던 10분위보다 평균 1.59% 뒤처졌다. 저자는 이를 발표 후 표류라는 잘 알려진 이상현상을 투자자들이 배워서 과하게 이용한 결과로 해석한다. 널리 알려진 뒤에는 서프라이즈를 따라 사는 방향이 오히려 틀릴 수 있다는 반증이다. 이것도 미국 표본이다."
+    },
+    {
+      "title": "Reversal in Post-Earnings Announcement Drift (Quantpedia 전략 소개 페이지 — Milian 연구 요약)",
+      "url": "https://quantpedia.com/strategies/reversal-in-post-earnings-announcement-drift",
+      "published": "unknown",
+      "kind": "secondary",
+      "says": "Milian 연구를 요약한 페이지다. NYSE·AMEX·NASDAQ의 옵션 상장 종목, 1996~2010년 표본에서 전통적인 PEAD가 유동성 높은 종목에서는 반전됐다고 전한다. 직전 서프라이즈 최상위 10분위가 다음 발표 때 최하위 10분위보다 1.29% 뒤처졌다는 수치를 싣고 있다(학술지 초록 요약의 1.59%와 다르다). 유동성이 높아 차익거래가 쉬운 종목일수록 서프라이즈 추종 매수가 통하지 않는다는 주장이다."
+    },
+    {
+      "title": "Individual investors and post-earnings-announcement drift: Evidence from Korea (Eom, Hahn, Sohn, Pacific-Basin Finance Journal 53권, 2019)",
+      "url": "https://ideas.repec.org/a/eee/pacfin/v53y2019icp379-398.html",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "국내 시장의 PEAD는 «개인투자자가 이익 뉴스와 반대 방향으로 거래한 종목에서만» 나타난다고 보고한다(원문: PEAD exists only for those stocks that individuals trade in the opposite direction to earnings news). 좋은 서프라이즈 뒤에 개인이 판 종목에서만 표류가 생긴다는 뜻이다. 따라서 예상치를 상회한 종목을 조건 없이 다 사는 규칙은 표류가 없는 종목까지 함께 담게 된다. 국내에 PEAD가 있다는 것 자체는 인정하므로 부분 반박이고, 무조건적 적용을 반박한다."
+    },
+    {
+      "title": "Post-earnings-announcement-drift and 52-week high: Evidence from Korea (Goh, Jeon, Pacific-Basin Finance Journal 44권, 2017)",
+      "url": "https://ideas.repec.org/a/eee/pacfin/v44y2017icp150-159.html",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "국내에서 긍정적 이익 서프라이즈 뒤의 표류는 주가가 52주 최고가 근처일 때 뚜렷하다고 보고한다. 투자자가 52주 최고가를 기준점으로 삼아 고점 근처의 호재에 덜 반응하기 때문이라는 해석이다. 반면 발표 전후 개인의 매수 압력은 52주 최고가에서 먼 종목에 몰린다. 표류가 서프라이즈 종목 전반이 아니라 일부 조건에 몰려 있다는 부분 반박이다. 최고가에서 먼 종목에서 표류가 0인지는 초록만으로는 확인하지 못했다."
+    },
+    {
+      "title": "The effect of Industry Homogeneity on the Magnitude of Post-earnings Announcement Drift: Evidence from Korea (Shin, Kim, Park, Shin, Asian Academy of Management Journal of Accounting and Finance 15권 1호, 2019)",
+      "url": "https://ideas.repec.org/a/usm/journl/aamjaf01501_107-127.html",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "국내에서 산업 동질성이 높은 업종일수록 PEAD가 작다고 보고한다. 같은 업종 다른 기업의 정보로 이익의 의미를 빨리 알아차릴 수 있기 때문이라는 해석이다. 표류의 크기가 업종에 따라 크게 달라지고 일부 업종에서는 작다는 부분 반박이다."
+    },
+    {
+      "title": "코스닥 10곳 중 6곳은 증권사 리포트 '0건' (헤럴드경제, 에프앤가이드 집계 인용)",
+      "url": "https://biz.heraldcorp.com/article/10770445",
+      "published": "2026-06-12",
+      "kind": "secondary",
+      "says": "최근 1년(2025-06-10 ~ 2026-06-10) 동안 코스닥 상장사 1,819곳 가운데 1,089곳(59.9%)은 증권사 리포트가 한 건도 없었다. 리포트가 나온 곳도 코스닥150 편입 종목(평균 24건)에 몰렸고, 비편입 기업은 평균 5건이었다. 애널리스트 예상치(컨센서스)가 없으면 「예상치를 크게 상회」라는 신호를 정의할 수 없다. 그래서 주장이 대상으로 삼는 코스닥 종목의 다수에는 이 규칙을 적용할 수 없고, 적용 가능한 범위가 주장보다 훨씬 좁다는 반박이다."
+    },
+    {
+      "title": "1분기 실적 발표 코스피 상장사 3곳 중 1곳 '어닝 서프라이즈' (아시아경제, 다음 뉴스 게재)",
+      "url": "https://v.daum.net/v/zv4wZivmcf",
+      "published": "2026-05-03",
+      "kind": "secondary",
+      "says": "최근 3개월 동안 3개 이상 증권사가 전망치를 낸 코스피 상장사는 197곳이다. 그중 1분기 실적을 낸 90곳 가운데 29곳(약 32%)이 영업이익 전망치를 10% 이상 웃돌았다. 예상치가 있는 종목 자체가 코스피 일부에 그친다. 또 10% 이상 상회가 발표 기업의 약 3분의 1에서 나올 만큼 흔해서, 이 정도 기준의 「크게 상회」는 드문 사건이 아니다. 신호가 희소하지 않으면 그만큼 새 정보를 담고 있다고 보기 어렵다는 반박이다. 발표 뒤 주가 반응은 기사에 없다."
+    },
+    {
+      "title": "More than half of Korean firms beat earnings forecasts, bolstering market fundamentals despite Kospi volatility (KED Global)",
+      "url": "https://www.kedglobal.com/earnings/newsView/ked202608020003",
+      "published": "2026-08-03",
+      "kind": "secondary",
+      "says": "2026년 2분기 실적을 낸 국내 상장사의 절반 이상이 시장 예상치를 웃돌았는데도 코스피는 크게 흔들렸다고 전한다. 예상치 상회가 다수 기업에서 일어나는 흔한 일이고, 그 시기 주가 흐름과 따로 놀았다는 사례다. 상회의 정의와 데이터 출처는 기사에 없다."
+    },
+    {
+      "title": "KOSPI earnings are better. So why are stocks falling harder? (Investing.com, KB증권 리서치 인용)",
+      "url": "https://au.investing.com/news/stock-market-news/kospi-earnings-are-better-so-why-are-stocks-falling-harder-4539994",
+      "published": "2026-07-19",
+      "kind": "secondary",
+      "says": "2026년 7월 코스피는 기업 실적이 좋아지는 가운데 급락했다. KB증권은 하락의 주된 원인이 실적이 아니라 금리 상승과, AI 투자를 자금조달 비용의 눈으로 보는 시장 시각이었다고 분석한다. 1~3개월 보유 기간의 수익률이 개별 종목의 실적 서프라이즈보다 시장 전체의 금리·거시 국면에 좌우될 수 있다는 반박이다. 시장 대비 초과수익이 아니라 절대 수익으로 재면 특히 그렇다."
+    },
+    {
+      "title": "삼성전자 '어닝 서프라이즈'에도 주가 6% 급락한 이유는 (경향신문)",
+      "url": "https://www.khan.co.kr/article/202607071719021",
+      "published": "2026-07-07",
+      "kind": "secondary",
+      "says": "삼성전자가 시장 기대를 웃도는 2분기 잠정실적을 냈지만 발표 당일 주가는 6% 넘게 떨어졌다. 기사는 높아진 기대가 이미 선반영돼 차익실현 매물이 나왔다고 설명한다. 또 2019년 이후 16차례 어닝 서프라이즈 가운데 10차례는 발표 당일 주가가 하락했다고 적는다(통계 출처는 기사에 없음). 컨센서스 상회가 시장의 실제 기대 상회와 같지 않고 호재로 읽히지 않을 수 있다는 반박이다. 다만 기사는 발표 당일만 다루고, 이후 몇 주·몇 달의 흐름은 다루지 않는다."
+    },
+    {
+      "title": "어닝 서프라이즈는 같은데…엇갈리는 주가 이유는 (이데일리)",
+      "url": "https://edaily.co.kr/News/Read?mediaCodeNo=257&newsId=01102086632432240",
+      "published": "2022-08-29",
+      "kind": "secondary",
+      "says": "2022년 2분기에 전망치를 크게 넘긴 종목들이 발표 뒤 약 한 달 동안 오르지 못한 사례를 든다. 현대차(전망치 대비 148.1% 상회)는 발표 직후 대비 +1.3%, 한세실업(158.9% 상회)은 -6.8%, 화승엔터프라이즈(200% 초과 상회)는 +1.5%였다. 전문가들은 환율·유가 같은 일회성 거시 요인이 만든 서프라이즈라는 점과 실적 정점 통과 우려를 원인으로 든다. 서프라이즈 폭이 커도 그 성격(일회성 여부)에 따라 표류가 생기지 않는다는 반례지만, 3건짜리 사례일 뿐이다."
+    },
+    {
+      "title": "Companies Beat Earnings 75.9% of the Time. Analysts Predicted 43.9%. Betting Against Them Would Have Won (24/7 Wall St, AOL 게재)",
+      "url": "https://www.aol.com/articles/companies-beat-earnings-75-9-221857000.html",
+      "published": "2026-09-23",
+      "kind": "secondary",
+      "says": "미국에서 예측시장이 있는 비교적 큰 종목들을 6개월 동안 본 결과, 기업이 예상치를 이긴 비율은 76%였는데 컨센서스가 함의한 비율은 44%였다고 전한다. 예상치 상회는 «기본값»이라 그것만으로는 정보가 거의 없다는 주장이다. 주가를 실제로 움직인 것은 서프라이즈의 크기, 회사가 낸 향후 가이던스, 발표 직전 몇 주 사이 추정치가 조용히 낮춰졌는지 여부였다고 한다. 예상치 자체가 발표 전에 관리·하향되면 「예상치 상회」가 진짜 호재가 아닐 수 있다는 반박이다. 미국 표본이다."
+    }
+  ],
+  "not_found_reason": "",
+  "unverified": [
+    "국내 시장에서 PEAD가 최근(예: 2010년대 후반 이후) 약해졌거나 사라졌다는 직접 연구는 찾지 못했다. 미국의 소멸 증거가 국내 코스피·코스닥에도 그대로 들어맞는지는 확인되지 않았다",
+    "Griffin, Kelly, Nardari (2010, Review of Financial Studies 23권 8호): 38개 시장 중 15곳에서만 PEAD가 유의했다는 수치는 검색 요약에서만 봤다. 원문 초록에는 이 수치가 없었고, 한국이 유의한 15곳에 드는지도 확인하지 못했다",
+    "McLean & Pontiff (2016, Journal of Finance): 이상현상 수익이 발표 뒤 58% 줄었다는 수치는 검색 요약에서만 봤다. SSRN·Wiley는 403으로 막혔고 PDF는 텍스트 추출에 실패했다. 97개 예측변수에 이익 서프라이즈가 들어 있는지 미확인",
+    "Chordia, Subrahmanyam, Tong (2014) 「Have capital market anomalies attenuated in the recent era of high liquidity and trading activity?」: 이익 서프라이즈 이상현상이 약해졌다는 결론을 원문으로 확인하지 못했다(SMU 저장소 응답이 비어 있음)",
+    "「Why Has PEAD Declined Over Time? The Role of Earnings News Persistence」(Columbia 행사 PDF): 서프라이즈 상위·하위 포트폴리오의 수익 차이가 1980~90년대 약 5%에서 2010년대 후반 3% 이하로 줄었다는 수치는 검색 요약에서만 봤다. PDF 텍스트 추출 실패",
+    "Griffin, McInnis, Zhao (2026) 「Explaining the Decline of PEAD: More Arbitrage or Less News?」: 출판사 페이지가 403이라 초록과 결론을 확인하지 못했다",
+    "국내 PEAD 연구 두 편의 결론을 확인하지 못했다 — 이병주·김동철 「차익거래 제한요인이 이익공시후 주가지연현상에 미치는 영향」(한국재무학회 발표 PDF, SSL 오류로 접속 실패)과 보험금융연구 26권 2호(2015) PEAD 논문(KIRI PDF, 텍스트 추출 실패)",
+    "「The Market Sentiment Trend, Investor Inertia, and Post-Earnings Announcement Drift: Evidence from Korea's Stock Market」(Sustainability, 2019): 시장 심리가 하락 추세일 때 양(+)의 서프라이즈 뒤 표류가 어떻게 되는지 원문을 확인하지 못했다(403). 검색 요약상으로는 심리가 계속 오르면(내리면) 양(음)의 표류가 생긴다고만 되어 있다",
+    "Milian 연구의 수치 불일치: 학술지 초록 요약은 1.59%, Quantpedia는 1.29%다. 원고 버전 차이로 보이지만 확인하지 못했다",
+    "삼성전자 「2019년 이후 16차례 어닝 서프라이즈 중 10차례 발표 당일 하락」 통계는 누가 집계했는지 기사에 없다",
+    "CJ E&M 2013년 3분기 실적 사전 유출 사건(발표 전에 기관에 실적이 전달돼 주가가 먼저 급락)은 검색 결과 요약으로만 봤고 기사를 직접 열지 않았다. 국내에서 발표 전 정보가 먼저 퍼져 서프라이즈가 발표 전에 반영되는 일이 체계적인지는 미확인",
+    "Hou, Xue, Zhang (2020) 「Replicating Anomalies」에서 이익 서프라이즈의 보유 기간별(1·6·12개월) 재현 결과를 원문으로 확인하지 못했다"
+  ]
+}

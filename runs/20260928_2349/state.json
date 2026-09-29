@@ -1,0 +1,19 @@
+{
+  "settled": [
+    "explore",
+    "collect",
+    "rebut",
+    "lineage",
+    "feasibility",
+    "mechanism",
+    "measurement",
+    "verdict"
+  ],
+  "skipped": [
+    "explore"
+  ],
+  "candidate": {
+    "claim": "미국 상장 리츠(REIT) 및 배당주를 매 분기 배당락일 며칠 전 매수해 배당락 후 단기 반등 시 매도한다(배당 포착, dividend capture)",
+    "identifier": "dividend-capture-us-reit"
+  }
+}
