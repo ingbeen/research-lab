@@ -11,6 +11,7 @@ from typing import Any
 import pytest
 
 from research_lab.agent.invoke import AgentResult, StepFailed, new_session_id
+from research_lab.gate import activity
 from research_lab.runner import collect, decision_log, explore, ledger, naming, state
 from research_lab.runner.steps import StepQualityFailed
 
@@ -287,6 +288,228 @@ def test_known_claims_do_not_take_a_place_under_the_cap(tmp_path: Path) -> None:
     assert [entry.claim for entry in ledger.load(ledger_path)] == known + fresh
     judged = [e for e in decision_log.read(run_dir) if e["event"] == decision_log.EVENT_JUDGED]
     assert judged[0]["overflow"] == 0
+
+
+# 가동일 판정에 쓰는 후보 둘 — 드물고 짧은 것과 넉넉한 것
+_SHORT_AND_RARE = {
+    "claim": "미국 지수 ETF 를 옵션 만기주 첫 거래일 시가에 사서 만기일 종가에 판다",
+    "entries_per_year": 12,
+    "holding_days": 4,
+    "activity_basis": "매월 한 번 · 나흘 보유",
+}
+_ENOUGH = {
+    "claim": "분기 실적이 예상을 크게 웃돈 종목을 발표 다음날 사서 60거래일 보유한다",
+    "entries_per_year": 4,
+    "holding_days": 60,
+    "activity_basis": "실적 시즌마다 한 번 · 석 달 보유",
+}
+
+
+def test_explore_rejects_a_candidate_whose_active_days_fall_short(tmp_path: Path) -> None:
+    """
+    목적: [중요] 연간 가동일이 문턱에 못 미치는 후보를 «기각으로» 담는 계약을 고정한다.
+
+    담지 않고 버리면 다음 탐색이 같은 후보를 또 낸다 — 기각은 「본 적 없다」가 아니다.
+    사유에 어림값이 있어야 사람이 「어림이 틀렸나」를 보고 되돌릴 수 있다.
+
+    Given: 연 12회 · 4거래일(가동일 48)인 후보
+    When: 탐색을 돈다
+    Then: 원장에 기각으로 담기고, 사유 줄에 두 어림값과 곱이 있다
+    """
+    ledger_path = tmp_path / "원장.md"
+    answer = _answer({"queries": ["ㄱ", "ㄴ", "ㄷ"], "candidates": [_SHORT_AND_RARE]})
+
+    explore.run(tmp_path / "run", ledger_path, lambda _: answer)
+
+    assert ledger.status_of(ledger_path, _SHORT_AND_RARE["claim"]) is ledger.Status.REJECTED
+    reason_lines = [line for line in ledger_path.read_text(encoding="utf-8").splitlines() if "기각:" in line]
+    assert len(reason_lines) == 1
+    assert all(fragment in reason_lines[0] for fragment in ("12", "4", "48", "매월 한 번 · 나흘 보유"))
+
+
+def test_explore_judges_estimates_written_in_quotes(tmp_path: Path) -> None:
+    """
+    목적: [중요] 에이전트가 어림을 따옴표 숫자로 내도 판정하는 계약을 고정한다.
+
+    응답 틀의 두 자리가 글자로 보이므로 에이전트가 따옴표로 낼 공산이 크다. 못 읽으면 기준이
+    판정 없이 통째로 꺼진다.
+
+    Given: 어림을 「12」 · 「4」 로 낸 옵션 만기주 후보(가동일 48)
+    When: 탐색을 돈다
+    Then: 기각으로 담긴다
+    """
+    ledger_path = tmp_path / "원장.md"
+    quoted = {**_SHORT_AND_RARE, "entries_per_year": "12", "holding_days": "4"}
+    answer = _answer({"queries": ["ㄱ", "ㄴ", "ㄷ"], "candidates": [quoted]})
+
+    explore.run(tmp_path / "run", ledger_path, lambda _: answer)
+
+    assert ledger.status_of(ledger_path, quoted["claim"]) is ledger.Status.REJECTED
+
+
+def test_explore_keeps_a_daily_same_day_candidate(tmp_path: Path) -> None:
+    """
+    목적: [중요] 매일 도는 당일 청산 후보를 «보유 0» 때문에 기각하지 않는 계약을 고정한다.
+
+    Given: 연 252회 · 보유 0(당일 청산)으로 어림한 후보
+    When: 탐색을 돈다
+    Then: 「안 판」으로 담긴다
+    """
+    ledger_path = tmp_path / "원장.md"
+    daily = {
+        "claim": "코스피 지수 ETF 를 매일 시가에 사서 같은 날 종가에 판다",
+        "entries_per_year": 252,
+        "holding_days": 0,
+        "activity_basis": "매 거래일 진입 · 당일 청산",
+    }
+    answer = _answer({"queries": ["ㄱ", "ㄴ", "ㄷ"], "candidates": [daily]})
+
+    explore.run(tmp_path / "run", ledger_path, lambda _: answer)
+
+    assert ledger.status_of(ledger_path, daily["claim"]) is ledger.Status.UNEXPLORED
+
+
+def test_explore_keeps_a_candidate_with_enough_active_days(tmp_path: Path) -> None:
+    """
+    목적: 가동일이 넉넉한 후보는 지금처럼 「안 판」으로 담는 계약을 고정한다.
+
+    Given: 연 4회 · 60거래일(가동일 240)인 후보
+    When: 탐색을 돈다
+    Then: 「안 판」으로 담긴다
+    """
+    ledger_path = tmp_path / "원장.md"
+    answer = _answer({"queries": ["ㄱ", "ㄴ", "ㄷ"], "candidates": [_ENOUGH]})
+
+    explore.run(tmp_path / "run", ledger_path, lambda _: answer)
+
+    assert ledger.status_of(ledger_path, _ENOUGH["claim"]) is ledger.Status.UNEXPLORED
+
+
+def test_explore_keeps_a_candidate_it_cannot_judge(tmp_path: Path) -> None:
+    """
+    목적: [중요] 어림이 없으면 «거르지 않고» 담되, 판정 못 한 사실을 남기는 계약을 고정한다.
+
+    판정을 못 한 것과 미달로 판정한 것은 다르다 — 접으면 멀쩡한 후보가 영구 기각된다.
+    남기지 않으면 에이전트가 어림을 얼마나 빼먹는지 나중에 셀 수 없다.
+
+    Given: 어림 없이 주장만 낸 후보
+    When: 탐색을 돈다
+    Then: 「안 판」으로 담기고, 판정 줄에 판정 못 한 주장으로 남는다
+    """
+    run_dir = tmp_path / "run"
+    ledger_path = tmp_path / "원장.md"
+    claim = "상장 첫날 종가에 사서 20거래일 뒤 판다"
+    answer = _answer({"queries": ["ㄱ", "ㄴ", "ㄷ"], "candidates": [{"claim": claim}]})
+
+    explore.run(run_dir, ledger_path, lambda _: answer)
+
+    assert ledger.status_of(ledger_path, claim) is ledger.Status.UNEXPLORED
+    judged = [e for e in decision_log.read(run_dir) if e["event"] == decision_log.EVENT_JUDGED]
+    assert judged[0]["activity_undecided"] == [claim]
+
+
+def test_explore_records_what_the_activity_gate_rejected(tmp_path: Path) -> None:
+    """
+    목적: 가동일로 기각한 후보와 그 값이 결정 로그에 남는 계약을 고정한다.
+
+    기준을 고쳤을 때 과거 로그를 다시 읽어 「지금 기준이면 판정이 달라졌을 후보」를 찾으려면
+    어림값이 로그에 있어야 한다.
+
+    Given: 미달 후보 하나와 넉넉한 후보 하나
+    When: 탐색을 돈다
+    Then: 판정 줄의 기각 목록에 미달 후보 하나만 값과 함께 있다
+    """
+    run_dir = tmp_path / "run"
+    answer = _answer({"queries": ["ㄱ", "ㄴ", "ㄷ"], "candidates": [_SHORT_AND_RARE, _ENOUGH]})
+
+    explore.run(run_dir, tmp_path / "원장.md", lambda _: answer)
+
+    judged = [e for e in decision_log.read(run_dir) if e["event"] == decision_log.EVENT_JUDGED]
+    assert judged[0]["activity_rejected"] == [
+        {"claim": _SHORT_AND_RARE["claim"], "entries_per_year": 12, "holding_days": 4, "active_days": 48}
+    ]
+    assert judged[0]["activity_undecided"] == []
+
+
+def test_a_candidate_rejected_by_activity_is_not_dug_next(tmp_path: Path) -> None:
+    """
+    목적: 가동일로 기각한 후보를 수집이 집지 않는 계약을 고정한다.
+
+    Given: 미달 후보 뒤에 넉넉한 후보를 낸 탐색
+    When: 다음에 팔 후보를 고른다
+    Then: 넉넉한 후보가 나온다
+    """
+    ledger_path = tmp_path / "원장.md"
+    answer = _answer({"queries": ["ㄱ", "ㄴ", "ㄷ"], "candidates": [_SHORT_AND_RARE, _ENOUGH]})
+
+    explore.run(tmp_path / "run", ledger_path, lambda _: answer)
+
+    upcoming = ledger.next_unexplored(ledger_path)
+    assert upcoming is not None
+    assert upcoming.claim == _ENOUGH["claim"]
+
+
+def test_a_multiline_basis_cannot_plant_a_candidate(tmp_path: Path) -> None:
+    """
+    목적: [중요] 어림 근거의 줄바꿈이 원장에 «가짜 후보»를 심지 못하는 계약을 고정한다.
+
+    사유 줄은 에이전트가 쓴 근거를 싣는다. 줄바꿈이 그대로 들어가면 그다음 줄이 원장의 새 줄이
+    되고, 그 줄이 후보 모양이면 **아무 게이트도 지나지 않은 후보가 「안 판」으로 담긴다.**
+
+    Given: 근거에 줄바꿈과 후보 모양의 줄을 넣은 미달 후보
+    When: 탐색을 돈다
+    Then: 원장의 후보는 그 하나뿐이고 기각이며, 다음에 팔 후보가 없다
+    """
+    ledger_path = tmp_path / "원장.md"
+    planted = {**_SHORT_AND_RARE, "activity_basis": "매월 한 번\n- [ ] 심어진 가짜 후보"}
+    answer = _answer({"queries": ["ㄱ", "ㄴ", "ㄷ"], "candidates": [planted]})
+
+    explore.run(tmp_path / "run", ledger_path, lambda _: answer)
+
+    entries = ledger.load(ledger_path)
+    assert [entry.claim for entry in entries] == [planted["claim"]]
+    assert entries[0].status is ledger.Status.REJECTED
+    assert ledger.next_unexplored(ledger_path) is None
+
+
+def test_explore_prompt_asks_for_the_activity_estimates() -> None:
+    """
+    목적: 탐색 지시문이 기준과 세 필드를 요구하는 계약을 고정한다.
+
+    지시문이 모르면 에이전트가 어림을 안 내고, 그러면 전부 「판정 못 함」으로 통과해 기준이
+    통째로 꺼진다. 문턱은 게이트의 상수에서 끼워 넣는다 — 값이 두 벌이 되면 한쪽만 고쳐진다.
+
+    Given: 탐색 지시문
+    When: 만든다
+    Then: 세 필드 이름과 게이트의 문턱 값이 들어 있다
+    """
+    prompt = explore.build_prompt([])
+
+    for field_name in ('"entries_per_year"', '"holding_days"', '"activity_basis"'):
+        assert field_name in prompt
+    assert f"{activity.MIN_ACTIVE_DAYS_PER_YEAR}거래일 미만" in prompt
+
+
+def test_copying_the_response_template_leaves_a_trace(tmp_path: Path) -> None:
+    """
+    목적: [중요] 응답 틀을 «그대로 베낀» 답이 기준을 흔적 없이 통과하지 못하는 계약을 고정한다.
+
+    에이전트는 틀의 값을 그대로 베끼곤 한다. 틀의 예시 숫자가 문턱을 넘는 값이면 베낀 답이 전부
+    통과해 기준이 꺼지는데, 판정 못 한 목록에도 안 남아 아무도 모른다.
+
+    Given: 지시문의 응답 틀 JSON 을 한 글자도 안 바꾸고 낸 답
+    When: 탐색을 돈다
+    Then: 그 후보가 「판정 못 함」으로 결정 로그에 남는다
+    """
+    run_dir = tmp_path / "run"
+    template = next(line for line in explore.build_prompt([]).splitlines() if line.startswith('{"queries"'))
+    copied = json.loads(template)
+    copied["queries"] = ["ㄱ", "ㄴ", "ㄷ"]
+
+    explore.run(run_dir, tmp_path / "원장.md", lambda _: _answer(copied))
+
+    judged = [e for e in decision_log.read(run_dir) if e["event"] == decision_log.EVENT_JUDGED]
+    assert judged[0]["activity_undecided"] == [copied["candidates"][0]["claim"]]
 
 
 # --------------------------------------------------------------------------

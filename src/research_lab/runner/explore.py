@@ -13,6 +13,7 @@ from typing import Any, Final
 from research_lab.agent import invoke
 from research_lab.agent.invoke import AgentResult
 from research_lab.common_constants import EXPLORE_RESULT_FILENAME
+from research_lab.gate import activity as activity_gate
 from research_lab.gate import queries as query_gate
 from research_lab.runner import decision_log, ledger
 from research_lab.runner import payload as payload_helpers
@@ -42,8 +43,14 @@ class _Stored:
     empty: list[str] = field(default_factory=list)
     # 상한을 넘어 «보지도 않고» 버린 새 주장 — 에이전트가 낸 글자 그대로
     overflow: list[str] = field(default_factory=list)
+    # 연간 가동일이 모자라 기각으로 담은 후보와 그 어림값. 기준을 고친 날 과거 판정을 다시 가를 재료다
+    activity_rejected: list[dict[str, Any]] = field(default_factory=list)
+    # 어림을 못 읽어 거르지 않고 담은 주장. 이 수가 크면 기준이 사실상 꺼져 있다는 뜻이다
+    activity_undecided: list[str] = field(default_factory=list)
 
 
+# [중요] 응답 틀의 두 어림 자리를 «숫자로» 채우지 않는다. 예시 숫자가 문턱을 넘는 값이면 틀을 베낀
+# 답이 전부 통과해 기준이 흔적 없이 꺼진다 — 글자로 두면 베낀 답은 「판정 못 함」으로 로그에 남는다
 PROMPT: Final = """`.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 그 규율을 그대로 따르세요.
 
 ## 할 일 — 탐색
@@ -68,15 +75,32 @@ PROMPT: Final = """`.claude/skills/dossier-research/SKILL.md` 를 먼저 읽고 
 누가 언제 무엇을 보고 예상하는지 없는 말이 여기 걸립니다.
 임의로 값 하나를 채우면 **어떤 값을 넣느냐가 결론을 만듭니다.**
 
+## 돈이 일하는 기간이 너무 짧은 후보는 적지 않습니다
+
+매매 기회도 드물고 보유기간도 짧으면 한 해의 대부분 돈이 쉬어 수익을 기대하기 어렵습니다.
+그래서 후보마다 **연간 가동일 = 연간 독립 진입 시점 × 보유 거래일** 을 어림하고, 그 값이
+**{min_active_days}거래일 미만**인 후보는 적지 마세요. 적더라도 기각으로 담깁니다.
+
+- **연간 독립 진입 시점**(`entries_per_year`): 한 해에 돈을 새로 넣는 시점의 수입니다.
+  같은 날 · 같은 주 · 같은 실적 시즌처럼 한꺼번에 몰리는 사건은 **한 번**으로 셉니다 —
+  같은 날 여러 종목을 사면 돈이 나뉠 뿐 돈이 도는 횟수는 한 번입니다.
+  사건이 연중 흩어져 오면 사건 수에 가깝습니다. 연 1회보다 드물면 0.5(2년에 한 번)처럼 소수로 적습니다
+- **보유 거래일**(`holding_days`): 한 번 사서 팔 때까지의 거래일 수입니다(1개월 ≈ 21거래일, 1년 ≈ 252거래일).
+  주장에 범위가 있으면 **긴 쪽**을, 「단기」처럼 값이 빈 말이면 그 말이 보통 뜻하는 범위의 **긴 쪽**을 적습니다.
+  같은 날 사고 팔면(당일 청산) 1 로 적습니다
+- 두 값은 **숫자 하나씩**으로 적습니다. 정확할 필요는 없지만 반드시 어림합니다
+- **어림 근거**(`activity_basis`): 두 값을 어떻게 어림했는지 한 문장으로 적습니다
+
 ## 이미 본 후보 (다시 담지 마세요)
 
 {known}
 
 ## 낼 것
 
-다른 말 없이 **JSON 하나만** 출력하세요.
+다른 말 없이 **JSON 하나만** 출력하세요. `entries_per_year` · `holding_days` 자리에는 설명 대신
+후보마다 어림한 **따옴표 없는 숫자**를 적습니다.
 
-{{"queries": ["던진 검색어 전부"], "candidates": [{{"claim": "한 줄 주장", "identifier": "짧은-영문-이름", "why": "왜 후보로 볼 만한가", "market": "국내|미국"}}]}}
+{{"queries": ["던진 검색어 전부"], "candidates": [{{"claim": "한 줄 주장", "identifier": "짧은-영문-이름", "why": "왜 후보로 볼 만한가", "market": "국내|미국", "entries_per_year": "연간 독립 진입 시점(숫자)", "holding_days": "보유 거래일(숫자)", "activity_basis": "어림 근거"}}]}}
 """
 
 
@@ -90,7 +114,11 @@ def build_prompt(known_claims: list[str]) -> str:
         에이전트에게 줄 지시문
     """
     listed = "\n".join(f"- {claim}" for claim in known_claims) if known_claims else "(아직 없음)"
-    return PROMPT.format(max_candidates=MAX_CANDIDATES, known=listed)
+    return PROMPT.format(
+        max_candidates=MAX_CANDIDATES,
+        known=listed,
+        min_active_days=activity_gate.MIN_ACTIVE_DAYS_PER_YEAR,
+    )
 
 
 def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
@@ -136,6 +164,8 @@ def run(run_dir: Path, ledger_path: Path, ask: AgentCaller) -> None:
         added=stored.added,
         proposed=len(candidates),
         overflow=len(stored.overflow),
+        activity_rejected=stored.activity_rejected,
+        activity_undecided=stored.activity_undecided,
     )
     if stored.duplicates:
         decision_log.record(
@@ -213,8 +243,35 @@ def _store(ledger_path: Path, candidates: list[Any]) -> _Stored:
 
         seen.add(claim)
         stored.added += 1
+        _judge_activity(ledger_path, claim, candidate, stored)
 
     return stored
+
+
+def _judge_activity(ledger_path: Path, claim: str, candidate: Any, stored: _Stored) -> None:
+    """방금 담은 후보의 연간 가동일을 판정해, 모자라면 그 자리에서 기각으로 표시한다.
+
+    [중요] 담은 «뒤»에 기각한다. 담지 않고 버리면 다음 탐색이 같은 후보를 또 내고 그 회차가 또
+    거른다 — 기각은 「본 적 없다」가 아니다. 두 쓰기 사이에 죽으면 그 후보는 「안 판」으로 남아
+    수집이 평소대로 판다. 안전한 쪽이다.
+    """
+    fields = candidate if isinstance(candidate, dict) else {}
+    entries = fields.get("entries_per_year")
+    holding = fields.get("holding_days")
+
+    days = activity_gate.active_days(entries, holding)
+    if days is None:
+        stored.activity_undecided.append(claim)
+        return
+
+    reason = activity_gate.shortfall_reason(entries, holding, fields.get("activity_basis"))
+    if reason is None:
+        return
+
+    ledger.mark_rejected(ledger_path, claim, reason)
+    stored.activity_rejected.append(
+        {"claim": claim, "entries_per_year": entries, "holding_days": holding, "active_days": days}
+    )
 
 
 def _text_of(candidate: Any, key: str) -> str:
