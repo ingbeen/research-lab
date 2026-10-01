@@ -1,0 +1,17 @@
+{
+  "settled": [
+    "explore",
+    "collect",
+    "rebut",
+    "lineage",
+    "feasibility",
+    "mechanism",
+    "measurement",
+    "verdict"
+  ],
+  "skipped": [],
+  "candidate": {
+    "claim": "코스피 종목 중 직전 20거래일 외국인 순매수 금액을 시가총액으로 나눈 비율 상위 20% 종목을 매월 말 매수해 다음 달 말까지 보유한다",
+    "identifier": "foreign-flow-kr"
+  }
+}

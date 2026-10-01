@@ -1,0 +1,252 @@
+{
+  "claim": "코스피 종목 중 직전 20거래일 외국인 순매수 금액을 시가총액으로 나눈 비율 상위 20% 종목을 매월 말 매수해 다음 달 말까지 보유한다",
+  "groups": [
+    {
+      "origin": {
+        "title": "Sources and Nonlinearity of High Volume Return Premium: An Empirical Study on the Differential Effects of Investor Identity versus Trading Intensity (2020-2024) (Sungwoo Kang, arXiv:2512.14134)",
+        "url": "https://arxiv.org/abs/2512.14134",
+        "published": "2025-12-16"
+      },
+      "copies": [
+        {
+          "title": "Optimal Signal Extraction from Order Flow: A Matched Filter Perspective on Normalization and Market Microstructure (Sungwoo Kang, arXiv:2512.18648)",
+          "url": "https://arxiv.org/abs/2512.18648"
+        },
+        {
+          "title": "The Physics of Price Discovery: Deconvolving Information, Volatility, and the Critical Breakdown of Signal during Retail Herding (Sungwoo Kang, arXiv:2601.11602)",
+          "url": "https://arxiv.org/abs/2601.11602"
+        },
+        {
+          "title": "Information Propagation Across Investor Types: Transfer Entropy Networks in the Korean Equity Market (Sungwoo Kang, arXiv 2603.20271)",
+          "url": "https://arxiv.org/abs/2603.20271"
+        }
+      ]
+    },
+    {
+      "origin": {
+        "title": "Crowded Trading of Foreign Investors in the Korean Stock Market (Ha, Kang, Bae) — Asian Review of Financial Research 36(4), 2023년 11월",
+        "url": "https://pure.kaist.ac.kr/en/publications/crowded-trading-of-foreign-investors-in-the-korean-stock-market/",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "독립. 저자의 Kang 은 KAIST 강장구(Jangkoo Kang)로, arXiv 논문 네 편을 쓴 Sungwoo Kang 과 다른 사람이다. 지표도 순매수가 아니라 보유량을 일평균 거래량으로 나눈 Days-ADV 이고, 수치(월 1.32%, t=2.97)도 자체 추정이다. 발행은 2023년 11월(월까지만 확인)"
+    },
+    {
+      "origin": {
+        "title": "투자자별 거래행태와 수익률 예측능력 분석 (김선호) — 경영교육연구 제40호, 2005년",
+        "url": "https://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART001162926",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "독립. 저자와 발행 연도(2005)가 목록의 다른 어느 출처와도 겹치지 않는다. 다른 출처와 같은 숫자나 예시를 공유한다는 흔적이 없다"
+    },
+    {
+      "origin": {
+        "title": "Herding by foreign investors and emerging market equity returns: Evidence from Korea (Jeon, Moffett) — International Review of Economics and Finance 19(4), 2010년 10월",
+        "url": "https://pure.dongguk.edu/en/publications/herding-by-foreign-investors-and-emerging-market-equity-returns-e/",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "독립. 저자가 다르고 자체 표본으로 추정한 학술 논문이다. 앞선 한국 외국인 연구를 선행연구로 인용했을 수는 있지만 그 숫자를 옮겨 온 글은 아니다. 발행은 2010년 10월(월까지만 확인)"
+    },
+    {
+      "origin": {
+        "title": "시장 수익률에 대한 외국인 순매수의 비대칭 효과 (고광수) — 한국데이터분석학회지 27(5), 2025년",
+        "url": "https://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART003258521",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "독립. 단독 저자의 2025년 논문이다. 주제가 비슷한 김상배(2018)와는 저자가 다르고 발행 간격이 7년이며, 겹치는 숫자를 확인하지 못했다"
+    },
+    {
+      "origin": {
+        "title": "외국인 순매수가 주가지수 수익률에 미치는 영향: 비선형모형을 중심으로 (김상배) — 경영연구 33(2), 2018년",
+        "url": "https://www.kci.go.kr/kciportal/landing/article.kci?arti_id=ART002350416",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "독립. 단독 저자의 2018년 논문으로 고광수(2025)와 저자·연도가 다르다"
+    },
+    {
+      "origin": {
+        "title": "The Portfolio Flows of International Investors, I (Froot, O'Connell, Seasholes) — NBER Working Paper 6687, 1998년 8월",
+        "url": "https://www.nber.org/papers/w6687",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "독립. 한국만이 아니라 여러 나라를 대상으로 하고, 수탁은행의 국가 간 자금 흐름 자료를 쓴 연구다. 목록의 다른 출처와 저자·데이터가 겹치지 않는다. 발행은 1998년 8월(월까지만 확인)"
+    },
+    {
+      "origin": {
+        "title": "Big Fish in Small Ponds: The Trading Behavior and Price Impact of Foreign Investors in Asian Emerging Equity Markets (Richards) — Journal of Financial and Quantitative Analysis 40(1), 2005년 3월",
+        "url": "https://ideas.repec.org/a/cup/jfinqa/v40y2005i01p1-27_00.html",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "독립. 여러 아시아 거래소의 외국인 매매 자료를 쓴 단독 저자 연구다. 저자와 데이터가 Froot 외(1998)와 다르다. 발행은 2005년 3월(월까지만 확인)"
+    },
+    {
+      "origin": {
+        "title": "Is there momentum in Korean equity market? (Shin, Sungchul) — MIT Sloan 석사 논문, 2017년",
+        "url": "https://dspace.mit.edu/entities/publication/a8308730-e016-4d1b-acab-27a593ffb31e",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "독립. 한국 모멘텀을 다룬 석사 논문이다. 같은 주제의 김규영·안제욱 논문과는 저자와 기관이 다르다"
+    },
+    {
+      "origin": {
+        "title": "지난달 투자 성적표 보니…외국인 수익률, 개미의 3배 수준 (SBS 뉴스, 한국거래소 자료 인용)",
+        "url": "https://news.sbs.co.kr/news/endPage.do?news_id=N1008544218",
+        "published": "2026-05-03"
+      },
+      "copies": [],
+      "why": "독립. 2026년 4월 한 달의 한국거래소 자료다(외국인 57.3% · 개인 18.3% · 코스피 30.6%). 같은 한국거래소 자료를 쓴 이투데이 2026-09-02 기사와는 기간(1~8월)과 숫자(40.32%)가 달라 받아쓴 글이 아니다. 신한투자증권 글(2026-05-08)과 발행일이 5일 차이지만 겹치는 숫자가 없다(그 글은 5월 초 순매수 3.49조 원)"
+    },
+    {
+      "origin": {
+        "title": "kr-foreign-flow — Does the persistence of daily foreign-investor flow in Korean equities predict returns? (japark22, GitHub 공개 분석 저장소)",
+        "url": "https://github.com/japark22/kr-foreign-flow",
+        "published": "2026-08-20"
+      },
+      "copies": [],
+      "why": "독립. 한국거래소 일별 외국인 보유 자료를 pykrx 로 직접 받아 2010-01-04~2026-08-14 를 분석했다. 저장소 스스로 논문을 하나도 인용하지 않는다고 밝히고, 수치(1일 t=+3.90, 20일 t=-4.37)도 자체 산출이다. Sungwoo Kang 논문들과 기간·지표·저자가 다르다"
+    },
+    {
+      "origin": {
+        "title": "외국인 및 기관투자자의 순매수강도와 주식수익률 간의 관계 (김수경·변영태, 경영과 정보연구 30권 4호)",
+        "url": "https://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART001623304",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "독립. 저자가 목록의 다른 어느 출처와도 겹치지 않는 학술 논문이다"
+    },
+    {
+      "origin": {
+        "title": "Do Foreign Investors Destabilize Stock Markets? The Korean Experience in 1997 (Choe·Kho·Stulz, NBER w6661 / Journal of Financial Economics 54권 2호)",
+        "url": "https://www.nber.org/papers/w6661",
+        "published": "unknown"
+      },
+      "copies": [
+        {
+          "title": "Do Domestic Investors Have an Edge? The Trading Experience of Foreign Investors in Korea (Choe·Kho·Stulz, NBER w10502 / Review of Financial Studies 18권 3호)",
+          "url": "https://www.nber.org/papers/w10502"
+        }
+      ],
+      "why": "같은 세 저자(Choe·Kho·Stulz)가 같은 한국 증시 투자자 구분 매매 자료로 쓴 연속 연구다. w6661 은 1996-11-30~1997년 말 자료를 썼고 1998년 7월에 나왔다. w10502 는 2004년 5월에 나온 후속 연구다. 질문은 다르지만(불안정화·군집 대 체결 불리) 같은 연구진, 같은 계열의 자료라 독립된 두 번의 확인이 아니다. 먼저 나온 w6661 을 원본으로 둔다"
+    },
+    {
+      "origin": {
+        "title": "Foreign Portfolio Investors Before and During a Crisis (Woochan Kim·Shang-Jin Wei, NBER w6968)",
+        "url": "https://www.nber.org/papers/w6968",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "독립. 같은 1997년 한국 위기를 다루지만 저자가 Choe·Kho·Stulz 와 다른 연구진이고 자체 자료로 분석했다. 시기가 겹친다는 것만으로 복제로 보지 않았다"
+    },
+    {
+      "origin": {
+        "title": "Foreign Ownership Restriction and Momentum – Evidence from Emerging Markets (Yafeng Qin·Min Bai, International Review of Finance 14권 2호 237-261쪽)",
+        "url": "https://ideas.repec.org/a/bla/irvfin/v14y2014i2p237-261.html",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "독립. 여러 신흥시장의 외국인 보유 제한과 모멘텀을 다룬 2014년 논문으로, 저자와 표본이 다른 출처와 겹치지 않는다"
+    },
+    {
+      "origin": {
+        "title": "외국인 투자자의 거래패턴과 주가반응 (오영균, LG경제연구원)",
+        "url": "https://www.lgbr.co.kr/report/view.do?idx=1223",
+        "published": "2002-12-11"
+      },
+      "copies": [],
+      "why": "독립. 2002년 민간 연구소 보고서로, 발행 시점과 필자가 다른 어느 출처와도 몰리지 않는다"
+    },
+    {
+      "origin": {
+        "title": "외국인 주식매수 무작정 따라가단 쪽박찬다 (이데일리, 김경민 기자)",
+        "url": "https://edaily.co.kr/News/Read?mediaCodeNo=257&newsId=02476406599426256",
+        "published": "2012-02-01"
+      },
+      "copies": [
+        {
+          "title": "주식 싹쓸이한 외국인, 수익률은? (이투데이, 문선영 기자)",
+          "url": "https://www.etoday.co.kr/news/view/539049"
+        }
+      ],
+      "why": "발행일이 하루 차이(2012-02-01·02)다. 둘 다 2012년 1월 외국인 기록적 순매수라는 같은 사건을 다루고 같은 한국거래소 자료를 쓴다. 결론도 같다 — 외국인이 많이 산 달은 좋지만 그다음 달 수익률이 크게 둔화한다. 이데일리는 이 결론을 숫자(대량 순매수 달 평균 6% → 다음 달 0.5%)와 분석가(대우증권 한치환) 이름을 붙여 적었다. 이투데이는 같은 결론을 숫자와 출처 없이 「나타났다」로만 적었다. 그래서 반증 논거는 한 덩어리로 세고, 숫자가 있는 이데일리를 원본으로 둔다. 이투데이의 순매수 상위 10종목 표와 신영증권 이경수 인용은 이투데이가 따로 더한 것이다"
+    },
+    {
+      "origin": {
+        "title": "외국인 순매수 상위 종목 절반이 수익률 '마이너스' 기록 (이투데이, 남주현 기자)",
+        "url": "https://www.etoday.co.kr/news/view/1163828",
+        "published": "2015-07-16"
+      },
+      "copies": [],
+      "why": "독립. 2015년 시점의 별도 집계 기사로, 2012년·2026년 기사들과 발행일과 대상 기간이 다르다"
+    },
+    {
+      "origin": {
+        "title": "기관·개인 '웃고' 외인 '울고'…순매수 톱5 수익률 136% vs 40% (이투데이, 김범근 기자)",
+        "url": "https://www.etoday.co.kr/news/view/2620564",
+        "published": "2026-09-02"
+      },
+      "copies": [],
+      "why": "독립. 한국거래소 자료로 2026-01-01~08-31 을 집계했다(기관 135.79% · 개인 102.69% · 외국인 40.32%, 코스피 4,214.17 → 6,820.02). SBS 2026-05-03 기사와는 기간과 숫자가 다르고, 인용한 분석가(삼성증권 박주란)도 이 기사에만 나온다"
+    },
+    {
+      "origin": {
+        "title": "KOSPI Surges Past 9,385 Despite Foreign Net Selling of ₩208 Trillion — Portfolio Rebalancing Is the Answer (BigGo Finance 편집팀)",
+        "url": "https://finance.biggo.com/news/afc1584f-c4c5-4cda-a511-c60ea76741e1",
+        "published": "2026-09-29"
+      },
+      "copies": [],
+      "why": "독립으로 둔다. 다른 기사나 한국거래소를 인용하지 않는다. 운용사 대표 두 사람(임성호·김동섭)의 말을 근거로 들고, 목록의 다른 기사와 같은 숫자나 예시를 쓰지 않는다. 다만 출처를 밝히지 않은 집약 매체의 글이라 수치의 1차 출처를 알 수 없다"
+    },
+    {
+      "origin": {
+        "title": "외국인이 별도 국내 계좌를 개설하지 않고, 해외 증권사의 국내 계좌를 이용하여 국내 주식에 손쉽게 투자할 수 있도록 가이드라인을 마련하였습니다 (금융위원회 보도자료)",
+        "url": "https://www.fsc.go.kr/no010101/85748",
+        "published": "2025-11-27"
+      },
+      "copies": [
+        {
+          "title": "외국인 통합계좌 매매 본격화, 한국 증시의 구조적 변화와 시사점 (신한투자증권)",
+          "url": "https://www.shinhangroup.com/kr/archive/insight/extend/detail/32739"
+        }
+      ],
+      "why": "신한투자증권 글(2026-05-08)은 통합계좌 규제 완화의 일정과 내용을 금융위원회 자료를 출처로 들어 적는다. 반증에서 쓰이는 사실(해외 증권사 통합계좌로 외국인 매매 주체가 넓어졌다는 제도 변화)은 이 보도자료 하나에서 나온다. 그래서 한 덩어리로 세고 1차인 보도자료를 원본으로 둔다. 신한 글이 따로 더한 것은 2026년 5월 초 코스피 외국인 순매수 3.49조 원 기록과, 해외 개인 자금 유입이 단기 변동성을 키운다는 해석이다"
+    },
+    {
+      "origin": {
+        "title": "[시장 쥐락펴락 '검은머리 외국인']① (이투데이, 구성헌 기자)",
+        "url": "https://www.etoday.co.kr/news/view/1968449",
+        "published": "2020-11-30"
+      },
+      "copies": [],
+      "why": "독립. 외국인으로 분류되는 국내 자금을 다룬 2020년 기사다. 2025~2026년 통합계좌 논의와는 발행 시점과 대상 제도가 달라 받아쓴 글이 아니다"
+    },
+    {
+      "origin": {
+        "title": "한국 주식시장에서 모멘텀효과는 정말 존재하는가? (김규영·안제욱, 산업경제연구 26권 4호 1505-1531쪽)",
+        "url": "https://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART001797859",
+        "published": "unknown"
+      },
+      "copies": [],
+      "why": "독립. 한국 모멘텀을 다룬 국내 학술 논문이다. 같은 주제의 Shin(MIT 2017)과는 저자와 기관이 달라 한 덩어리로 보지 않았다"
+    }
+  ],
+  "independent_source_count": 23,
+  "unverified": [
+    "Sungwoo Kang 의 arXiv 네 편은 같은 저자가 같은 계열의 자료(한국 주식 종목·일 단위 투자자 구분 수급, 2020-01 ~ 2024년 말 또는 2025-02)를 써서 한 덩어리로 묶었다. 서로를 본문에서 인용하는지는 초록 페이지만 열어 확인하지 못했다. 네 초록 모두 데이터 출처(어느 기관 자료인지)를 밝히지 않는다",
+    "arXiv:2512.14134 초록은 핵심 수치(상위 사분위 기관 매수의 50일 누적 초과수익률)가 렌더링되지 않은 수식 매크로로 나와 있어, 그 숫자를 초록에서 확인하지 못했다",
+    "NBER w10502 페이지는 사용한 자료의 기간을 밝히지 않았고, w6661 을 이어받은 연구인지도 그 페이지에서 확인되지 않았다. 같은 세 저자가 한국 증시 매매 자료를 썼다는 점만으로 w6661 과 한 덩어리로 묶었다",
+    "이투데이 2012-02-02 기사의 「그 다음 달 수익률은 크게 둔화된 것으로 나타났다」는 출처와 숫자가 없다. 이데일리 2012-02-01 기사의 대우증권 분석(평균 6% → 다음 달 0.5%)과 같은 분석에서 나왔는지는 확인하지 못했다. 발행일 쏠림과 같은 결론을 근거로 묶었다",
+    "금융위원회 보도자료(2025-11-27)는 규정 개정 시행을 2026-01-02 「목표」라고 미래형으로 적었다. 실제로 그날 시행됐는지는 개정 규정 원문 같은 1차 출처로 확인하지 못했다",
+    "신한투자증권 글의 「2026년 5월 초 코스피 외국인 순매수 3.49조 원 사상 최대」는 한국거래소 원자료를 열어 확인하지 못했다",
+    "BigGo Finance 기사의 수치(코스피 9,385 고점, 외국인 순매도 208조 원, 6월 고점 대비 7월 말 40% 하락)는 기사가 출처를 밝히지 않아 1차 출처로 확인하지 못했다",
+    "SBS 2026-05-03 기사의 외국인 57.3% · 개인 18.3% 가 투자자별 순매수 상위 몇 종목의 평균인지 정의를 한국거래소 원자료로 확인하지 못했다",
+    "국내 학술 논문 다섯 편(김선호 2005 · 김상배 2018 · 고광수 2025 · 김수경·변영태 · 김규영·안제욱)과 Froot 외 · Richards · Jeon·Moffett · Kim·Wei · Qin·Bai · Shin(MIT) · LG경제연구원 2002 · 이투데이 2015-07-16 · 이투데이 2020-11-30 은 이 단계에서 본문을 다시 열지 않았다. 저자·발행 연도·자료가 서로 달라 독립으로 판단했고, 어느 글이 다른 글의 숫자를 옮겨 적었는지는 본문 대조로 확인하지 않았다",
+    "Jeon·Moffett(2010) · Kim·Wei · 국내 후속 논문들이 Choe·Kho·Stulz 를 선행연구로 인용했을 수 있다. 선행연구 인용은 자체 추정의 독립성을 해치지 않는다고 보고 묶지 않았다. 이들 논문의 결과가 앞선 연구의 숫자를 재사용한 것인지는 확인하지 않았다"
+  ]
+}

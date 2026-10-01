@@ -1,0 +1,161 @@
+{
+  "queries": [
+    "주식 매매 전략 이상현상 한국 증시 실증 연구",
+    "stock market anomalies that still work individual investors 2025",
+    "외국인 순매수 종목 따라 매수 수익률 연구",
+    "short-term reversal strategy weekly losers buy one week hold evidence",
+    "overnight return anomaly buy at close sell at open SPY",
+    "코스피 200일 이동평균선 추세추종 전략 백테스트",
+    "신용잔고율 높은 종목 수익률 공매도 잔고 비율 주가 예측력 국내",
+    "Connors RSI(2) mean reversion strategy SPY still works",
+    "analyst earnings estimate revisions momentum strategy monthly rebalance returns",
+    "상한가 종목 다음날 수익률 과잉반응 국내 연구",
+    "영업이익 컨센서스 상향 종목 수익률 퀀트 전략 증권사 리포트",
+    "intraday momentum first half hour predicts last half hour Gao Han Li Zhou",
+    "저PBR 밸류업 지수 편입 종목 수익률 분기 리밸런싱 국내 저평가 전략",
+    "dual momentum Antonacci absolute momentum 12-month lookback monthly switch equities bonds",
+    "개인투자자 순매수 상위 종목 이후 수익률 역발상 한국",
+    "stock split announcement drift abnormal returns one year after split Ikenberry",
+    "high short interest stocks underperform days to cover anomaly monthly",
+    "국내 주식 저변동성 종목 포트폴리오 월별 리밸런싱 초과수익 코스피",
+    "한국 주식시장 가격 모멘텀 전략 12개월 수익률 상위 매수 유효성",
+    "코스피 야간 수익률 장중 수익률 차이 종가 매수 시가 매도"
+  ],
+  "candidates": [
+    {
+      "claim": "코스피 종목 중 직전 20거래일 외국인 순매수 금액을 시가총액으로 나눈 비율 상위 20% 종목을 매월 말 매수해 다음 달 말까지 보유한다",
+      "identifier": "foreign-flow-kr",
+      "why": "외국인 순매수가 수익률을 예측한다는 국내 학술 연구(KCI)가 여럿 있으나, 증권사 분석을 인용한 기사는 수급을 확인한 뒤 따라 사면 연 1.6%로 시장을 밑돌았다고 해 찬반이 선명하다",
+      "market": "국내",
+      "entries_per_year": 12,
+      "holding_days": 21,
+      "activity_basis": "매월 말 한 번 재구성하므로 연 12회이고, 한 달 보유라 약 21거래일이다"
+    },
+    {
+      "claim": "코스피·코스닥 종목 중 신용잔고율 하위 20% 종목을 매수하고 상위 20% 종목은 매도(보유 회피)하는 구성을 매월 말 재구성해 다음 달 말까지 보유한다",
+      "identifier": "credit-balance-kr",
+      "why": "신용잔고율이 높은 종목은 하락기 반대매매 물량이 몰리고, 신용융자가 적은 종목이 상대적으로 강했다는 증권사 분석 기사가 있다. 신용잔고율은 거래소·증권사 화면에서 매일 공개된다",
+      "market": "국내",
+      "entries_per_year": 12,
+      "holding_days": 21,
+      "activity_basis": "월 1회 재구성이라 연 12회, 한 달 보유라 약 21거래일이다"
+    },
+    {
+      "claim": "국내 상장사 중 직전 1개월 동안 12개월 선행 영업이익 컨센서스 상향 폭 상위 10% 종목을 매월 말 매수해 다음 달 말까지 보유한다",
+      "identifier": "consensus-up-kr",
+      "why": "국내 퀀트 리포트가 이익조정비율·컨센서스 변화율 같은 실적 모멘텀 팩터를 국내 증시에서 가장 유효한 팩터로 꼽는다. 미국에서는 애널리스트 추정치 수정 뒤 주가가 그 방향으로 표류한다는 연구가 오래 쌓였다",
+      "market": "국내",
+      "entries_per_year": 12,
+      "holding_days": 21,
+      "activity_basis": "월 1회 재구성이라 연 12회, 한 달 보유라 약 21거래일이다"
+    },
+    {
+      "claim": "코스피 업종 지수 중 직전 12개월 상승률 상위 3개 업종의 섹터 ETF 를 매월 말 매수해 다음 달 말까지 보유한다",
+      "identifier": "sector-mom-kr",
+      "why": "국내 연구에서 3~12개월 중기 모멘텀이 뚜렷했다는 결과가 있고, 증권사 자료는 2001년부터 상위 3개 업종을 매월 매수하는 시뮬레이션을 보여 준다. 섹터 ETF 로 개인이 그대로 살 수 있다",
+      "market": "국내",
+      "entries_per_year": 12,
+      "holding_days": 21,
+      "activity_basis": "월 1회 교체라 연 12회, 한 달 보유라 약 21거래일이다"
+    },
+    {
+      "claim": "코스피 종목 중 직전 1년 일간 수익률 변동성 하위 20% 종목을 매월 말 동일비중으로 매수해 다음 달 말까지 보유한다",
+      "identifier": "lowvol-kr",
+      "why": "국내 주식시장에서 변동성 조정 전략이 거래비용을 뺀 뒤에도 월평균 1.57%의 유의한 초과수익을 냈다는 학위논문과, 저변동성 이상현상의 수익성을 검증한 대학 자료가 있다",
+      "market": "국내",
+      "entries_per_year": 12,
+      "holding_days": 21,
+      "activity_basis": "월 1회 재구성이라 연 12회, 한 달 보유라 약 21거래일이다"
+    },
+    {
+      "claim": "코스피·코스닥 종목 중 PBR 하위 20% 이면서 직전 연도 ROE 가 양수인 종목을 매년 4월 첫 거래일(직전 연도 사업보고서 공시 뒤)에 동일비중으로 매수해 다음 해 4월 첫 거래일까지 보유한다",
+      "identifier": "low-pbr-kr",
+      "why": "국내 저PER·저PBR 효과를 다룬 학술 연구가 있고, 2024년 이후 거래소 밸류업 정책(저PBR 공표·밸류업 지수)이라는 제도 변화가 생겨 그 효과가 지금도 살아 있는지 볼 거리가 있다",
+      "market": "국내",
+      "entries_per_year": 1,
+      "holding_days": 252,
+      "activity_basis": "연 1회 재구성이고 1년 보유라 약 252거래일이다"
+    },
+    {
+      "claim": "코스피200 지수 종가가 200일 이동평균선 위로 올라선 다음 거래일에 코스피200 ETF 를 매수하고, 아래로 내려선 다음 거래일에 매도해 현금으로 이동한다",
+      "identifier": "ma200-kospi",
+      "why": "추세추종의 가장 흔한 형태이고 국내 ETF 로 바로 집행된다. 반전 초입을 늦게 잡고 횡보장에서 교차 신호가 늘어난다는 약점도 함께 알려져 있다",
+      "market": "국내",
+      "entries_per_year": 4,
+      "holding_days": 40,
+      "activity_basis": "횡보장의 잦은 교차를 감안해 연 4회 안팎의 진입으로 보고, 지수가 이동평균 위에 머무는 기간을 연중 약 60%로 잡아 한 번에 약 40거래일 보유로 어림했다"
+    },
+    {
+      "claim": "코스피·코스닥 종목이 상한가(가격제한폭 +30%)로 마감한 다음 거래일 시가에 매수해 며칠 뒤 종가에 매도한다",
+      "identifier": "limit-up-kr",
+      "why": "가격제한폭 때문에 정보가 하루에 다 반영되지 못해 다음 날 수익률에 양의 상관이 생긴다는 국내 연구가 있다. 반대로 개인투자자의 과잉반응 뒤 되돌림이라는 해석도 있어 방향이 열려 있다",
+      "market": "국내",
+      "entries_per_year": 150,
+      "holding_days": 5,
+      "activity_basis": "같은 날 여러 종목의 상한가는 한 번으로 세고, 상한가 종목이 나오는 거래일을 연 150일 안팎으로 어림했다. 「며칠」은 보통 뜻하는 범위의 긴 쪽인 5거래일로 잡았다"
+    },
+    {
+      "claim": "미국 S&P500 구성종목 중 직전 1주 수익률 하위 10% 종목을 매주 마지막 거래일 종가에 매수해 다음 주 마지막 거래일 종가에 매도한다",
+      "identifier": "st-reversal-us",
+      "why": "직전 주 패자가 다음 주 반등한다는 단기 반전(Lehman 1990 등)이 학술적으로 오래 기록됐다. 다만 호가 차이를 빼면 사라진다는 반론도 같은 문헌 안에 있다",
+      "market": "미국",
+      "entries_per_year": 52,
+      "holding_days": 5,
+      "activity_basis": "매주 한 번 재구성이라 연 52회, 한 주 보유라 5거래일이다"
+    },
+    {
+      "claim": "미국 S&P500 ETF 를 매 거래일 종가에 매수해 다음 거래일 시가에 매도한다",
+      "identifier": "overnight-spy",
+      "why": "SPY 의 장기 누적 수익이 거의 전부 종가→시가 구간에서 나왔다는 분석이 여럿 있다. 거래가 잦아 비용이 효과를 지운다는 반론도 있다",
+      "market": "미국",
+      "entries_per_year": 252,
+      "holding_days": 1,
+      "activity_basis": "매 거래일 진입이라 연 252회이고, 밤사이 보유라 하루로 셌다"
+    },
+    {
+      "claim": "매월 말 미국 S&P500 ETF 와 미국 외 주식 ETF 의 직전 12개월 수익률을 비교해 높은 쪽을 매수하되, 그 수익률이 미국 단기국채 수익률보다 낮으면 미국 종합채권 ETF 를 매수해 다음 달 말까지 보유한다",
+      "identifier": "dual-momentum-us",
+      "why": "Antonacci 의 듀얼 모멘텀(GEM)으로 널리 알려진 규칙이고, 12개월 되돌아보기와 월 1회 교체가 문헌에 정해져 있다. 모두 상장 ETF 라 개인이 집행할 수 있다",
+      "market": "미국",
+      "entries_per_year": 12,
+      "holding_days": 21,
+      "activity_basis": "월 1회 교체라 연 12회, 한 달 보유라 약 21거래일이다. 언제나 셋 중 하나를 보유한다"
+    },
+    {
+      "claim": "미국 S&P500 ETF 의 전일 종가 대비 개장 후 첫 30분 수익률이 양이면 장 마감 30분 전에 매수하고 음이면 공매도해 당일 종가에 청산한다",
+      "identifier": "intraday-mom-us",
+      "why": "Gao·Han·Li·Zhou 가 1993~2013년 SPY 고빈도 자료에서 첫 30분 수익률이 마지막 30분 수익률을 예측한다고 보고했고, 변동성과 거래량이 큰 날 더 강했다고 했다",
+      "market": "미국",
+      "entries_per_year": 252,
+      "holding_days": 1,
+      "activity_basis": "매 거래일 신호가 나오므로 연 252회이고, 당일 청산이라 하루로 셌다"
+    },
+    {
+      "claim": "미국 상장사가 주식분할(2:1 이상)을 발표한 다음 거래일에 매수해 12개월 보유한다",
+      "identifier": "split-drift-us",
+      "why": "Ikenberry 등이 2:1 분할 뒤 1년 초과수익 약 7.9%를 보고해 발표 후 표류로 알려졌다. 이후 연구는 다시 분할하지 않은 기업은 오히려 -11%였다고 해 조건부라는 반론이 있다",
+      "market": "미국",
+      "entries_per_year": 30,
+      "holding_days": 252,
+      "activity_basis": "미국 상장사의 분할 발표는 연중 흩어져 오므로, 같은 주에 몰린 것을 한 번으로 쳐서 연 30회 안팎으로 잡았다. 보유는 12개월이라 약 252거래일이다"
+    },
+    {
+      "claim": "미국 종목을 매월 말 공매도 잔고를 일평균 거래량으로 나눈 값(days to cover)으로 줄 세워 하위 10% 를 매수하고 상위 10% 를 공매도해 다음 달 말까지 보유한다",
+      "identifier": "dtc-short-us",
+      "why": "NBER 워킹페이퍼(Hong 등)는 days to cover 가 공매도 비율보다 나쁜 수익률을 더 잘 예측하고, 롱숏이 월 1.19%(t=6.67)라고 보고했다. 가치가중에서는 효과가 거의 사라진다는 반론도 있다",
+      "market": "미국",
+      "entries_per_year": 12,
+      "holding_days": 21,
+      "activity_basis": "월 1회 재구성이라 연 12회, 한 달 보유라 약 21거래일이다"
+    },
+    {
+      "claim": "미국 종목 중 직전 3개월 애널리스트 EPS 추정치 변화를 주가로 나눈 값 상위 10% 종목을 매월 말 매수해 다음 달 말까지 보유한다",
+      "identifier": "revision-us",
+      "why": "주가가 애널리스트 추정치 수정 방향으로 천천히 표류한다는 연구(Chan·Jegadeesh·Lakonishok 1996 등)가 있고, 1997~2017년에도 추정치 수정 전략의 월평균 수익이 가격 모멘텀보다 컸다는 자료가 있다",
+      "market": "미국",
+      "entries_per_year": 12,
+      "holding_days": 21,
+      "activity_basis": "월 1회 재구성이라 연 12회, 한 달 보유라 약 21거래일이다"
+    }
+  ]
+}

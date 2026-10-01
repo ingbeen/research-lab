@@ -1,0 +1,19 @@
+{
+  "settled": [
+    "explore",
+    "collect",
+    "rebut",
+    "lineage",
+    "feasibility",
+    "mechanism",
+    "measurement",
+    "verdict"
+  ],
+  "skipped": [
+    "explore"
+  ],
+  "candidate": {
+    "claim": "코스피·코스닥 종목 중 신용잔고율 하위 20% 종목을 매수하고 상위 20% 종목은 매도(보유 회피)하는 구성을 매월 말 재구성해 다음 달 말까지 보유한다",
+    "identifier": "credit-balance-kr"
+  }
+}

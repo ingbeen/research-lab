@@ -1,0 +1,16 @@
+{
+  "claim": "코스피·코스닥 종목 중 신용잔고율 하위 20% 종목을 매수하고 상위 20% 종목은 매도(보유 회피)하는 구성을 매월 말 재구성해 다음 달 말까지 보유한다",
+  "queries": [
+    "신용잔고율 높은 종목 수익률 낮다 연구",
+    "margin trading stock returns Korea cross-section credit balance",
+    "신용융자 잔고 미래 주식수익률 예측력 횡단면 논문",
+    "margin buying stock-level future returns negative predictability \"margin debt\" cross-sectional anomaly",
+    "김지현 윤선흠 신용매수거래가 개별주식의 변동성 유동성 수익률예측력에 미치는 영향",
+    "Hirose Kato Bremer \"Can margin traders predict future stock returns in Japan\"",
+    "신용잔고율 하위 종목 포트폴리오 월별 리밸런싱 수익률 퀀트 백테스트",
+    "stocks with high margin purchases subsequently underperform cross-section Taiwan OR China OR Japan margin balance portfolio returns",
+    "信用買い残 多い銘柄 その後のリターン 低い 実証研究",
+    "신용잔고율 팩터 퀀트 증권사 리포트 신용잔고 낮은 종목 초과수익",
+    "신용거래 잔고비율 주식 기대수익률 한국 유가증권시장 코스닥 실증 KCI"
+  ]
+}

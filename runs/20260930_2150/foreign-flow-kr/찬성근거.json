@@ -1,0 +1,127 @@
+{
+  "claim": "코스피 종목 중 직전 20거래일 외국인 순매수 금액을 시가총액으로 나눈 비율 상위 20% 종목을 매월 말 매수해 다음 달 말까지 보유한다",
+  "params": [
+    {
+      "name": "순매수 누적 창",
+      "term": "직전 20거래일",
+      "unit": "거래일",
+      "candidates": [
+        10,
+        20,
+        60
+      ]
+    },
+    {
+      "name": "월말 대비 매수 체결 지연",
+      "term": "매월 말",
+      "unit": "거래일",
+      "candidates": [
+        0,
+        1
+      ]
+    }
+  ],
+  "fixed_terms": [],
+  "evidence": [
+    {
+      "title": "Crowded Trading of Foreign Investors in the Korean Stock Market (Ha, Kang, Bae) — Asian Review of Financial Research 36(4), 2023년 11월",
+      "url": "https://pure.kaist.ac.kr/en/publications/crowded-trading-of-foreign-investors-in-the-korean-stock-market/",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "한국 주식시장에서 외국인 보유 잔고를 일평균 거래대금으로 나눈 값(Days-ADV)이 높은 종목군에서 낮은 종목군을 뺀 포트폴리오가 다음 달 1.32%(t=2.97)의 수익을 냈고, 이 값이 이후 최대 3분기의 어닝 서프라이즈도 예측했다고 보고한다. 외국인이 한 종목에 몰려 있는 정도가 다음 한 달 수익을 예측한다는 점에서 월 단위 보유 주장을 뒷받침한다. 다만 신호는 20거래일 «순매수 흐름»이 아니라 «보유 잔고 수준»이고 분모도 시가총액이 아니라 거래대금이다"
+    },
+    {
+      "title": "Optimal Signal Extraction from Order Flow: A Matched Filter Perspective on Normalization and Market Microstructure (Sungwoo Kang, arXiv:2512.18648)",
+      "url": "https://arxiv.org/abs/2512.18648",
+      "published": "2025-12-21",
+      "kind": "primary",
+      "says": "2020–2024년 한국 시장 종목·일 관측치 270만 건으로, 외국인 순매수 흐름이 다음 날 수익률을 예측하며(거래대금으로 나눈 신호에서 t=16.35) 더 긴 기간에서도 부호가 뒤집히지 않아 일시적 가격 압력이 아닌 지속적 정보 우위로 해석한다고 초록에 적었다. 외국인 순매수가 정보를 담는다는 주장을 뒷받침한다. 다만 외국인 흐름은 시가총액보다 거래대금으로 나눌 때 예측력이 더 강했다고 해 이 주장의 분모(시가총액)와는 다르다. 예측 기간은 다음 날이 중심이다. v3 은 2026-02-20"
+    },
+    {
+      "title": "The Physics of Price Discovery: Deconvolving Information, Volatility, and the Critical Breakdown of Signal during Retail Herding (Sungwoo Kang, arXiv:2601.11602)",
+      "url": "https://arxiv.org/abs/2601.11602",
+      "published": "2026-01-08",
+      "kind": "primary",
+      "says": "2020년 1월 ~ 2025년 2월 한국 주식시장 자료로 투자자별 흐름의 충격반응을 분해해, 외국인과 기관의 흐름은 영구적인 가격 발견을 이끌고 개인의 흐름은 역방향 유동성을 공급한다고 초록에 적었다. 외국인 순매수로 오른 가격이 되돌려지지 않는다는 점에서 한 달 보유를 뒷받침한다. v2 는 2026-02-24"
+    },
+    {
+      "title": "Sources and Nonlinearity of High Volume Return Premium: An Empirical Study on the Differential Effects of Investor Identity versus Trading Intensity (2020-2024) (Sungwoo Kang, arXiv:2512.14134)",
+      "url": "https://arxiv.org/abs/2512.14134",
+      "published": "2025-12-16",
+      "kind": "primary",
+      "says": "한국 시장 2020–2024년에서 매매 강도를 거래대금이 아니라 시가총액으로 나눴을 때, 확신이 가장 큰 기관 매수 분위(Q4)가 이후 50일 동안 양의 누적 초과수익을 냈고 개인 매매는 확신 수준과 무관하게 0 근처였다고 초록에 적었다. 시가총액으로 나눈 순매수 강도가 한 달 남짓한 기간의 수익을 예측할 수 있다는 간접 근거다. 초록에 외국인이 별도 범주로 나오지 않는다"
+    },
+    {
+      "title": "투자자별 거래행태와 수익률 예측능력 분석 (김선호) — 경영교육연구 제40호, 2005년",
+      "url": "https://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART001162926",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "1995–2003년 한국 시장에서 외국인 투자자 그룹은 장기 수익률 예측능력이 있고 특히 대형주에서 주가 예측능력이 우월했다고 초록에 적었다. 코스피 대형주 중심의 외국인 매매가 이후 수익을 예측한다는 주장을 뒷받침한다. 초록에는 순매수를 어떻게 쟀는지와 「장기」가 몇 달인지가 없다"
+    },
+    {
+      "title": "Herding by foreign investors and emerging market equity returns: Evidence from Korea (Jeon, Moffett) — International Review of Economics and Finance 19(4), 2010년 10월",
+      "url": "https://pure.dongguk.edu/en/publications/herding-by-foreign-investors-and-emerging-market-equity-returns-e/",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "한국 시장에서 외국인의 집단 매매(외국인 지분 변화)가 주가 수익률에 유의한 영향을 주고, 1998년 외국인 투자 한도 폐지 후 그 관계가 더 강해졌으며, 국내 기관 지분 변화는 유의한 영향이 거의 없었다고 적었다. 외국인 순매수가 수익과 같은 방향으로 움직인다는 점을 뒷받침한다. 동시적 관계인지 이후 수익 예측인지는 초록으로 갈리지 않는다"
+    },
+    {
+      "title": "시장 수익률에 대한 외국인 순매수의 비대칭 효과 (고광수) — 한국데이터분석학회지 27(5), 2025년",
+      "url": "https://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART003258521",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "2005년 1월 ~ 2024년 12월 일별 자료에 확장 VAR 를 적용해, 1990년대 말 ~ 2000년대 초에 관찰된 외국인 순매수의 양(+)의 수익률 효과가 지난 20년 동안 강하게 유지되었고 코스닥보다 코스피에서 더 강했다고 적었다. 외국인 순매수 효과가 코스피에서 사라지지 않았다는 근거다. 분석 단위가 종목이 아니라 지수다"
+    },
+    {
+      "title": "외국인 순매수가 주가지수 수익률에 미치는 영향: 비선형모형을 중심으로 (김상배) — 경영연구 33(2), 2018년",
+      "url": "https://www.kci.go.kr/kciportal/landing/article.kci?arti_id=ART002350416",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "2000년 1월 ~ 2017년 9월 주간 자료로 외국인 순매수 비율과 코스피 수익률이 양(+)의 관계이고, 외국인 매매가 활발한 국면에서 장기 수익률이 양(+)이었다고 적었다. 외국인 순매수와 코스피 수익이 같은 방향이라는 근거다. 분석 단위가 지수다"
+    },
+    {
+      "title": "The Portfolio Flows of International Investors, I (Froot, O'Connell, Seasholes) — NBER Working Paper 6687, 1998년 8월",
+      "url": "https://www.nber.org/papers/w6687",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "1994–1998년 46개국의 일별 국제 포트폴리오 흐름(State Street 고객 거래 300만 건 이상)에서 흐름이 신흥시장의 이후 주식 수익률을 예측하고 선진시장에서는 예측하지 못한다고 적었다. 신흥시장에서 외국인 흐름이 이후 수익을 예측한다는 근거다. 국가 단위 분석이라 종목 선별과는 거리가 있다. 학술지판은 Journal of Financial Economics 59(2), 2001"
+    },
+    {
+      "title": "Big Fish in Small Ponds: The Trading Behavior and Price Impact of Foreign Investors in Asian Emerging Equity Markets (Richards) — Journal of Financial and Quantitative Analysis 40(1), 2005년 3월",
+      "url": "https://ideas.repec.org/a/cup/jfinqa/v40y2005i01p1-27_00.html",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "아시아 신흥시장 6곳의 외국인 일별 총매매를 분석해 외국인 흐름의 가격 충격이 기존 연구가 말하던 것보다 훨씬 크고, 외국인이 국내외 수익률에 대해 추세 추종 매매를 한다고 적었다. 외국인 순매수가 가격을 밀어 올린다는 메커니즘 쪽 근거다. 시장 전체 단위 분석이다"
+    },
+    {
+      "title": "Is there momentum in Korean equity market? (Shin, Sungchul) — MIT Sloan 석사 논문, 2017년",
+      "url": "https://dspace.mit.edu/entities/publication/a8308730-e016-4d1b-acab-27a593ffb31e",
+      "published": "unknown",
+      "kind": "primary",
+      "says": "한국 주식시장에서 외국인 투자가 늘어나면서 모멘텀이 나타났고, 외국인 비중이 높은 종목일수록 모멘텀이 강했다고 초록에 적었다. 외국인이 사는 종목의 가격 흐름이 이어진다는 간접 근거다. 외국인 순매수를 신호로 직접 쓰지는 않았다"
+    },
+    {
+      "title": "지난달 투자 성적표 보니…외국인 수익률, 개미의 3배 수준 (SBS 뉴스, 한국거래소 자료 인용)",
+      "url": "https://news.sbs.co.kr/news/endPage.do?news_id=N1008544218",
+      "published": "2026-05-03",
+      "kind": "secondary",
+      "says": "2026년 4월 외국인 순매수 상위 10개 종목이 3월 말 대비 평균 57.3% 올라 같은 기간 코스피(30.6%)와 개인 순매수 상위 10개 종목 평균(18.3%)을 웃돌았다고 보도했다. 외국인이 사는 종목이 오른다는 대중적 서술의 예다. 순매수 기간과 수익률 기간이 같은 달이라 이후 수익을 예측하는 근거는 아니다"
+    }
+  ],
+  "unverified": [
+    "이 규칙 그대로(직전 20거래일 외국인 순매수 금액 ÷ 시가총액, 상위 20%, 월말 매수·다음 달 말 청산)를 잰 1차 출처를 찾지 못했다 — 누가 이 규칙을 처음 제시했는지와 그 성과 수치는 미확인",
+    "Bae, Min, Jung (2011, Asia-Pacific Journal of Financial Studies 40(2), 199–239) 「외국인이 산 종목이 판 종목보다 이후 12개월 수익과 영업이익률에서 유의하게 앞선다」 — 검색 요약으로만 봤다. Wiley 와 ResearchGate 페이지가 403 이라 원문과 초록을 직접 열지 못했다",
+    "Pacific-Basin Finance Journal 98권(2026)의 외국인·공매도 순차익거래(NAT) 논문 「외국인이 국내 기관보다 지속적인 수익 예측력을 가진 사실상의 차익거래자다」 — 검색 요약으로만 봤다. ScienceDirect 가 403 이라 원문 미확인",
+    "Onishchenko, Ülkü (2019, Journal of Multinational Financial Management 51) 「2004–2015년 한국에서 외국인이 더 이상 수익을 추종하지 않고 국내 기관보다 유리한 가격에 거래한다」 — 검색 요약으로만 봤고 원문 미확인",
+    "Ha, Kang, Bae (2023)의 신호는 외국인 보유 잔고 ÷ 일평균 거래대금이다. 20거래일 순매수 ÷ 시가총액이라는 흐름 신호에도 같은 다음 달 예측력이 있는지는 미확인",
+    "Kang (arXiv:2512.18648)의 초록에는 외국인 흐름을 시가총액으로 나눴을 때의 t값이 없다 — 이 주장의 분모(시가총액)로 외국인 흐름을 쟀을 때 예측력이 얼마나 남는지 미확인. 예측 기간도 다음 날이 중심이라 한 달 보유에 해당하는지 미확인",
+    "Kang (arXiv:2512.14134)에서 말하는 「기관」에 외국인이 포함되는지 미확인",
+    "김선호(2005)가 외국인 순매수를 어떻게 쟀는지와 「장기 예측능력」의 기간 — 초록만 봤다",
+    "Jeon, Moffett (2010)의 외국인 지분 변화와 수익률 관계가 동시적인지 이후 수익 예측인지 — 초록으로 갈리지 않았다",
+    "대만 연구 「Does Foreign Investors Trade Predict Stock Return? Evidence from Taiwan」 — 검색 요약에 대형주·저 B/M 종목에서 외국인 매매가 이후 수익을 양(+)으로 예측한다고 나왔으나 ResearchGate 페이지를 열지 않아 미확인",
+    "KB증권 「수급 주도주」 화면이 전주 외국인 순매수 금액을 시가총액 대비로 보여 준다는 서술 — 검색 요약으로만 봤고, 페이지 글자가 깨져 내용 미확인",
+    "한양대 저장소의 재무관리연구 29권 4호(2012) 논문과 하나증권 「실전 퀀트」(2024-02-27) PDF — 내려받았으나 본문을 판독하지 못해 외국인 수급 신호가 들어 있는지 미확인",
+    "투자자별 순매수 확정치가 장 마감 뒤에 공표되는지 확인하지 못했다. 그렇다면 월말 당일 순매수를 넣고 월말 종가에 사는 것은 미래 참조다 — 그래서 매수 체결 지연 축의 0 은 「월말 전일까지의 20거래일로 신호를 만들고 월말 종가에 산다」, 1 은 「월말 당일까지의 20거래일로 신호를 만들고 다음 거래일 종가에 산다」는 뜻으로 적었다",
+    "순매수 누적 창 축의 10·60거래일은 주장이 정한 20거래일이 가장 좋은 값이라 골랐는지 가리려고 둔 비교값이다 — 이 두 값의 근거가 되는 출처는 찾지 못했다"
+  ]
+}
