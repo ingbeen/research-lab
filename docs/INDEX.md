@@ -28,6 +28,7 @@
 | [../CLAUDE.md](../CLAUDE.md) | 프로젝트 전반 규칙 · 산출물 독립성 · PUBLIC 저장소의 제약 · 계획서 규약 | **항상 자동** |
 | [../src/research_lab/CLAUDE.md](../src/research_lab/CLAUDE.md) | 계층 구조와 계층 간 계약 | `src/research_lab/` 작업 시 자동 |
 | `~/.claude/rules/python.md` **(전역)** | 코딩 표준 · 반올림 · 로깅 정책 — 저장소 밖이라 링크하지 않습니다 | `**/*.py` **Read 시점**에 자동 |
+| `~/.claude/rules/python-tests.md` **(전역)** | 테스트 공통 규칙 — 이 저장소에는 `tests/CLAUDE.md` 가 없어 테스트 규칙은 이것뿐입니다 | 테스트 파일(`tests/**` · `test_*.py` · `conftest.py`) **Read 시점**에 자동 |
 | [../.claude/skills/dossier-research/SKILL.md](../.claude/skills/dossier-research/SKILL.md) | **회차 리서치 규율** — 검색어를 파일로 남기기·소스 독립 판정·1차 출처·미검증 표기. 컨테이너가 전역 `~/.claude` 를 마운트하지 않으므로 **여기 안 적힌 규율은 회차에 존재하지 않습니다** | 러너가 `claude -p` 로 부를 때 |
 | `~/.claude/skills/impl-plan/SKILL.md` **(전역)** | 계획서 작성 절차 (SoT) — 저장소 밖이라 링크하지 않습니다 | `/impl-plan` 스킬 호출 |
 
